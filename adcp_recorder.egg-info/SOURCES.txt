@@ -1,0 +1,16 @@
+LICENSE
+pyproject.toml
+adcp_recorder/__init__.py
+adcp_recorder.egg-info/PKG-INFO
+adcp_recorder.egg-info/SOURCES.txt
+adcp_recorder.egg-info/dependency_links.txt
+adcp_recorder.egg-info/entry_points.txt
+adcp_recorder.egg-info/requires.txt
+adcp_recorder.egg-info/top_level.txt
+adcp_recorder/core/__init__.py
+adcp_recorder/core/enums.py
+adcp_recorder/core/nmea.py
+adcp_recorder/tests/__init__.py
+adcp_recorder/tests/core/__init__.py
+adcp_recorder/tests/core/test_enums.py
+adcp_recorder/tests/core/test_nmea.py
