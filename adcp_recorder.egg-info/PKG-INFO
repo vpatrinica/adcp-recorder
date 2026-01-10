@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: adcp-recorder
+Version: 0.1.0
+Summary: NMEA telemetry recorder for Nortek ADCP instruments with DuckDB backend
+License: MIT
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: pyserial>=3.5
+Requires-Dist: duckdb>=0.9.0
+Requires-Dist: click>=8.1.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.4.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.1.0; extra == "dev"
+Requires-Dist: pytest-mock>=3.11.0; extra == "dev"
+Dynamic: license-file
