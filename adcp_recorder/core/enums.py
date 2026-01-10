@@ -6,26 +6,27 @@ from typing import Union
 
 class InstrumentType(IntEnum):
     """Nortek instrument types as per PNORI specification.
-    
+
     Values:
         AQUADOPP: Standard Aquadopp (code 0)
         AQUADOPP_PROFILER: Aquadopp Profiler (code 2)
         SIGNATURE: Signature series (code 4)
     """
+
     AQUADOPP = 0
     AQUADOPP_PROFILER = 2
     SIGNATURE = 4
-    
+
     @classmethod
-    def from_code(cls, code: int) -> 'InstrumentType':
+    def from_code(cls, code: int) -> "InstrumentType":
         """Create instrument type from numeric code.
-        
+
         Args:
             code: Numeric instrument type code (0, 2, or 4)
-            
+
         Returns:
             InstrumentType enum value
-            
+
         Raises:
             ValueError: If code is not valid
         """
@@ -36,14 +37,14 @@ class InstrumentType(IntEnum):
                 f"Invalid instrument type code: {code}. "
                 f"Valid codes: 0 (Aquadopp), 2 (Aquadopp Profiler), 4 (Signature)"
             )
-    
+
     @property
     def valid_beam_counts(self) -> tuple[int, ...]:
         """Valid beam counts for this instrument type.
-        
+
         Returns:
             Tuple of valid beam counts
-            
+
         Note:
             Signature instruments must have exactly 4 beams.
             Other instruments can have 1-3 beams.
@@ -55,26 +56,27 @@ class InstrumentType(IntEnum):
 
 class CoordinateSystem(Enum):
     """Coordinate systems for velocity data.
-    
+
     Values:
         ENU: East-North-Up coordinates
         XYZ: Instrument XYZ coordinates
         BEAM: Raw beam coordinates
     """
+
     ENU = "ENU"
     XYZ = "XYZ"
     BEAM = "BEAM"
-    
+
     @classmethod
-    def from_code(cls, code: Union[int, str]) -> 'CoordinateSystem':
+    def from_code(cls, code: Union[int, str]) -> "CoordinateSystem":
         """Create coordinate system from code.
-        
+
         Args:
             code: Numeric code (0, 1, 2) or string ("ENU", "XYZ", "BEAM")
-            
+
         Returns:
             CoordinateSystem enum value
-            
+
         Raises:
             ValueError: If code is not valid
         """
@@ -93,13 +95,12 @@ class CoordinateSystem(Enum):
                 return cls(code_upper)
             except ValueError:
                 raise ValueError(
-                    f"Invalid coordinate system: {code}. "
-                    f"Valid values: ENU, XYZ, BEAM"
+                    f"Invalid coordinate system: {code}. Valid values: ENU, XYZ, BEAM"
                 )
-    
+
     def to_numeric_code(self) -> int:
         """Convert to numeric code for backward compatibility.
-        
+
         Returns:
             Numeric code: 0 (ENU), 1 (XYZ), 2 (BEAM)
         """
