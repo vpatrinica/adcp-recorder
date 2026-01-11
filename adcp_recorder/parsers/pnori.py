@@ -15,13 +15,15 @@ from adcp_recorder.core.nmea import compute_checksum
 
 
 # Shared validation functions
-def _validate_head_id(head_id: str, max_length: int = 30) -> None:
+def _validate_head_id(head_id: str, max_length: int = 30, numeric_only: bool = False) -> None:
     """Validate head ID format and length."""
     if not head_id:
         raise ValueError("Head ID cannot be empty")
     if len(head_id) > max_length:
         raise ValueError(f"Head ID too long: {len(head_id)} > {max_length}")
-    if not re.match(r"^[A-Za-z0-9\s]+$", head_id):
+    
+    pattern = r"^\d+$" if numeric_only else r"^[A-Za-z0-9\s]+$"
+    if not re.match(pattern, head_id):
         raise ValueError(f"Head ID contains invalid characters: {head_id}")
 
 
@@ -38,9 +40,9 @@ def _validate_beam_count(instrument_type: InstrumentType, beam_count: int) -> No
 
 
 def _validate_cell_count(cell_count: int) -> None:
-    """Validate cell count range."""
-    if cell_count < 1 or cell_count > 1000:
-        raise ValueError(f"Cell count must be 1-1000, got {cell_count}")
+    """Validate cell count range (spec limit 128)."""
+    if cell_count < 1 or cell_count > 128:
+        raise ValueError(f"Cell count must be 1-128, got {cell_count}")
 
 
 def _validate_distance(value: float, field_name: str) -> None:
@@ -201,7 +203,7 @@ class PNORI1:
 
     def __post_init__(self) -> None:
         """Validate all fields after initialization."""
-        _validate_head_id(self.head_id, 20)
+        _validate_head_id(self.head_id, 20, numeric_only=True)
         _validate_beam_count(self.instrument_type, self.beam_count)
         _validate_cell_count(self.cell_count)
         _validate_distance(self.blanking_distance, "Blanking distance")
@@ -362,7 +364,7 @@ class PNORI2:
 
     def __post_init__(self) -> None:
         """Validate all fields after initialization."""
-        _validate_head_id(self.head_id, 20)
+        _validate_head_id(self.head_id, 20, numeric_only=True)
         _validate_beam_count(self.instrument_type, self.beam_count)
         _validate_cell_count(self.cell_count)
         _validate_distance(self.blanking_distance, "Blanking distance")

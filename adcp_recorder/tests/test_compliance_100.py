@@ -3,8 +3,9 @@
 import pytest
 from queue import Queue
 from unittest.mock import Mock, patch
-from adcp_recorder.parsers.pnori import PNORI1, PNORI2, InstrumentType, CoordinateSystem
-from adcp_recorder.parsers.pnors import PNORS2, PNORS3, PNORS4, PNORS2Tag
+from adcp_recorder.parsers.pnori import PNORI1, PNORI2
+from adcp_recorder.core.enums import InstrumentType, CoordinateSystem
+from adcp_recorder.parsers.pnors import PNORS2, PNORS3, PNORS4
 from adcp_recorder.serial.consumer import SerialConsumer, MessageRouter
 from adcp_recorder.db.db import DatabaseManager
 from adcp_recorder.db.operations import (

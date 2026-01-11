@@ -106,12 +106,12 @@ class TestPNORI:
         """Test cell count validation."""
         # Too low
         sentence = "$PNORI,4,Test,4,0,0.20,1.00,0*00"
-        with pytest.raises(ValueError, match="Cell count must be 1-1000"):
+        with pytest.raises(ValueError, match="Cell count must be 1-128"):
             PNORI.from_nmea(sentence)
 
         # Too high
-        sentence = "$PNORI,4,Test,4,1001,0.20,1.00,0*00"
-        with pytest.raises(ValueError, match="Cell count must be 1-1000"):
+        sentence = "$PNORI,4,Test,4,129,0.20,1.00,0*00"
+        with pytest.raises(ValueError, match="Cell count must be 1-128"):
             PNORI.from_nmea(sentence)
 
     def test_blanking_distance_validation(self):
@@ -181,19 +181,19 @@ class TestPNORI1:
     def test_parse_all_coordinate_systems(self):
         """Test parsing all coordinate system variants."""
         for coord_sys in ["ENU", "XYZ", "BEAM"]:
-            sentence = f"$PNORI1,4,Test,4,20,0.20,1.00,{coord_sys}*00"
+            sentence = f"$PNORI1,4,123,4,20,0.20,1.00,{coord_sys}*00"
             config = PNORI1.from_nmea(sentence)
             assert config.coordinate_system.value == coord_sys
 
     def test_invalid_coordinate_string_raises_error(self):
         """Test that invalid coordinate string raises ValueError."""
-        sentence = "$PNORI1,4,Test,4,20,0.20,1.00,INVALID*00"
+        sentence = "$PNORI1,4,123,4,20,0.20,1.00,INVALID*00"
         with pytest.raises(ValueError, match="Invalid coordinate system"):
             PNORI1.from_nmea(sentence)
 
     def test_round_trip_serialization(self):
         """Test parsing and serialization round-trip."""
-        original = "$PNORI1,4,Test,4,20,0.20,1.00,XYZ*00"
+        original = "$PNORI1,4,123,4,20,0.20,1.00,XYZ*00"
         config = PNORI1.from_nmea(original)
         reserialized = config.to_nmea()
 
@@ -203,18 +203,21 @@ class TestPNORI1:
     def test_all_pnori_validation_rules_apply(self):
         """Test that PNORI validation rules apply to PNORI1."""
         # Signature must have 4 beams
-        sentence = "$PNORI1,4,Test,3,20,0.20,1.00,ENU*00"
-        with pytest.raises(ValueError):
+        sentence = "$PNORI1,4,123,4,20,0.20,1.00,ENU*00"
+        # Wait, if I use 123 it's fine. I need to use invalid one to check validation rules.
+        # Signature must have 4 beams
+        sentence = "$PNORI1,4,123,3,20,0.20,1.00,ENU*00"
+        with pytest.raises(ValueError, match="SIGNATURE requires beam count"):
             PNORI1.from_nmea(sentence)
 
         # Cell count range
-        sentence = "$PNORI1,4,Test,4,1001,0.20,1.00,ENU*00"
-        with pytest.raises(ValueError):
+        sentence = "$PNORI1,4,123,4,129,0.20,1.00,ENU*00"
+        with pytest.raises(ValueError, match="Cell count must be 1-128"):
             PNORI1.from_nmea(sentence)
 
     def test_to_dict_with_string_coords(self):
         """Test to_dict includes string coordinate system."""
-        sentence = "$PNORI1,4,Test,4,20,0.20,1.00,BEAM*00"
+        sentence = "$PNORI1,4,123,4,20,0.20,1.00,BEAM*00"
         config = PNORI1.from_nmea(sentence)
         data_dict = config.to_dict()
 
@@ -241,40 +244,40 @@ class TestPNORI2:
 
     def test_parse_fields_in_different_order(self):
         """Test that field order doesn't matter."""
-        sentence = "$PNORI2,CY=ENU,CS=1.00,BD=0.20,NC=20,NB=4,SN=Test,IT=4*00"
+        sentence = "$PNORI2,CY=ENU,CS=1.00,BD=0.20,NC=20,NB=4,SN=123,IT=4*00"
         config = PNORI2.from_nmea(sentence)
 
-        assert config.head_id == "Test"
+        assert config.head_id == "123"
         assert config.coordinate_system == CoordinateSystem.ENU
 
     def test_missing_required_tag_raises_error(self):
         """Test that missing required tag raises ValueError."""
         # Provides enough fields (8), but CY=XYZ is missing because XX=1 is used instead
-        sentence = "$PNORI2,IT=4,SN=Test,NB=4,NC=20,BD=0.20,CS=1.00,XX=1*00"
+        sentence = "$PNORI2,IT=4,SN=123,NB=4,NC=20,BD=0.20,CS=1.00,XX=1*00"
         with pytest.raises(ValueError, match="Missing required tags"):
             PNORI2.from_nmea(sentence)
 
     def test_unknown_tag_raises_error(self):
         """Test that unknown tag raises ValueError."""
-        sentence = "$PNORI2,IT=4,SN=Test,NB=4,NC=20,BD=0.20,CS=1.00,CY=ENU,XX=99*00"
+        sentence = "$PNORI2,IT=4,SN=123,NB=4,NC=20,BD=0.20,CS=1.00,CY=ENU,XX=99*00"
         with pytest.raises(ValueError, match="Unknown tags"):
             PNORI2.from_nmea(sentence)
 
     def test_invalid_tag_format_no_equals_raises_error(self):
         """Test that field without '=' raises ValueError."""
-        sentence = "$PNORI2,IT=4,SN=Test,NB=4,NC=20,BD=0.20,CS=1.00,CYENU*00"
+        sentence = "$PNORI2,IT=4,SN=123,NB=4,NC=20,BD=0.20,CS=1.00,CYENU*00"
         with pytest.raises(ValueError, match="must contain '='"):
             PNORI2.from_nmea(sentence)
 
     def test_duplicate_tag_raises_error(self):
         """Test that duplicate tags raise ValueError."""
-        sentence = "$PNORI2,IT=4,IT=2,SN=Test,NB=4,NC=20,BD=0.20,CS=1.00,CY=ENU*00"
+        sentence = "$PNORI2,IT=4,IT=2,SN=123,NB=4,NC=20,BD=0.20,CS=1.00,CY=ENU*00"
         with pytest.raises(ValueError, match="Duplicate tag"):
             PNORI2.from_nmea(sentence)
 
     def test_round_trip_serialization(self):
         """Test parsing and serialization round-trip."""
-        original = "$PNORI2,IT=4,SN=Test,NB=4,NC=20,BD=0.20,CS=1.00,CY=XYZ*00"
+        original = "$PNORI2,IT=4,SN=123,NB=4,NC=20,BD=0.20,CS=1.00,CY=XYZ*00"
         config = PNORI2.from_nmea(original)
         reserialized = config.to_nmea()
 
@@ -285,18 +288,18 @@ class TestPNORI2:
     def test_all_pnori_validation_rules_apply(self):
         """Test that PNORI validation rules apply to PNORI2."""
         # Signature must have 4 beams
-        sentence = "$PNORI2,IT=4,SN=Test,NB=3,NC=20,BD=0.20,CS=1.00,CY=ENU*00"
-        with pytest.raises(ValueError):
+        sentence = "$PNORI2,IT=4,SN=123,NB=3,NC=20,BD=0.20,CS=1.00,CY=ENU*00"
+        with pytest.raises(ValueError, match="SIGNATURE requires beam count"):
             PNORI2.from_nmea(sentence)
 
     def test_to_dict_method(self):
         """Test conversion to dictionary."""
-        sentence = "$PNORI2,IT=4,SN=Test,NB=4,NC=20,BD=0.20,CS=1.00,CY=BEAM*00"
+        sentence = "$PNORI2,IT=4,SN=123,NB=4,NC=20,BD=0.20,CS=1.00,CY=BEAM*00"
         config = PNORI2.from_nmea(sentence)
         data_dict = config.to_dict()
 
         assert data_dict["sentence_type"] == "PNORI2"
-        assert data_dict["head_id"] == "Test"
+        assert data_dict["head_id"] == "123"
 
 
 class TestPNORITag:
@@ -316,9 +319,8 @@ class TestPNORITag:
 
     def test_invalid_tag_raises_error_deferred(self):
         """Test that invalid tag raises ValueError in from_nmea (deferred from helper)."""
-        # PNORITag.parse_tagged_field no longer raises for unknown tags
-        # but from_nmea DOES.
-        sentence = "$PNORI2,IT=4,SN=Test,NB=4,NC=20,BD=0.20,CS=1.00,CY=ENU,XX=99*00"
+        # SN="123" is valid, but XX=99 is unknown
+        sentence = "$PNORI2,IT=4,SN=123,NB=4,NC=20,BD=0.20,CS=1.00,CY=ENU,XX=99*00"
         with pytest.raises(ValueError, match="Unknown tags"):
             PNORI2.from_nmea(sentence)
 

@@ -1,11 +1,11 @@
 """PNORS family parsers for sensor data messages.
 
 Implements parsers for:
-- PNORS: Base sensor data
-- PNORS1: Sensor data with salinity
-- PNORS2: Tagged sensor data
-- PNORS3: Compact sensor data
-- PNORS4: Minimal sensor data
+- PNORS: Base sensor data (DF=100)
+- PNORS1: Sensor data with uncertainty (DF=101)
+- PNORS2: Tagged sensor data with uncertainty (DF=102)
+- PNORS3: Tagged sensor data (DF=103)
+- PNORS4: Minimal sensor data (DF=104)
 """
 
 import re
@@ -13,10 +13,12 @@ from dataclasses import dataclass, field
 from typing import Dict, Optional
 
 from .utils import (
-    validate_date_string,
+    validate_date_mm_dd_yy,
+    validate_date_yy_mm_dd,
     validate_time_string,
     validate_hex_string,
     validate_range,
+    parse_tagged_field,
 )
 
 
@@ -32,15 +34,15 @@ def _validate_sound_speed(speed: float) -> None:
 
 def _validate_heading(heading: float) -> None:
     """Validate compass heading (0-360 degrees)."""
-    # Heading is 0 <= h < 360, but validate_range is inclusive.
-    # We use a custom check or adjust range.
     if not (0 <= heading < 360.0):
-        raise ValueError(f"Heading out of range (0-360): {heading}")
+        # Allow 360.0 temporarily if it rounds, but generally it's [0, 360)
+        if heading != 360.0:
+            raise ValueError(f"Heading out of range [0, 360): {heading}")
 
 
-def _validate_pitch_roll(value: float, field_name: str, range_min: float, range_max: float) -> None:
-    """Validate pitch or roll values."""
-    validate_range(value, field_name, range_min, range_max)
+def _validate_pitch_roll(value: float, field_name: str) -> None:
+    """Validate pitch or roll values (-90 to +90)."""
+    validate_range(value, field_name, -90.0, 90.0)
 
 
 def _validate_pressure(pressure: float) -> None:
@@ -53,15 +55,10 @@ def _validate_temperature(temp: float) -> None:
     validate_range(temp, "Temperature", -5.0, 50.0)
 
 
-def _validate_salinity(salinity: float) -> None:
-    """Validate salinity (0-50 PSU)."""
-    validate_range(salinity, "Salinity", 0.0, 50.0)
-
-
 @dataclass(frozen=True)
 class PNORS:
-    """PNORS base sensor data message.
-    Format: $PNORS,MMDDYY,HHMMSS,ErrorHex,StatusHex,Battery,SoundSpeed,Heading,Pitch,Roll,Pressure,Temperature,Analog1,Analog2*CS
+    """PNORS base sensor data message (DF=100).
+    Format: $PNORS,MMDDYY,HHMMSS,Error,Status,Battery,SoundSpeed,Heading,Pitch,Roll,Pressure,Temperature,Analog1,Analog2*CS
     """
     date: str
     time: str
@@ -79,15 +76,15 @@ class PNORS:
     checksum: Optional[str] = field(default=None, repr=False)
 
     def __post_init__(self):
-        validate_date_string(self.date)
+        validate_date_mm_dd_yy(self.date)
         validate_time_string(self.time)
-        validate_hex_string(self.error_code)
-        validate_hex_string(self.status_code)
+        validate_hex_string(self.error_code, 1, 8)
+        validate_hex_string(self.status_code, 8, 8)
         _validate_battery(self.battery)
         _validate_sound_speed(self.sound_speed)
         _validate_heading(self.heading)
-        _validate_pitch_roll(self.pitch, "Pitch", -90, 90)
-        _validate_pitch_roll(self.roll, "Roll", -180, 180)
+        _validate_pitch_roll(self.pitch, "Pitch")
+        _validate_pitch_roll(self.roll, "Roll")
         _validate_pressure(self.pressure)
         _validate_temperature(self.temperature)
 
@@ -144,38 +141,37 @@ class PNORS:
 
 @dataclass(frozen=True)
 class PNORS1:
-    """PNORS1 sensor data with salinity.
-    Format: $PNORS1,MMDDYY,HHMMSS,ErrorHex,StatusHex,Battery,SoundSpeed,Heading,Pitch,Roll,Pressure,Temperature,Analog1,Analog2,Salinity*CS
+    """PNORS1 sensor data with uncertainty (DF=101).
+    Format: $PNORS1,MMDDYY,HHMMSS,Error,Status,Battery,SoundSpeed,HeadingSD,Heading,Pitch,PitchSD,Roll,RollSD,Pressure,PressureSD,Temperature*CS
     """
     date: str
     time: str
-    error_code: str
-    status_code: str
+    error_code: int  # EC is integer in DF=101
+    status_code: str # SC is hex in DF=101
     battery: float
     sound_speed: float
+    heading_std_dev: float
     heading: float
     pitch: float
+    pitch_std_dev: float
     roll: float
+    roll_std_dev: float
     pressure: float
+    pressure_std_dev: float
     temperature: float
-    analog1: int
-    analog2: int
-    salinity: float
     checksum: Optional[str] = field(default=None, repr=False)
 
     def __post_init__(self):
-        validate_date_string(self.date)
+        validate_date_mm_dd_yy(self.date)
         validate_time_string(self.time)
-        validate_hex_string(self.error_code)
-        validate_hex_string(self.status_code)
+        validate_hex_string(self.status_code, 8, 8)
         _validate_battery(self.battery)
         _validate_sound_speed(self.sound_speed)
         _validate_heading(self.heading)
-        _validate_pitch_roll(self.pitch, "Pitch", -90, 90)
-        _validate_pitch_roll(self.roll, "Roll", -180, 180)
+        _validate_pitch_roll(self.pitch, "Pitch")
+        _validate_pitch_roll(self.roll, "Roll")
         _validate_pressure(self.pressure)
         _validate_temperature(self.temperature)
-        _validate_salinity(self.salinity)
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORS1":
@@ -186,26 +182,27 @@ class PNORS1:
             checksum = checksum.strip().upper()
         
         fields = [f.strip() for f in data_part.split(",")]
-        if len(fields) != 15:
-            raise ValueError(f"Expected 15 fields for PNORS1, got {len(fields)}")
+        if len(fields) != 16:
+            raise ValueError(f"Expected 16 fields for PNORS1, got {len(fields)}")
         if fields[0] != "$PNORS1":
             raise ValueError(f"Invalid prefix: {fields[0]}")
             
         return cls(
             date=fields[1],
             time=fields[2],
-            error_code=fields[3],
+            error_code=int(fields[3]),
             status_code=fields[4],
             battery=float(fields[5]),
             sound_speed=float(fields[6]),
-            heading=float(fields[7]),
-            pitch=float(fields[8]),
-            roll=float(fields[9]),
-            pressure=float(fields[10]),
-            temperature=float(fields[11]),
-            analog1=int(fields[12]),
-            analog2=int(fields[13]),
-            salinity=float(fields[14]),
+            heading_std_dev=float(fields[7]),
+            heading=float(fields[8]),
+            pitch=float(fields[9]),
+            pitch_std_dev=float(fields[10]),
+            roll=float(fields[11]),
+            roll_std_dev=float(fields[12]),
+            pressure=float(fields[13]),
+            pressure_std_dev=float(fields[14]),
+            temperature=float(fields[15]),
             checksum=checksum
         )
 
@@ -218,74 +215,57 @@ class PNORS1:
             "status_code": self.status_code,
             "battery": self.battery,
             "sound_speed": self.sound_speed,
+            "heading_std_dev": self.heading_std_dev,
             "heading": self.heading,
             "pitch": self.pitch,
+            "pitch_std_dev": self.pitch_std_dev,
             "roll": self.roll,
+            "roll_std_dev": self.roll_std_dev,
             "pressure": self.pressure,
+            "pressure_std_dev": self.pressure_std_dev,
             "temperature": self.temperature,
-            "analog1": self.analog1,
-            "analog2": self.analog2,
-            "salinity": self.salinity,
             "checksum": self.checksum
         }
 
 
-class PNORS2Tag:
-    """Tags for PNORS2 (Tagged sensor data)."""
-    DATE = "DT"
-    TIME = "TM"
-    ERROR = "ER"
-    STATUS = "ST"
-    BATTERY = "BT"
-    SOUND_SPEED = "SS"
-    HEADING = "HD"
-    PITCH = "PT"
-    ROLL = "RL"
-    PRESSURE = "PR"
-    TEMPERATURE = "TP"
-    ANALOG1 = "A1"
-    ANALOG2 = "A2"
-    
-    REQUIRED_TAGS = {DATE, TIME, ERROR, STATUS, BATTERY, SOUND_SPEED, HEADING, PITCH, ROLL, PRESSURE, TEMPERATURE, ANALOG1, ANALOG2}
-
-    @classmethod
-    def parse_tagged_field(cls, field_str: str) -> tuple[str, str]:
-        if "=" not in field_str:
-            raise ValueError(f"Tagged field must contain '=': {field_str}")
-        tag, value = field_str.split("=", 1)
-        return tag.strip().upper(), value.strip()
-
-
 @dataclass(frozen=True)
 class PNORS2:
-    """PNORS2 tagged sensor data message.
-    Format: $PNORS2,DT=MMDDYY,TM=HHMMSS,ER=ErrorHex,ST=StatusHex,BT=Battery,SS=SoundSpeed,HD=Heading,PT=Pitch,RL=Roll,PR=Pressure,TP=Temperature,A1=Analog1,A2=Analog2*CS
+    """PNORS2 tagged sensor data with uncertainty (DF=102).
+    Format: $PNORS2,DATE=MMDDYY,TIME=HHMMSS,EC=Error,SC=Status,BV=Battery,SS=SoundSpeed,HSD=HeadingSD,H=Heading,PI=Pitch,PISD=PitchSD,R=Roll,RSD=RollSD,P=Pressure,PSD=PressureSD,T=Temperature*CS
     """
     date: str
     time: str
-    error_code: str
+    error_code: int
     status_code: str
     battery: float
     sound_speed: float
+    heading_std_dev: float
     heading: float
     pitch: float
+    pitch_std_dev: float
     roll: float
+    roll_std_dev: float
     pressure: float
+    pressure_std_dev: float
     temperature: float
-    analog1: int
-    analog2: int
     checksum: Optional[str] = field(default=None, repr=False)
 
+    TAG_IDS = {
+        "DATE": "date", "TIME": "time", "EC": "error_code", "SC": "status_code",
+        "BT": "battery", "SS": "sound_speed", "HSD": "heading_std_dev", "H": "heading",
+        "PI": "pitch", "PISD": "pitch_std_dev", "R": "roll", "RSD": "roll_std_dev",
+        "P": "pressure", "PSD": "pressure_std_dev", "T": "temperature"
+    }
+
     def __post_init__(self):
-        validate_date_string(self.date)
+        validate_date_mm_dd_yy(self.date)
         validate_time_string(self.time)
-        validate_hex_string(self.error_code)
-        validate_hex_string(self.status_code)
+        validate_hex_string(self.status_code, 8, 8)
         _validate_battery(self.battery)
         _validate_sound_speed(self.sound_speed)
         _validate_heading(self.heading)
-        _validate_pitch_roll(self.pitch, "Pitch", -90, 90)
-        _validate_pitch_roll(self.roll, "Roll", -180, 180)
+        _validate_pitch_roll(self.pitch, "Pitch")
+        _validate_pitch_roll(self.roll, "Roll")
         _validate_pressure(self.pressure)
         _validate_temperature(self.temperature)
 
@@ -298,40 +278,37 @@ class PNORS2:
             checksum = checksum.strip().upper()
         
         fields = [f.strip() for f in data_part.split(",")]
-        if len(fields) < 14:
-            raise ValueError(f"Expected at least 14 fields for PNORS2, got {len(fields)}")
         if fields[0] != "$PNORS2":
             raise ValueError(f"Invalid prefix: {fields[0]}")
             
         data = {}
         for field_str in fields[1:]:
-            tag, val = PNORS2Tag.parse_tagged_field(field_str)
-            if tag in data:
-                raise ValueError(f"Duplicate tag in PNORS2: {tag}")
-            data[tag] = val
+            tag, val = parse_tagged_field(field_str)
+            if tag not in cls.TAG_IDS:
+                raise ValueError(f"Unknown tag in PNORS2: {tag}")
+            data[cls.TAG_IDS[tag]] = val
             
-        if set(data.keys()) != PNORS2Tag.REQUIRED_TAGS:
-            missing = PNORS2Tag.REQUIRED_TAGS - set(data.keys())
-            extra = set(data.keys()) - PNORS2Tag.REQUIRED_TAGS
-            if missing:
-                raise ValueError(f"Missing required tags in PNORS2: {missing}")
-            if extra:
-                raise ValueError(f"Unknown tags in PNORS2: {extra}")
-            
+        required = set(cls.TAG_IDS.values())
+        if not all(k in data for k in required):
+             missing = required - set(data.keys())
+             raise ValueError(f"Missing required tags in PNORS2: {missing}")
+
         return cls(
-            date=data[PNORS2Tag.DATE],
-            time=data[PNORS2Tag.TIME],
-            error_code=data[PNORS2Tag.ERROR],
-            status_code=data[PNORS2Tag.STATUS],
-            battery=float(data[PNORS2Tag.BATTERY]),
-            sound_speed=float(data[PNORS2Tag.SOUND_SPEED]),
-            heading=float(data[PNORS2Tag.HEADING]),
-            pitch=float(data[PNORS2Tag.PITCH]),
-            roll=float(data[PNORS2Tag.ROLL]),
-            pressure=float(data[PNORS2Tag.PRESSURE]),
-            temperature=float(data[PNORS2Tag.TEMPERATURE]),
-            analog1=int(data[PNORS2Tag.ANALOG1]),
-            analog2=int(data[PNORS2Tag.ANALOG2]),
+            date=data["date"],
+            time=data["time"],
+            error_code=int(data["error_code"]),
+            status_code=data["status_code"],
+            battery=float(data["battery"]),
+            sound_speed=float(data["sound_speed"]),
+            heading_std_dev=float(data["heading_std_dev"]),
+            heading=float(data["heading"]),
+            pitch=float(data["pitch"]),
+            pitch_std_dev=float(data["pitch_std_dev"]),
+            roll=float(data["roll"]),
+            roll_std_dev=float(data["roll_std_dev"]),
+            pressure=float(data["pressure"]),
+            pressure_std_dev=float(data["pressure_std_dev"]),
+            temperature=float(data["temperature"]),
             checksum=checksum
         )
 
@@ -344,25 +321,26 @@ class PNORS2:
             "status_code": self.status_code,
             "battery": self.battery,
             "sound_speed": self.sound_speed,
+            "heading_std_dev": self.heading_std_dev,
             "heading": self.heading,
             "pitch": self.pitch,
+            "pitch_std_dev": self.pitch_std_dev,
             "roll": self.roll,
+            "roll_std_dev": self.roll_std_dev,
             "pressure": self.pressure,
+            "pressure_std_dev": self.pressure_std_dev,
             "temperature": self.temperature,
-            "analog1": self.analog1,
-            "analog2": self.analog2,
             "checksum": self.checksum
         }
 
 
 @dataclass(frozen=True)
 class PNORS3:
-    """PNORS3 compact sensor data.
-    Format: $PNORS3,MMDDYY,HHMMSS,Battery,Heading,Pitch,Roll,Pressure,Temperature*CS
+    """PNORS3 tagged sensor data (DF=103).
+    Format: $PNORS3,BV=Battery,SS=SoundSpeed,H=Heading,PI=Pitch,R=Roll,P=Pressure,T=Temperature*CS
     """
-    date: str
-    time: str
     battery: float
+    sound_speed: float
     heading: float
     pitch: float
     roll: float
@@ -370,13 +348,17 @@ class PNORS3:
     temperature: float
     checksum: Optional[str] = field(default=None, repr=False)
 
+    TAG_IDS = {
+        "BT": "battery", "SS": "sound_speed", "H": "heading",
+        "PI": "pitch", "R": "roll", "P": "pressure", "T": "temperature"
+    }
+
     def __post_init__(self):
-        validate_date_string(self.date)
-        validate_time_string(self.time)
         _validate_battery(self.battery)
+        _validate_sound_speed(self.sound_speed)
         _validate_heading(self.heading)
-        _validate_pitch_roll(self.pitch, "Pitch", -90, 90)
-        _validate_pitch_roll(self.roll, "Roll", -180, 180)
+        _validate_pitch_roll(self.pitch, "Pitch")
+        _validate_pitch_roll(self.roll, "Roll")
         _validate_pressure(self.pressure)
         _validate_temperature(self.temperature)
 
@@ -389,29 +371,27 @@ class PNORS3:
             checksum = checksum.strip().upper()
         
         fields = [f.strip() for f in data_part.split(",")]
-        if len(fields) != 9:
-            raise ValueError(f"Expected 9 fields for PNORS3, got {len(fields)}")
         if fields[0] != "$PNORS3":
             raise ValueError(f"Invalid prefix: {fields[0]}")
             
-        return cls(
-            date=fields[1],
-            time=fields[2],
-            battery=float(fields[3]),
-            heading=float(fields[4]),
-            pitch=float(fields[5]),
-            roll=float(fields[6]),
-            pressure=float(fields[7]),
-            temperature=float(fields[8]),
-            checksum=checksum
-        )
+        data = {}
+        for field_str in fields[1:]:
+            tag, val = parse_tagged_field(field_str)
+            if tag not in cls.TAG_IDS:
+                raise ValueError(f"Unknown tag in PNORS3: {tag}")
+            data[cls.TAG_IDS[tag]] = float(val)
+            
+        if not all(k in data for k in cls.TAG_IDS.values()):
+             missing = set(cls.TAG_IDS.values()) - set(data.keys())
+             raise ValueError(f"Missing required tags in PNORS3: {missing}")
+
+        return cls(**data, checksum=checksum)
 
     def to_dict(self) -> Dict:
         return {
             "sentence_type": "PNORS3",
-            "date": self.date,
-            "time": self.time,
             "battery": self.battery,
+            "sound_speed": self.sound_speed,
             "heading": self.heading,
             "pitch": self.pitch,
             "roll": self.roll,
@@ -423,20 +403,26 @@ class PNORS3:
 
 @dataclass(frozen=True)
 class PNORS4:
-    """PNORS4 minimal sensor data.
-    Format: $PNORS4,MMDDYY,HHMMSS,Heading,Pressure,Temperature*CS
+    """PNORS4 minimal sensor data (DF=104).
+    Format: $PNORS4,YYMMDD,HHMMSS,Battery,SoundSpeed,Heading,Pitch,Roll,Pressure,Temperature*CS
     """
     date: str
     time: str
+    battery: float
+    sound_speed: float
     heading: float
+    pitch: float
+    roll: float
     pressure: float
     temperature: float
     checksum: Optional[str] = field(default=None, repr=False)
 
     def __post_init__(self):
-        validate_date_string(self.date)
-        validate_time_string(self.time)
+        _validate_battery(self.battery)
+        _validate_sound_speed(self.sound_speed)
         _validate_heading(self.heading)
+        _validate_pitch_roll(self.pitch, "Pitch")
+        _validate_pitch_roll(self.roll, "Roll")
         _validate_pressure(self.pressure)
         _validate_temperature(self.temperature)
 
@@ -449,26 +435,32 @@ class PNORS4:
             checksum = checksum.strip().upper()
         
         fields = [f.strip() for f in data_part.split(",")]
-        if len(fields) != 6:
-            raise ValueError(f"Expected 6 fields for PNORS4, got {len(fields)}")
+        if len(fields) != 10:
+            raise ValueError(f"Expected 10 fields for PNORS4, got {len(fields)}")
         if fields[0] != "$PNORS4":
             raise ValueError(f"Invalid prefix: {fields[0]}")
             
         return cls(
             date=fields[1],
             time=fields[2],
-            heading=float(fields[3]),
-            pressure=float(fields[4]),
-            temperature=float(fields[5]),
+            battery=float(fields[3]),
+            sound_speed=float(fields[4]),
+            heading=float(fields[5]),
+            pitch=float(fields[6]),
+            roll=float(fields[7]),
+            pressure=float(fields[8]),
+            temperature=float(fields[9]),
             checksum=checksum
         )
 
     def to_dict(self) -> Dict:
         return {
             "sentence_type": "PNORS4",
-            "date": self.date,
-            "time": self.time,
+            "battery": self.battery,
+            "sound_speed": self.sound_speed,
             "heading": self.heading,
+            "pitch": self.pitch,
+            "roll": self.roll,
             "pressure": self.pressure,
             "temperature": self.temperature,
             "checksum": self.checksum

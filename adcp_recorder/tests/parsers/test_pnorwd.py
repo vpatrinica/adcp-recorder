@@ -98,8 +98,9 @@ class TestPNORWDParser:
         """Test that invalid data markers (-9.0000) are handled."""
         sentence = "$PNORWD,MD,120720,093150,1,0.05,0.02,5,45.0,-9.0000,-9.0000,90.0,135.0*00"
         pnorwd = PNORWD.from_nmea(sentence)
-        assert pnorwd.values[1] == pytest.approx(-9.0000)
-        assert pnorwd.values[2] == pytest.approx(-9.0000)
+        # Verify invalid data markers
+        assert pnorwd.values[1] is None
+        assert pnorwd.values[2] is None
 
     def test_large_value_array(self):
         """Test with maximum allowed frequencies (999)."""

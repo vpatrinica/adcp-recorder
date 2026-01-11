@@ -50,9 +50,9 @@ def test_full_pipeline_e2e(temp_recorder_dir):
     # Looking at test_pnori.py: "$PNORI,4,Signature1000900001,4,20,0.20,1.00,0*2E"
     
     sentences = [
-        b"$PNORI,4,SigE2E,4,20,0.20,1.00,0*26\r\n", 
-        b"$PNORS,102115,090715,00000000,2A480000,14.4,1523.0,275.9,15.7,2.3,0.000,22.45,0,0*3E\r\n",
-        b"$PNORC,102115,090715,1,0.123,-0.456,0.012*34\r\n",
+        b"$PNORI,4,SigE2E,4,20,0.20,1.00,0*26\r\n",
+        b"$PNORS,102115,090715,0,00000000,12.5,1500.0,0.0,0.0,0.0,0.0,20.0,0,0*13\r\n",
+        b"$PNORC,102115,090715,1,0.5,0.1,0.2,0.3,0.4,80,80,80,80,100,100,100,100*11\r\n",
         b"\xff\xfe BINARY DATA \xff\r\n", # Binary/Invalid
     ]
 
@@ -103,10 +103,11 @@ def test_full_pipeline_e2e(temp_recorder_dir):
         assert res[0][0] == "SigE2E"
         
         res = conn.execute("SELECT heading FROM pnors_df100").fetchall()
-        assert float(res[0][0]) == 275.9
+        assert float(res[0][0]) == 0.0
         
-        res = conn.execute("SELECT vel1 FROM pnorc_df100").fetchall()
-        assert float(res[0][0]) == 0.123
+        res = conn.execute("SELECT distance, vel1 FROM pnorc_df100").fetchall()
+        assert float(res[0][0]) == 0.5
+        assert float(res[0][1]) == 0.1
         
         # Check Error Table (for binary data)
         res = conn.execute("SELECT error_type FROM parse_errors").fetchall()
