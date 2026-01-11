@@ -1,0 +1,17 @@
+[Unit]
+Description=ADCP Recorder Service
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi
+Environment="PATH=/home/pi/.local/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/usr/bin/python3 -m adcp_recorder.service.supervisor
+Restart=always
+RestartSec=10
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=multi-user.target

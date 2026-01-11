@@ -115,5 +115,53 @@ def status():
     else:
         click.echo(f"  [WARNING] Serial port {config.serial_port} not found in available ports")
 
+@cli.command()
+@click.option('--platform', type=click.Choice(['linux', 'windows']), required=True, help='Target platform')
+@click.option('--out', type=click.Path(), default='.', help='Output directory for template')
+def generate_service(platform, out):
+    """Generate OS service configuration templates."""
+    import shutil
+    import adcp_recorder.templates
+    
+    # We need to find the package path. 
+    base_path = Path(adcp_recorder.templates.__file__).parent
+    
+    if platform == 'linux':
+        src = base_path / 'linux' / 'adcp-recorder.service'
+        dst_name = 'adcp-recorder.service'
+    elif platform == 'windows':
+        # Instead of a template file, we generate a README or script that calls the python module
+        dst_name = 'install_service.bat'
+        # We'll write content directly since it's simple
+        content = (
+            "@echo off\n"
+            "REM Install ADCP Recorder Service\n"
+            "REM Ensure python is in PATH and pywin32 is installed\n"
+            "python -m adcp_recorder.service.win_service install\n"
+            "python -m adcp_recorder.service.win_service start\n"
+            "echo Service installed and started.\n"
+            "pause\n"
+        )
+        
+        dst = Path(out) / dst_name
+        try:
+            with open(dst, 'w') as f:
+                f.write(content)
+            click.echo(f"Generated {dst_name} in {out}")
+            click.echo("Run this script as Administrator to install the service.")
+            return # Skip copy fallback
+        except Exception as e:
+            click.echo(f"Error generating script: {e}")
+            return
+
+    dst = Path(out) / dst_name
+    
+    try:
+        shutil.copy(src, dst)
+        click.echo(f"Generated {dst_name} in {out}")
+        click.echo("Please edit the file to match your system paths/user.")
+    except Exception as e:
+        click.echo(f"Error generating template: {e}")
+
 if __name__ == '__main__':
     cli()
