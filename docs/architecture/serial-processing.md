@@ -6,165 +6,91 @@ The serial processing subsystem uses a producer-consumer pattern with a FIFO que
 
 ## Initialization Sequence
 
+The system is initialized through the `SerialConnectionManager`, `SerialProducer`, and `SerialConsumer` classes.
+
 ```python
-init_setup:
-   init_logging()
-   init_rx_buffer()
-   init_fifo()
-   test_output_folder(fallback=./data folder in the application root folder)
-   configure_duckdb()
-   connect_to_duckdb()
-   configure_serial()
-   connect_to_serial()
-   non_nmea_rx_counter=0
-   non_nmea_cons_recs=0
-   carry_over_payload=""
+# Setup
+manager = SerialConnectionManager(port, baudrate=115200)
+queue = Queue(maxsize=1000)
+db = DatabaseManager(db_path)
+router = MessageRouter()
+router.register_parser('PNORI', PNORI)
+# ... register other parsers ...
+
+# Start
+producer = SerialProducer(manager, queue)
+consumer = SerialConsumer(queue, db, router)
+
+producer.start()
+consumer.start()
 ```
 
 ## FIFO Producer Loop
 
-The producer thread continuously reads from the serial port and fills the FIFO queue.
-
-```python
-fifo_producer_loop:
-    heartbeat_fifo_producer()
-    check_on_rx()
-    while receive_buffer not empty:
-         receive-line-or-chunk(max length 2048 or CRLF)
-         fill_fifo(append to end)
-    sleep()
-```
+The `SerialProducer` runs in a background thread, reading from the serial port and pushing data to the queue.
 
 ### Producer Responsibilities
 
-- **Heartbeat Monitoring**: Periodic health check signals
-- **Serial Port Polling**: Check for available data
-- **Buffering**: Read up to 2048 bytes or until CRLF
-- **Queue Management**: Append received data to FIFO
-- **Reconnection**: Detect and recover from serial disconnects
+- **Connection Management**: Uses `SerialConnectionManager` to handle connections and reconnection.
+- **Heartbeat Monitoring**: Updates `last_heartbeat` timestamp on every successful read or reconnection.
+- **Serial Port Reading**: Uses `readline()` to get complete sentences.
+- **Binary Detection**: Checks for high-bit characters/null bytes using `is_binary_data()`.
+- **Queue Management**: Pushes lines as bytes to the FIFO queue.
+- **Drop-Oldest Logic**: If the queue is full, the oldest item is discarded to prevent memory bloat.
 
 ## FIFO Consumer Loop
 
-The consumer thread processes the FIFO queue, parsing and validating NMEA sentences.
-
-```python
-fifo_consumer_loop:
-     heartbeat_fifo_consumer()
-     check_fifo()
-     if not empty fifo:
-         payload = fifo.pop()
-         payload = (carry_over_payload + payload)
-         find_nmea_id()        # find first comma
-         find_checksum_sep()   # find * separator
-         find_checksum_value() # extract checksum
-         find_prefix_checksum() # validate prefix
-         
-         non_nmea_chars = scan_for_nonnmea(payload)
-         # if non_nmea_chars > MAX_NON_NMEA_CHARS_PER_LINE
-         process()
-
-def process(buffer):
-     # parse_sentence...
-```
+The `SerialConsumer` runs in a background thread, pulling from the queue and routing to parsers.
 
 ### Consumer Responsibilities
 
-- **Heartbeat Monitoring**: Periodic health check signals
-- **Queue Processing**: Pop payloads from FIFO
-- **Carry-Over Handling**: Manage incomplete sentences across buffers
-- **NMEA Frame Detection**: Identify sentence boundaries
-- **Checksum Validation**: Verify data integrity
-- **Binary Detection**: Identify non-printable characters
-- **Parsing**: Convert sentences to structured data
-- **Storage Routing**: Save to DuckDB or daily files
+- **Heartbeat Monitoring**: Updates `last_heartbeat` timestamp on every processed line.
+- **Queue Processing**: Pulls from the queue with a timeout.
+- **Message Routing**: Uses `MessageRouter` to identify NMEA prefixes and select the correct parser.
+- **Database Storage**: Calls appropriate `insert_*` functions from `adcp_recorder.db.operations`.
+- **Error Tracking**: Logs parse errors and binary data to the `parse_errors` and `raw_lines` tables.
 
 ## Buffer Management
 
 ### Receive Buffer
 
-- **Size**: 2048 bytes maximum per read
-- **Termination**: CRLF sequence or max length
-- **Overflow**: Partial sentences carried over to next iteration
+- **Implementation**: Handled by `pyserial` and `SerialConnectionManager.read_line()`.
+- **Termination**: Line terminators (CRLF) are used to delimit sentences.
 
 ### FIFO Queue
 
-- **Thread-Safe**: Lock-free or mutex-protected queue
-- **Bounded**: Configurable maximum depth to prevent memory exhaustion
-- **Backpressure**: Producer blocks when queue is full
-
-### Carry-Over Payload
-
-Handles incomplete sentences split across buffer reads:
-
-1. Previous iteration ends mid-sentence
-2. Fragment stored in `carry_over_payload`
-3. Next iteration prepends fragment to new data
-4. Complete sentence then parsed
-
-**Example**:
-```
-Read 1: "$PNORI,4,Signature10009000"
-Read 2: "01,4,20,0.20,1.00,0*2E\r\n"
-
-Payload = carry_over + new_data
-        = "$PNORI,4,Signature1000900001,4,20,0.20,1.00,0*2E"
-```
+- **Thread-Safe**: Uses `queue.Queue` from the standard library.
+- **Bounded**: Maximum size is configurable (default: 1000).
+- **Backpressure**: Implements "drop-oldest" non-blocking push.
 
 ## Reconnection Logic
 
 ### Serial Disconnect Detection
 
-- Read returns 0 bytes repeatedly
-- Serial port exception raised
-- Heartbeat timeout from producer
+- Caught by `SerialException` or `OSError` during read operations.
+- Triggers `disconnect()` and sets connection state to closed.
 
 ### Reconnection Procedure
 
-1. Log disconnect event
-2. Close serial port handle
-3. Wait for reconnection delay (configurable)
-4. Attempt to reopen serial port
-5. Reset buffers and counters
-6. Resume producer loop
-
-### Configurable Parameters
-
-- **Reconnection delay**: Time to wait before retry (default: 5 seconds)
-- **Max retries**: Number of reconnection attempts (0 = infinite)
-- **Timeout**: Serial read timeout (default: 1 second)
+1. **Wait and Retry**: Uses exponential backoff (base 2.0, capped at 60s).
+2. **Reconnection Attempts**: Tries up to `max_retries` (default: 5) per cycle.
+3. **Recovery**: Resumes read operations once a new connection is established.
 
 ## Heartbeat Mechanism
 
 ### Purpose
 
-Monitor thread health and detect deadlocks or infinite loops.
+Monitor thread health and detect if either thread has stopped processing data.
 
 ### Implementation
 
-**Producer Heartbeat**:
-```python
-def heartbeat_fifo_producer():
-    producer_last_heartbeat = current_timestamp()
-    log_debug("Producer heartbeat")
-```
+Both `SerialProducer` and `SerialConsumer` maintain a `last_heartbeat` property that is updated during active processing. A central monitor (e.g., in the control plane) can check these timestamps to detect hangs.
 
-**Consumer Heartbeat**:
 ```python
-def heartbeat_fifo_consumer():
-    consumer_last_heartbeat = current_timestamp()
-    log_debug("Consumer heartbeat")
-```
-
-**Monitoring**:
-```python
-def check_thread_health():
-    now = current_timestamp()
-    if (now - producer_last_heartbeat) > HEARTBEAT_TIMEOUT:
-        log_error("Producer thread deadlock detected")
-        trigger_restart()
-    if (now - consumer_last_heartbeat) > HEARTBEAT_TIMEOUT:
-        log_error("Consumer thread deadlock detected")
-        trigger_restart()
+@property
+def last_heartbeat(self) -> float:
+    """Get timestamp of last heartbeat update."""
+    return self._last_heartbeat
 ```
 
 ## Error Handling

@@ -1,6 +1,5 @@
 """Tests for database operations."""
 
-
 from adcp_recorder.db import (
     DatabaseManager,
     insert_raw_line,
@@ -9,7 +8,10 @@ from adcp_recorder.db import (
     update_raw_line_status,
     query_raw_lines,
     query_parse_errors,
+    insert_pnori_configuration,
+    query_pnori_configurations,
 )
+from adcp_recorder.parsers import PNORI, PNORI1, PNORI2
 
 
 class TestInsertOperations:
@@ -321,7 +323,7 @@ class TestPerformance:
                 "checksum_valid": True,
                 "error_message": None,
             }
-            for i in range(1000)
+            for i in range(20000)
         ]
 
         # Batch insert
@@ -352,3 +354,241 @@ class TestPerformance:
             f"\nBatch: {batch_time:.3f}s, Individual: {individual_time:.3f}s, "
             f"Speedup: {individual_time / batch_time:.2f}x"
         )
+
+
+class TestPNORIConfigurationOperations:
+    """Test PNORI configuration database operations."""
+
+    def test_insert_pnori_configuration(self):
+        """Test inserting PNORI configuration."""
+        db = DatabaseManager(":memory:")
+        conn = db.get_connection()
+
+        sentence = "$PNORI,4,Signature1000900001,4,20,0.20,1.00,0*2E"
+        config = PNORI.from_nmea(sentence)
+        config_id = insert_pnori_configuration(conn, config.to_dict(), sentence)
+
+        assert config_id > 0
+
+        # Verify insertion
+        result = conn.execute(
+            """
+            SELECT sentence_type, instrument_type_name, head_id, beam_count,
+                   coord_system_name
+            FROM pnori_configurations WHERE config_id = ?
+            """,
+            [config_id],
+        ).fetchone()
+
+        assert result[0] == "PNORI"
+        assert result[1] == "SIGNATURE"
+        assert result[2] == "Signature1000900001"
+        assert result[3] == 4
+        assert result[4] == "ENU"
+
+    def test_insert_pnori1_configuration(self):
+        """Test inserting PNORI1 configuration."""
+        db = DatabaseManager(":memory:")
+        conn = db.get_connection()
+
+        sentence = "$PNORI1,4,123456,4,30,1.00,5.00,BEAM*5B"
+        config = PNORI1.from_nmea(sentence)
+        config_id = insert_pnori_configuration(conn, config.to_dict(), sentence)
+
+        assert config_id > 0
+
+        # Verify insertion with string coordinate system
+        result = conn.execute(
+            """
+            SELECT sentence_type, coord_system_name, coord_system_code
+            FROM pnori_configurations WHERE config_id = ?
+            """,
+            [config_id],
+        ).fetchone()
+
+        assert result[0] == "PNORI1"
+        assert result[1] == "BEAM"
+        assert result[2] == 2  # BEAM maps to 2
+
+    def test_insert_pnori2_configuration(self):
+        """Test inserting PNORI2 tagged configuration."""
+        db = DatabaseManager(":memory:")
+        conn = db.get_connection()
+
+        sentence = "$PNORI2,IT=4,SN=789012,NB=4,NC=25,BD=0.50,CS=2.00,CY=XYZ*00"
+        config = PNORI2.from_nmea(sentence)
+        config_id = insert_pnori_configuration(conn, config.to_dict(), sentence)
+
+        assert config_id > 0
+
+        # Verify tagged variant
+        result = conn.execute(
+            """
+            SELECT sentence_type, head_id, coord_system_name
+            FROM pnori_configurations WHERE config_id = ?
+            """,
+            [config_id],
+        ).fetchone()
+
+        assert result[0] == "PNORI2"
+        assert result[1] == "789012"
+        assert result[2] == "XYZ"
+
+    def test_query_pnori_configurations_all(self):
+        """Test querying all PNORI configurations."""
+        db = DatabaseManager(":memory:")
+        conn = db.get_connection()
+
+        # Insert multiple configurations
+        sentences = [
+            "$PNORI,4,Device1,4,20,0.20,1.00,0*00",
+            "$PNORI1,4,Device2,4,30,0.50,2.00,ENU*00",
+            "$PNORI2,IT=4,SN=Device3,NB=4,NC=25,BD=1.00,CS=3.00,CY=BEAM*00",
+        ]
+
+        for sentence in sentences:
+            if "PNORI2" in sentence:
+                config = PNORI2.from_nmea(sentence)
+            elif "PNORI1" in sentence:
+                config = PNORI1.from_nmea(sentence)
+            else:
+                config = PNORI.from_nmea(sentence)
+            insert_pnori_configuration(conn, config.to_dict(), sentence)
+
+        # Query all
+        results = query_pnori_configurations(conn)
+
+        assert len(results) == 3
+        assert all("sentence_type" in r for r in results)
+        assert all("head_id" in r for r in results)
+
+    def test_query_pnori_by_head_id(self):
+        """Test querying PNORI configurations by head ID."""
+        db = DatabaseManager(":memory:")
+        conn = db.get_connection()
+
+        # Insert configurations with different head IDs
+        sentence1 = "$PNORI,4,TargetDevice,4,20,0.20,1.00,0*00"
+        sentence2 = "$PNORI,4,OtherDevice,4,20,0.20,1.00,0*00"
+
+        config1 = PNORI.from_nmea(sentence1)
+        config2 = PNORI.from_nmea(sentence2)
+
+        insert_pnori_configuration(conn, config1.to_dict(), sentence1)
+        insert_pnori_configuration(conn, config2.to_dict(), sentence2)
+
+        # Query specific head ID
+        results = query_pnori_configurations(conn, head_id="TargetDevice")
+
+        assert len(results) == 1
+        assert results[0]["head_id"] == "TargetDevice"
+
+    def test_query_pnori_by_sentence_type(self):
+        """Test querying PNORI configurations by sentence type."""
+        db = DatabaseManager(":memory:")
+        conn = db.get_connection()
+
+        # Insert mixed sentence types
+        sentence1 = "$PNORI,4,Device1,4,20,0.20,1.00,0*00"
+        sentence2 = "$PNORI1,4,Device2,4,30,0.50,2.00,ENU*00"
+        sentence3 = "$PNORI,4,Device3,4,25,0.30,1.50,0*00"
+
+        config1 = PNORI.from_nmea(sentence1)
+        config2 = PNORI1.from_nmea(sentence2)
+        config3 = PNORI.from_nmea(sentence3)
+
+        insert_pnori_configuration(conn, config1.to_dict(), sentence1)
+        insert_pnori_configuration(conn, config2.to_dict(), sentence2)
+        insert_pnori_configuration(conn, config3.to_dict(), sentence3)
+
+        # Query only PNORI
+        results = query_pnori_configurations(conn, sentence_type="PNORI")
+
+        assert len(results) == 2
+        assert all(r["sentence_type"] == "PNORI" for r in results)
+
+        # Query only PNORI1
+        results = query_pnori_configurations(conn, sentence_type="PNORI1")
+
+        assert len(results) == 1
+        assert results[0]["sentence_type"] == "PNORI1"
+
+    def test_query_pnori_with_limit(self):
+        """Test query limit parameter."""
+        db = DatabaseManager(":memory:")
+        conn = db.get_connection()
+
+        # Insert multiple configurations
+        for i in range(10):
+            sentence = f"$PNORI,4,Device{i},4,20,0.20,1.00,0*00"
+            config = PNORI.from_nmea(sentence)
+            insert_pnori_configuration(conn, config.to_dict(), sentence)
+
+        # Query with limit
+        results = query_pnori_configurations(conn, limit=5)
+
+        assert len(results) == 5
+
+    def test_pnori_database_constraints(self):
+        """Test that database enforces PNORI constraints."""
+        db = DatabaseManager(":memory:")
+        conn = db.get_connection()
+
+        # Test invalid instrument type code (not in 0, 2, 4)
+        import pytest
+
+        with pytest.raises(Exception):  # DuckDB constraint violation
+            conn.execute(
+                """
+                INSERT INTO pnori_configurations (
+                    config_id, sentence_type, original_sentence,
+                    instrument_type_name, instrument_type_code, head_id,
+                    beam_count, cell_count, blanking_distance, cell_size,
+                    coord_system_name, coord_system_code, checksum
+                )
+                VALUES (1, 'PNORI', '$TEST', 'INVALID', 99, 'Test', 4, 20, 0.20, 1.00, 'ENU', 0, '00')
+                """
+            )
+
+    def test_pnori_cross_field_validation(self):
+        """Test cross-field constraint: Signature must have 4 beams."""
+        db = DatabaseManager(":memory:")
+        conn = db.get_connection()
+
+        import pytest
+
+        # Signature (type 4) with invalid beam count (3)
+        with pytest.raises(Exception):  # DuckDB constraint violation
+            conn.execute(
+                """
+                INSERT INTO pnori_configurations (
+                    config_id, sentence_type, original_sentence,
+                    instrument_type_name, instrument_type_code, head_id,
+                    beam_count, cell_count, blanking_distance, cell_size,
+                    coord_system_name, coord_system_code, checksum
+                )
+                VALUES (1, 'PNORI', '$TEST', 'SIGNATURE', 4, 'Test', 3, 20, 0.20, 1.00, 'ENU', 0, '00')
+                """
+            )
+
+    def test_pnori_coordinate_system_mapping(self):
+        """Test that coordinate system mappings are enforced."""
+        db = DatabaseManager(":memory:")
+        conn = db.get_connection()
+
+        import pytest
+
+        # Invalid mapping: ENU with code 1 (should be 0)
+        with pytest.raises(Exception):  # DuckDB constraint violation
+            conn.execute(
+                """
+                INSERT INTO pnori_configurations (
+                    config_id, sentence_type, original_sentence,
+                    instrument_type_name, instrument_type_code, head_id,
+                    beam_count, cell_count, blanking_distance, cell_size,
+                    coord_system_name, coord_system_code, checksum
+                )
+                VALUES (1, 'PNORI', '$TEST', 'SIGNATURE', 4, 'Test', 4, 20, 0.20, 1.00, 'ENU', 1, '00')
+                """
+            )
+
