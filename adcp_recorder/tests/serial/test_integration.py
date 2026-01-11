@@ -68,7 +68,7 @@ class TestIntegration:
         # Verify database
         conn = db.get_connection()
         configs = conn.execute(
-            "SELECT head_id FROM pnori_configurations ORDER BY head_id"
+            "SELECT head_id FROM pnori ORDER BY head_id"
         ).fetchall()
 
         assert len(configs) >= 3

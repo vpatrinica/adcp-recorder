@@ -66,10 +66,12 @@ class TestPersistenceSuccess:
         record_id = insert_sensor_data(db, sentence, msg.to_dict())
         assert record_id > 0
         
-        results = query_sensor_data(db)
+        # Query from new pnors_df100 table
+        # Columns: record_id, received_at, original_sentence, measurement_date, measurement_time, error_code, status_code, battery, ...
+        results = db.execute("SELECT * FROM pnors_df100").fetchall()
         assert len(results) == 1
-        assert float(results[0]["battery"]) == 14.4
-        assert float(results[0]["heading"]) == 275.9
+        assert float(results[0][7]) == 14.4  # battery (index 7)
+        assert float(results[0][9]) == 275.9  # heading (index 9)
 
     def test_pnorc_persistence(self, db):
         # PNORC: date, time, cell_index, vel1, vel2, vel3, checksum
@@ -78,10 +80,12 @@ class TestPersistenceSuccess:
         record_id = insert_velocity_data(db, sentence, msg.to_dict())
         assert record_id > 0
         
-        results = query_velocity_data(db)
+        # Query from new pnorc_df100 table
+        # Columns: record_id, received_at, original_sentence, measurement_date, measurement_time, cell_index, vel1, ...
+        results = db.execute("SELECT * FROM pnorc_df100").fetchall()
         assert len(results) == 1
-        assert results[0]["cell_index"] == 1
-        assert float(results[0]["vel1"]) == 0.123
+        assert results[0][5] == 1  # cell_index (index 5)
+        assert float(results[0][6]) == 0.123  # vel1 (index 6)
 
     def test_pnorh_persistence(self, db):
         # PNORH3: date, time, num_cells, first_cell, ping_count, checksum
@@ -90,10 +94,11 @@ class TestPersistenceSuccess:
         record_id = insert_header_data(db, sentence, msg.to_dict())
         assert record_id > 0
         
-        results = query_header_data(db)
+        # Query from new pnorh_df103 table
+        # Columns: record_id, received_at, original_sentence, measurement_date, measurement_time, num_cells, ...
+        results = db.execute("SELECT * FROM pnorh_df103").fetchall()
         assert len(results) == 1
-        assert results[0]["sentence_type"] == "PNORH3"
-        assert results[0]["num_cells"] == 20
+        assert results[0][5] == 20  # num_cells (index 5)
 
     def test_pnorw_persistence(self, db):
         sentence = "$PNORW,102115,090715,1.5,2.5,10.0,180.0*XX"
@@ -106,44 +111,55 @@ class TestPersistenceSuccess:
         assert results[0]["sig_wave_height"] == 1.5
 
     def test_pnorb_persistence(self, db):
-        sentence = "$PNORB,102115,090715,0.1,0.2,0.05,25.5,95*XX"
+        sentence = "$PNORB,102115,090715,1,4,0.02,0.20,0.27,7.54,12.00,82.42,75.46,82.10,0000*XX"
         msg = PNORB.from_nmea(sentence)
         record_id = insert_pnorb_data(db, sentence, msg.to_dict())
         assert record_id > 0
         
-        results = query_pnorb_data(db)
+        results = db.execute("SELECT * FROM pnorb_data WHERE record_id = ?", [record_id]).fetchall()
         assert len(results) == 1
-        assert results[0]["bottom_dist"] == 25.5
+        # Check new wave band parameter fields (columns: record_id, received_at, sentence_type, original_sentence, date, time, spectrum_basis, processing_method, freq_low, freq_high, hmo, tm02, tp, dirtp, sprtp, main_dir, wave_error_code, checksum)
+        assert results[0][6] == 1  # spectrum_basis
+        assert results[0][7] == 4  # processing_method
+        assert float(results[0][8]) == 0.02  # freq_low
+        assert float(results[0][9]) == 0.20  # freq_high
+        assert float(results[0][10]) == 0.27  # hmo
 
     def test_pnore_persistence(self, db):
-        sentence = "$PNORE,102115,090715,1,50,60,70,80*XX"
+        # PNORE now uses energy density spectrum format
+        sentence = "$PNORE,102115,090715,1,0.02,0.01,5,1.5,2.5,3.5,4.5,5.5*XX"
         msg = PNORE.from_nmea(sentence)
         record_id = insert_echo_data(db, sentence, msg.to_dict())
         assert record_id > 0
         
-        results = query_echo_data(db)
+        # Columns: record_id, received_at, sentence_type, original_sentence, measurement_date, measurement_time, spectrum_basis, ...
+        results = db.execute("SELECT * FROM echo_data").fetchall()
         assert len(results) == 1
-        assert results[0]["echo1"] == 50
+        assert results[0][6] == 1  # spectrum_basis (index 6)
 
     def test_pnorf_persistence(self, db):
-        sentence = "$PNORF,102115,090715,1000.0,25.0,90.0*XX"
+        # PNORF now uses Fourier coefficient format
+        sentence = "$PNORF,A1,102115,090715,1,0.02,0.01,3,0.5,1.5,2.5*XX"
         msg = PNORF.from_nmea(sentence)
         record_id = insert_pnorf_data(db, sentence, msg.to_dict())
         assert record_id > 0
         
-        results = query_pnorf_data(db)
+        # Columns: record_id, received_at, sentence_type, original_sentence, coefficient_flag, measurement_date, ...
+        results = db.execute("SELECT * FROM pnorf_data").fetchall()
         assert len(results) == 1
-        assert results[0]["frequency"] == 1000.0
+        assert results[0][4] == "A1"  # coefficient_flag (index 4)
 
     def test_pnorwd_persistence(self, db):
-        sentence = "$PNORWD,102115,090715,10,180.0,20.0,50.0*XX"
+        # PNORWD now uses directional spectra format
+        sentence = "$PNORWD,MD,102115,090715,1,0.02,0.01,3,45.0,90.0,135.0*XX"
         msg = PNORWD.from_nmea(sentence)
         record_id = insert_pnorwd_data(db, sentence, msg.to_dict())
         assert record_id > 0
         
-        results = query_pnorwd_data(db)
+        # Columns: record_id, received_at, sentence_type, original_sentence, direction_type, measurement_date, ...
+        results = db.execute("SELECT * FROM pnorwd_data").fetchall()
         assert len(results) == 1
-        assert results[0]["freq_bin"] == 10
+        assert results[0][4] == "MD"  # direction_type (index 4)
 
     def test_pnora_persistence(self, db):
         sentence = "$PNORA,102115,090715,1,15.50,95*XX"
@@ -240,10 +256,14 @@ class TestPersistenceConstraints:
         valid = {
             "sentence_type": "PNORE",
             "date": "101010", "time": "101010",
-            "cell_index": None, # VIOLATION
-            "echo1": 0, "echo2": 0, "echo3": 0, "echo4": 0,
-            "checksum": "XX"
+            "spectrum_basis": 1,
+            "start_frequency": 0.02, "step_frequency": 0.01,
+            "num_frequencies": 2,
+            "energy_densities": [1.0, 2.0],
+            "checksum": None  # Missing checksum is OK
         }
+        # Test with invalid spectrum_basis
+        valid["spectrum_basis"] = 99  # VIOLATION
         with pytest.raises(duckdb.ConstraintException):
              insert_echo_data(db, "$PNORE...", valid)
 
@@ -252,8 +272,11 @@ class TestPersistenceConstraints:
             "sentence_type": "PNORF",
             "date": None, # VIOLATION (NOT NULL)
             "time": "101010",
-            "frequency": 1000.0,
-            "bandwidth": 10, "transmit_power": 10,
+            "coefficient_flag": "A1",
+            "spectrum_basis": 1,
+            "start_frequency": 0.02, "step_frequency": 0.01,
+            "num_frequencies": 2,
+            "coefficients": [1.0, 2.0],
             "checksum": "XX"
         }
         with pytest.raises(duckdb.ConstraintException):
@@ -263,8 +286,12 @@ class TestPersistenceConstraints:
         valid = {
             "sentence_type": "PNORWD",
             "date": None, # VIOLATION
-            "time": "101010", 
-            "freq_bin": 1, "direction": 0, "spread_angle": 0, "energy": 0,
+            "time": "101010",
+            "direction_type": "MD",
+            "spectrum_basis": 1,
+            "start_frequency": 0.02, "step_frequency": 0.01,
+            "num_frequencies": 2,
+            "values": [45.0, 90.0],
             "checksum": "XX"
         }
         with pytest.raises(duckdb.ConstraintException):

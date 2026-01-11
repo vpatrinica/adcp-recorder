@@ -1,7 +1,7 @@
-"""PNORE echo intensity data message parser."""
+"""PNORE wave energy density spectrum message parser."""
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from .utils import (
     validate_date_string,
@@ -12,26 +12,43 @@ from .utils import (
 
 @dataclass(frozen=True)
 class PNORE:
-    """PNORE echo intensity data message.
-    Format: $PNORE,MMDDYY,HHMMSS,CellIndex,Echo1,Echo2,Echo3,Echo4*CS
+    """PNORE wave energy density spectrum message.
+    
+    Format: $PNORE,<date>,<time>,<spectrum_basis>,<start_freq>,
+            <step_freq>,<num_freq>,<energy1>,<energy2>,...,<energyN>*CS
+    
+    Used in Waves mode (DF=501) to transmit spectral energy density values.
     """
     date: str
     time: str
-    cell_index: int
-    echo1: int
-    echo2: int
-    echo3: int
-    echo4: int
+    spectrum_basis: int  # 0=Pressure, 1=Velocity, 3=AST
+    start_frequency: float  # Hz
+    step_frequency: float  # Hz
+    num_frequencies: int
+    energy_densities: List[float]  # Variable length array (cm²/Hz)
     checksum: Optional[str] = field(default=None, repr=False)
 
     def __post_init__(self):
         validate_date_string(self.date)
         validate_time_string(self.time)
-        validate_range(self.cell_index, "Cell index", 1, 1000)
-        validate_range(self.echo1, "Echo 1", 0, 255)
-        validate_range(self.echo2, "Echo 2", 0, 255)
-        validate_range(self.echo3, "Echo 3", 0, 255)
-        validate_range(self.echo4, "Echo 4", 0, 255)
+        
+        # Validate spectrum basis
+        if self.spectrum_basis not in (0, 1, 3):
+            raise ValueError(
+                f"Invalid spectrum basis: {self.spectrum_basis}. "
+                f"Must be 0 (Pressure), 1 (Velocity), or 3 (AST)"
+            )
+        
+        validate_range(self.start_frequency, "Start frequency", 0.0, 10.0)
+        validate_range(self.step_frequency, "Step frequency", 0.0, 10.0)
+        validate_range(self.num_frequencies, "Number of frequencies", 1, 99)
+        
+        # Validate energy array length matches num_frequencies
+        if len(self.energy_densities) != self.num_frequencies:
+            raise ValueError(
+                f"Energy density count mismatch: expected {self.num_frequencies}, "
+                f"got {len(self.energy_densities)}"
+            )
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORE":
@@ -42,19 +59,43 @@ class PNORE:
             checksum = checksum.strip().upper()
         
         fields = [f.strip() for f in data_part.split(",")]
-        if len(fields) != 8:
-            raise ValueError(f"Expected 8 fields for PNORE, got {len(fields)}")
+        
+        # Minimum: $PNORE + 6 header fields + at least 1 energy value
+        if len(fields) < 8:
+            raise ValueError(
+                f"Expected at least 8 fields for PNORE, got {len(fields)}"
+            )
+        
         if fields[0] != "$PNORE":
             raise ValueError(f"Invalid prefix: {fields[0]}")
-            
+        
+        # Parse header fields
+        date = fields[1]
+        time = fields[2]
+        spectrum_basis = int(fields[3])
+        start_frequency = float(fields[4])
+        step_frequency = float(fields[5])
+        num_frequencies = int(fields[6])
+        
+        # Parse energy density array (fields 7 onwards)
+        energy_densities = []
+        for i in range(7, 7 + num_frequencies):
+            if i >= len(fields):
+                raise ValueError(
+                    f"Missing energy density at index {i-7}: "
+                    f"expected {num_frequencies} values, "
+                    f"but sentence only has {len(fields)-7} data fields"
+                )
+            energy_densities.append(float(fields[i]))
+        
         return cls(
-            date=fields[1],
-            time=fields[2],
-            cell_index=int(fields[3]),
-            echo1=int(fields[4]),
-            echo2=int(fields[5]),
-            echo3=int(fields[6]),
-            echo4=int(fields[7]),
+            date=date,
+            time=time,
+            spectrum_basis=spectrum_basis,
+            start_frequency=start_frequency,
+            step_frequency=step_frequency,
+            num_frequencies=num_frequencies,
+            energy_densities=energy_densities,
             checksum=checksum
         )
 
@@ -63,10 +104,10 @@ class PNORE:
             "sentence_type": "PNORE",
             "date": self.date,
             "time": self.time,
-            "cell_index": self.cell_index,
-            "echo1": self.echo1,
-            "echo2": self.echo2,
-            "echo3": self.echo3,
-            "echo4": self.echo4,
+            "spectrum_basis": self.spectrum_basis,
+            "start_frequency": self.start_frequency,
+            "step_frequency": self.step_frequency,
+            "num_frequencies": self.num_frequencies,
+            "energy_densities": self.energy_densities,
             "checksum": self.checksum
         }

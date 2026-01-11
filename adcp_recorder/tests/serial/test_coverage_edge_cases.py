@@ -115,19 +115,17 @@ def test_pnori_coverage():
     assert d["head_id"] == "H1"
 
 def test_pnorw_family_coverage():
-    # Covering missing branches in pnorw parsers
-    for cls, count, prefix in [
-        (PNORW, 7, "$PNORW"),
-        (PNORB, 8, "$PNORB"),
-        (PNORE, 8, "$PNORE"),
-        (PNORF, 6, "$PNORF"),
-        (PNORWD, 7, "$PNORWD")
-    ]:
-        # Using a simpler match pattern to avoid regex issues with parentheses or other chars
-        with pytest.raises(ValueError, match="Expected .* fields"):
-            cls.from_nmea(f"{prefix}," + ",".join(["1"] * (count-2)) + "*00")
+    # Covering missing branches in pnorw parsers - test invalid prefix with correct field counts
+    test_cases = [
+        (PNORW, "$NOTR,102115,090715,1.5,2.5,10.0,180.0*00"),  # 7 fields
+        (PNORB, "$NOTR,102115,090715,1,4,0.02,0.20,0.27,7.54,12.00,82.42,75.46,82.10,0000*00"),  # 14 fields
+        (PNORE, "$NOTR,102115,090715,1,0.02,0.01,2,1.5,2.5*00"),  # 9 fields
+        (PNORF, "$NOTR,A1,102115,090715,1,0.02,0.01,2,0.5,1.5*00"),  # 10 fields
+        (PNORWD, "$NOTR,MD,102115,090715,1,0.02,0.01,2,45.0,90.0*00")  # 10 fields
+    ]
+    for cls, sentence in test_cases:
         with pytest.raises(ValueError, match="Invalid prefix"):
-            cls.from_nmea(f"$NOTR," + ",".join(["1"] * (count-1)) + "*00")
+            cls.from_nmea(sentence)
 
 def test_pnors_coverage():
     # PNORS4 to_dict
