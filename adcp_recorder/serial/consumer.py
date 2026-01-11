@@ -12,6 +12,8 @@ from typing import Any, Callable, Dict, Optional, Type
 
 import duckdb
 
+from adcp_recorder.export.file_writer import FileWriter
+
 from adcp_recorder.core.nmea import extract_prefix, is_binary_data
 from adcp_recorder.db import (
     DatabaseManager,
@@ -111,6 +113,7 @@ class SerialConsumer:
         db_manager: DatabaseManager,
         router: MessageRouter,
         heartbeat_interval: float = 5.0,
+        file_writer: Optional[FileWriter] = None,
     ):
         """Initialize serial consumer.
 
@@ -123,7 +126,9 @@ class SerialConsumer:
         self._queue = queue
         self._db_manager = db_manager
         self._router = router
+        self._router = router
         self._heartbeat_interval = heartbeat_interval
+        self._file_writer = file_writer
 
         self._running = False
         self._thread: Optional[threading.Thread] = None
@@ -210,6 +215,10 @@ class SerialConsumer:
                 parse_status="FAIL",
                 error_message="Binary data",
             )
+            if self._file_writer:
+                self._file_writer.write(
+                    "ERRORS", line_bytes.decode("ascii", errors="replace")
+                )
             return
 
         # Decode to string
@@ -223,6 +232,10 @@ class SerialConsumer:
                 error_type="DECODE_ERROR",
                 error_message=str(e),
             )
+            if self._file_writer:
+                self._file_writer.write_error(
+                    f"Decode error: {line_bytes.decode('ascii', errors='replace')} - {e}"
+                )
             return
 
         if not sentence:
@@ -247,6 +260,8 @@ class SerialConsumer:
                     checksum_valid=None,
                     error_message=f"No parser for {prefix}",
                 )
+                if self._file_writer:
+                    self._file_writer.write(prefix, sentence)
                 return
 
             # Successfully parsed - insert to database
@@ -260,6 +275,9 @@ class SerialConsumer:
                 record_type=prefix,
                 checksum_valid=True,
             )
+
+            if self._file_writer:
+                self._file_writer.write(prefix, sentence)
 
         except ValueError as e:
             # Parse failed
