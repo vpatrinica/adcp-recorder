@@ -50,9 +50,9 @@ def test_full_pipeline_e2e(temp_recorder_dir):
     # Looking at test_pnori.py: "$PNORI,4,Signature1000900001,4,20,0.20,1.00,0*2E"
     
     sentences = [
-        b"$PNORI,4,SigE2E,4,20,0.20,1.00,0*26\r\n",
+        b"$PNORI,4,1001,4,20,0.20,1.00,0*26\r\n",
         b"$PNORS,102115,090715,0,00000000,12.5,1500.0,0.0,0.0,0.0,0.0,20.0,0,0*13\r\n",
-        b"$PNORC,102115,090715,1,0.5,0.1,0.2,0.3,0.4,80,80,80,80,100,100,100,100*11\r\n",
+        b"$PNORC,102115,090715,1,0.5,0.1,0.2,0.3,0.4,180.0,C,80,80,80,80,100,100,100,100*41\r\n",
         b"\xff\xfe BINARY DATA \xff\r\n", # Binary/Invalid
     ]
 
@@ -100,14 +100,14 @@ def test_full_pipeline_e2e(temp_recorder_dir):
 
         # Final verifications
         res = conn.execute("SELECT head_id FROM pnori").fetchall()
-        assert res[0][0] == "SigE2E"
+        assert res[0][0] == "1001"
         
         res = conn.execute("SELECT heading FROM pnors_df100").fetchall()
         assert float(res[0][0]) == 0.0
         
-        res = conn.execute("SELECT distance, vel1 FROM pnorc_df100").fetchall()
+        res = conn.execute("SELECT vel1, speed FROM pnorc_df100").fetchall()
         assert float(res[0][0]) == 0.5
-        assert float(res[0][1]) == 0.1
+        assert float(res[0][1]) == 0.4
         
         # Check Error Table (for binary data)
         res = conn.execute("SELECT error_type FROM parse_errors").fetchall()
@@ -134,7 +134,7 @@ def test_reconnect_scenario(temp_recorder_dir):
             if self.instance_id == 1:
                 if self.read_count == 1:
                     # First instance, first read: success
-                    return b"$PNORI,4,BeforeFail,4,20,0.20,1.00,0*1C\r\n"
+                    return b"$PNORI,4,2001,4,20,0.20,1.00,0*1C\r\n"
                 else:
                     # First instance, subsequent read: fail
                     self.is_open = False
@@ -191,7 +191,7 @@ def test_reconnect_scenario(temp_recorder_dir):
             assert found, "Did not find both records after reconnection"
             res = conn.execute("SELECT head_id FROM pnori ORDER BY head_id").fetchall()
             ids = [r[0] for r in res]
-            assert "BeforeFail" in ids
+            assert "2001" in ids
             assert "AfterReconnect" in ids
 
 # I'll implement a more robust version of reconnect test in the file.

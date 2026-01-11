@@ -7,33 +7,35 @@
 ## Format
 
 ```
-$PNORS4,MMDDYY,HHMMSS,Heading,Pressure,Temperature*CHECKSUM
+$PNORS4,Battery,SoundSpeed,Heading,Pitch,Roll,Pressure,Temperature*CHECKSUM
 ```
 
-**Field Count**: 6 fields (including prefix)
+**Field Count**: 8 fields (including prefix)
 
 ## Field Definitions
 
 | Position | Field | Python Type | DuckDB Type | Unit | Range | Description |
 |----------|-------|-------------|-------------|------|-------|-------------|
 | 0 | Prefix | str | VARCHAR(10) | - | - | Always `$PNORS4` |
-| 1 | Date | str | CHAR(6) | - | MMDDYY | Measurement date |
-| 2 | Time | str | CHAR(6) | - | HHMMSS | Measurement time |
+| 1 | Battery | float | DECIMAL(4,1) | Volts | 0-30 | Battery voltage |
+| 2 | Sound Speed | float | DECIMAL(6,1) | m/s | 1400-1600 | Speed of sound |
 | 3 | Heading | float | DECIMAL(5,1) | degrees | 0-360 | Compass heading |
-| 4 | Pressure | float | DECIMAL(7,3) | decibars | 0-20000 | Water pressure |
-| 5 | Temperature | float | DECIMAL(5,2) | °C | -5 to +50 | Water temperature |
+| 4 | Pitch | float | DECIMAL(4,1) | degrees | -90 to +90 | Instrument pitch |
+| 5 | Roll | float | DECIMAL(5,1) | degrees | -180 to +180 | Instrument roll |
+| 6 | Pressure | float | DECIMAL(7,3) | decibars | 0-20000 | Water pressure |
+| 7 | Temperature | float | DECIMAL(5,2) | °C | -5 to +50 | Water temperature |
 
 ## Example Sentence
 
 ```
-$PNORS4,102115,090715,275.9,0.000,22.45*XX
+$PNORS4,14.4,1523.0,275.9,15.7,2.3,0.000,22.45*XX
 ```
 
 ## Differences from PNORS
 
-- **Minimal**: Only heading, pressure, temperature
-- **Removed**: All other sensor data
-- **Use**: Ultra-low bandwidth or simple deployments
+- **Minimal**: No date/time fields (usually follows PNORH4)
+- **Compact**: Only common sensor parameters
+- **Use**: High-rate burst recording or simple monitoring
 
 ## Validation Rules
 

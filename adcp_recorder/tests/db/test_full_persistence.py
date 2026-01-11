@@ -74,41 +74,45 @@ class TestPersistenceSuccess:
         assert float(results[0][9]) == 275.9  # heading (index 9)
 
     def test_pnorc_persistence(self, db):
-        # PNORC: date, time, cell_index, vel1, vel2, vel3, checksum
-        sentence = "$PNORC,102115,090715,1,0.123,-0.456,0.012*XX"
+        # PNORC: 19 fields
+        # vel1=0.5, vel2=0.1, vel3=0.2, vel4=0.3, speed=1.5, dir=180.0, amp_unit=C
+        sentence = "$PNORC,102115,090715,1,0.5,0.1,0.2,0.3,1.5,180.0,C,100,101,102,103,90,91,92,93*41"
         msg = PNORC.from_nmea(sentence)
         record_id = insert_velocity_data(db, sentence, msg.to_dict())
         assert record_id > 0
         
         # Query from new pnorc_df100 table
-        # Columns: record_id, received_at, original_sentence, measurement_date, measurement_time, cell_index, vel1, ...
+        # Columns: id, recv, orig, date, time, cell, vel1, vel2, vel3, vel4, speed, dir, amp_unit...
         results = db.execute("SELECT * FROM pnorc_df100").fetchall()
         assert len(results) == 1
-        assert results[0][5] == 1  # cell_index (index 5)
-        assert float(results[0][6]) == 0.123  # vel1 (index 6)
+        assert results[0][5] == 1  # cell_index
+        assert float(results[0][6]) == 0.5  # vel1
+        assert float(results[0][10]) == 1.5 # speed
+        assert float(results[0][11]) == 180.0 # direction
 
     def test_pnorh_persistence(self, db):
-        # PNORH3: date, time, num_cells, first_cell, ping_count, checksum
-        sentence = "$PNORH3,102115,090715,20,1,50*XX"
+        # PNORH3: tagged (minimal)
+        sentence = "$PNORH3,DATE=211021,TIME=090715,EC=0,SC=2A4C0000*XX"
         msg = PNORH3.from_nmea(sentence)
         record_id = insert_header_data(db, sentence, msg.to_dict())
         assert record_id > 0
         
         # Query from new pnorh_df103 table
-        # Columns: record_id, received_at, original_sentence, measurement_date, measurement_time, num_cells, ...
         results = db.execute("SELECT * FROM pnorh_df103").fetchall()
         assert len(results) == 1
-        assert results[0][5] == 20  # num_cells (index 5)
+        # Minimal PNORH3 doesn't populate num_cells (index 5)
+        # assert results[0][5] == 20 
+        assert int(results[0][5]) == 0  # error_code
 
     def test_pnorw_persistence(self, db):
-        sentence = "$PNORW,102115,090715,1.5,2.5,10.0,180.0*XX"
+        sentence = "$PNORW,102115,090715,1,1,1.5,1.6,1.7,2.5,5.0,6.0,5.5,180.0,10.0,180.0,1.0,10.0,0,0,0.5,90.0,0000*XX"
         msg = PNORW.from_nmea(sentence)
         record_id = insert_pnorw_data(db, sentence, msg.to_dict())
         assert record_id > 0
         
         results = query_pnorw_data(db)
         assert len(results) == 1
-        assert results[0]["sig_wave_height"] == 1.5
+        assert results[0]["hm0"] == 1.5
 
     def test_pnorb_persistence(self, db):
         sentence = "$PNORB,102115,090715,1,4,0.02,0.20,0.27,7.54,12.00,82.42,75.46,82.10,0000*XX"
@@ -162,14 +166,15 @@ class TestPersistenceSuccess:
         assert results[0][4] == "MD"  # direction_type (index 4)
 
     def test_pnora_persistence(self, db):
-        sentence = "$PNORA,102115,090715,1,15.50,95*XX"
+        sentence = "$PNORA,151021,090715,10.5,15.50,1,00,0.0,10.0*XX"
         msg = PNORA.from_nmea(sentence)
         record_id = insert_pnora_data(db, sentence, msg.to_dict())
         assert record_id > 0
         
         results = query_pnora_data(db)
         assert len(results) == 1
-        assert results[0]["distance"] == 15.5
+        assert results[0]["altimeter_distance"] == 15.5
+        assert results[0]["pressure"] == 10.5
 
 
 class TestPersistenceConstraints:
@@ -210,9 +215,10 @@ class TestPersistenceConstraints:
             "sentence_type": "PNORC",
             "date": "101010", "time": "101010",
             "cell_index": None, # VIOLATION
-            "vel1": 1.0, "vel2": 1.0, "vel3": 1.0,
-            "corr1": 0, "corr2": 0, "corr3": 0,
+            "vel1": 1.0, "vel2": 1.0, "vel3": 1.0, "vel4": 1.0,
+            "speed": 1.0, "direction": 180.0, "amp_unit": "C",
             "amp1": 0, "amp2": 0, "amp3": 0, "amp4": 0,
+            "corr1": 0, "corr2": 0, "corr3": 0, "corr4": 0,
             "checksum": "XX"
         }
         with pytest.raises(duckdb.ConstraintException):
@@ -221,25 +227,31 @@ class TestPersistenceConstraints:
     def test_pnorh_constraint(self, db):
         valid = {
             "sentence_type": "PNORH3",
-            "date": "101010", "time": "101010",
-            "num_cells": None, # VIOLATION
-            "first_cell": 1, "ping_count": 10,
-            "coordinate_system": "ENU", "profile_interval": 1.0,
+            "date": "211021", "time": "090715",
+            "error_code": 0, "status_code": "00000000",
             "checksum": "XX"
         }
+        
+        # Violation: date is None
+        invalid = valid.copy()
+        invalid["date"] = None
+        
         with pytest.raises(duckdb.ConstraintException):
-            insert_header_data(db, "$PNORH...", valid)
+            insert_header_data(db, "$PNORH...", invalid)
 
     def test_pnorw_constraint(self, db):
         valid = {
             "sentence_type": "PNORW",
-            "date": "101010", "time": "101010",
-            "sig_wave_height": "NOT A NUMBER", # VIOLATION
-            "max_wave_height": 1.0, "peak_period": 1.0, "mean_direction": 1.0,
-            "checksum": "XX"
+            "date": "101010", "time": "120000",
+            "hm0": 1.5, "checksum": "XX"
         }
+        
+        # Violation: invalid type for hm0
+        invalid = valid.copy()
+        invalid["hm0"] = "NOT A NUMBER"
+        
         with pytest.raises((duckdb.ConversionException, duckdb.BinderException)):
-             insert_pnorw_data(db, "$PNORW...", valid)
+            insert_pnorw_data(db, "$PNORW...", invalid)
 
     def test_pnorb_constraint(self, db):
         valid = {
@@ -301,9 +313,11 @@ class TestPersistenceConstraints:
         valid = {
             "sentence_type": "PNORA",
             "date": "101010", "time": "101010",
-            "method": 1,
+            "pressure": 10.0,
             "distance": "NAN", # VIOLATION
-            "quality": 100, "checksum": "XX"
+            "quality": 100, "status": "01",
+            "pitch": 0.0, "roll": 0.0,
+            "checksum": "XX"
         }
         with pytest.raises(Exception):
              insert_pnora_data(db, "$PNORA...", valid)

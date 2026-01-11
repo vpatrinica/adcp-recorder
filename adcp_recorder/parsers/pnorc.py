@@ -47,16 +47,18 @@ def _validate_distance(value: float) -> None:
 @dataclass(frozen=True)
 class PNORC:
     """PNORC base current velocity message (DF=100).
-    Format: $PNORC,MMDDYY,HHMMSS,Cell,Dist,Vel1,Vel2,Vel3,Vel4,Amp1,Amp2,Amp3,Amp4,Corr1,Corr2,Corr3,Corr4*CS
+    Format: $PNORC,MMDDYY,HHMMSS,Cell,Vel1,Vel2,Vel3,Vel4,Speed,Dir,AmpUnit,Amp1,Amp2,Amp3,Amp4,Corr1,Corr2,Corr3,Corr4*CS
     """
     date: str
     time: str
     cell_index: int
-    distance: float
     vel1: float
     vel2: float
     vel3: float
     vel4: float
+    speed: float
+    direction: float
+    amp_unit: str
     amp1: int
     amp2: int
     amp3: int
@@ -71,9 +73,12 @@ class PNORC:
         validate_date_mm_dd_yy(self.date)
         validate_time_string(self.time)
         _validate_cell_index(self.cell_index)
-        _validate_distance(self.distance)
         for i, v in enumerate([self.vel1, self.vel2, self.vel3, self.vel4], 1):
             _validate_velocity(v, i)
+        validate_range(self.speed, "Speed", 0.0, 100.0)
+        validate_range(self.direction, "Direction", 0.0, 360.0)
+        if self.amp_unit not in {"C", "D"}:
+            raise ValueError(f"Invalid amplitude unit: {self.amp_unit}")
         for i, a in enumerate([self.amp1, self.amp2, self.amp3, self.amp4], 1):
             _validate_amplitude(float(a), i)
         for i, c in enumerate([self.corr1, self.corr2, self.corr3, self.corr4], 1):
@@ -88,8 +93,8 @@ class PNORC:
             checksum = checksum.strip().upper()
         
         fields = [f.strip() for f in data_part.split(",")]
-        if len(fields) != 17:
-            raise ValueError(f"Expected 17 fields for PNORC, got {len(fields)}")
+        if len(fields) != 19:
+            raise ValueError(f"Expected 19 fields for PNORC, got {len(fields)}")
         if fields[0] != "$PNORC":
             raise ValueError(f"Invalid prefix: {fields[0]}")
             
@@ -97,19 +102,21 @@ class PNORC:
             date=fields[1],
             time=fields[2],
             cell_index=int(fields[3]),
-            distance=float(fields[4]),
-            vel1=float(fields[5]),
-            vel2=float(fields[6]),
-            vel3=float(fields[7]),
-            vel4=float(fields[8]),
-            amp1=int(fields[9]),
-            amp2=int(fields[10]),
-            amp3=int(fields[11]),
-            amp4=int(fields[12]),
-            corr1=int(fields[13]),
-            corr2=int(fields[14]),
-            corr3=int(fields[15]),
-            corr4=int(fields[16]),
+            vel1=float(fields[4]),
+            vel2=float(fields[5]),
+            vel3=float(fields[6]),
+            vel4=float(fields[7]),
+            speed=float(fields[8]),
+            direction=float(fields[9]),
+            amp_unit=fields[10],
+            amp1=int(fields[11]),
+            amp2=int(fields[12]),
+            amp3=int(fields[13]),
+            amp4=int(fields[14]),
+            corr1=int(fields[15]),
+            corr2=int(fields[16]),
+            corr3=int(fields[17]),
+            corr4=int(fields[18]),
             checksum=checksum
         )
 
@@ -119,8 +126,10 @@ class PNORC:
             "date": self.date,
             "time": self.time,
             "cell_index": self.cell_index,
-            "distance": self.distance,
             "vel1": self.vel1, "vel2": self.vel2, "vel3": self.vel3, "vel4": self.vel4,
+            "speed": self.speed,
+            "direction": self.direction,
+            "amp_unit": self.amp_unit,
             "amp1": self.amp1, "amp2": self.amp2, "amp3": self.amp3, "amp4": self.amp4,
             "corr1": self.corr1, "corr2": self.corr2, "corr3": self.corr3, "corr4": self.corr4,
             "checksum": self.checksum
@@ -131,6 +140,7 @@ class PNORC:
 class PNORC1:
     """PNORC1 current velocity data (DF=101).
     Same fields as DF=100 but amplitudes are dB.
+    Includes cell distance.
     """
     date: str
     time: str
@@ -267,8 +277,13 @@ class PNORC2:
             raise ValueError(f"Invalid prefix: {fields[0]}")
             
         data = {}
+        seen_tags = set()
         for field_str in fields[1:]:
             tag, val = parse_tagged_field(field_str)
+            if tag in seen_tags:
+                raise ValueError(f"Duplicate tag: {tag}")
+            seen_tags.add(tag)
+            
             if tag == "DATE": data["date"] = val
             elif tag == "TIME": data["time"] = val
             elif tag == "CN": data["cell_index"] = int(val)
@@ -370,13 +385,13 @@ class PNORC3:
 @dataclass(frozen=True)
 class PNORC4:
     """PNORC4 positional averaged current (DF=104).
-    Format: $PNORC4,Dist,Speed,Dir,AA,AC*CS
+    Format: $PNORC4,Dist,Speed,Dir,AC,AA*CS
     """
     distance: float
     speed: float
     direction: float
-    avg_amplitude: int
     avg_correlation: int
+    avg_amplitude: int
     checksum: Optional[str] = field(default=None, repr=False)
 
     def __post_init__(self):
@@ -404,8 +419,8 @@ class PNORC4:
             distance=float(fields[1]),
             speed=float(fields[2]),
             direction=float(fields[3]),
-            avg_amplitude=int(fields[4]),
-            avg_correlation=int(fields[5]),
+            avg_correlation=int(fields[4]),
+            avg_amplitude=int(fields[5]),
             checksum=checksum
         )
 

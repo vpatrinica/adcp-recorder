@@ -252,7 +252,7 @@ class PNORS2:
 
     TAG_IDS = {
         "DATE": "date", "TIME": "time", "EC": "error_code", "SC": "status_code",
-        "BT": "battery", "SS": "sound_speed", "HSD": "heading_std_dev", "H": "heading",
+        "BV": "battery", "SS": "sound_speed", "HSD": "heading_std_dev", "H": "heading",
         "PI": "pitch", "PISD": "pitch_std_dev", "R": "roll", "RSD": "roll_std_dev",
         "P": "pressure", "PSD": "pressure_std_dev", "T": "temperature"
     }
@@ -349,7 +349,7 @@ class PNORS3:
     checksum: Optional[str] = field(default=None, repr=False)
 
     TAG_IDS = {
-        "BT": "battery", "SS": "sound_speed", "H": "heading",
+        "BV": "battery", "SS": "sound_speed", "H": "heading",
         "PI": "pitch", "R": "roll", "P": "pressure", "T": "temperature"
     }
 
@@ -404,10 +404,8 @@ class PNORS3:
 @dataclass(frozen=True)
 class PNORS4:
     """PNORS4 minimal sensor data (DF=104).
-    Format: $PNORS4,YYMMDD,HHMMSS,Battery,SoundSpeed,Heading,Pitch,Roll,Pressure,Temperature*CS
+    Format: $PNORS4,Battery,SoundSpeed,Heading,Pitch,Roll,Pressure,Temperature*CS
     """
-    date: str
-    time: str
     battery: float
     sound_speed: float
     heading: float
@@ -435,21 +433,19 @@ class PNORS4:
             checksum = checksum.strip().upper()
         
         fields = [f.strip() for f in data_part.split(",")]
-        if len(fields) != 10:
-            raise ValueError(f"Expected 10 fields for PNORS4, got {len(fields)}")
+        if len(fields) != 8:
+            raise ValueError(f"Expected 8 fields for PNORS4, got {len(fields)}")
         if fields[0] != "$PNORS4":
             raise ValueError(f"Invalid prefix: {fields[0]}")
             
         return cls(
-            date=fields[1],
-            time=fields[2],
-            battery=float(fields[3]),
-            sound_speed=float(fields[4]),
-            heading=float(fields[5]),
-            pitch=float(fields[6]),
-            roll=float(fields[7]),
-            pressure=float(fields[8]),
-            temperature=float(fields[9]),
+            battery=float(fields[1]),
+            sound_speed=float(fields[2]),
+            heading=float(fields[3]),
+            pitch=float(fields[4]),
+            roll=float(fields[5]),
+            pressure=float(fields[6]),
+            temperature=float(fields[7]),
             checksum=checksum
         )
 

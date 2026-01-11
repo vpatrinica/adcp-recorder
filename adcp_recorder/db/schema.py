@@ -204,6 +204,9 @@ CREATE TABLE IF NOT EXISTS pnors_df100 (
     temperature DECIMAL(5,2),
     analog1 SMALLINT,
     analog2 SMALLINT,
+    speed DECIMAL(8,4),
+    direction DECIMAL(5,2),
+    amp_unit CHAR(1),
     checksum CHAR(2)
 );
 """
@@ -300,7 +303,11 @@ CREATE TABLE IF NOT EXISTS pnors_df104 (
     original_sentence TEXT NOT NULL,
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
+    battery DECIMAL(4,1),
+    sound_speed DECIMAL(6,1),
     heading DECIMAL(5,1),
+    pitch DECIMAL(4,1),
+    roll DECIMAL(5,1),
     pressure DECIMAL(7,3),
     temperature DECIMAL(5,2),
     checksum CHAR(2)
@@ -324,11 +331,13 @@ CREATE TABLE IF NOT EXISTS pnorc_df100 (
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
     cell_index SMALLINT NOT NULL CHECK (cell_index > 0),
-    distance DECIMAL(8,3),
     vel1 DECIMAL(8,4),
     vel2 DECIMAL(8,4),
     vel3 DECIMAL(8,4),
     vel4 DECIMAL(8,4),
+    speed DECIMAL(8,4),
+    direction DECIMAL(5,2),
+    amp_unit CHAR(1),
     amp1 SMALLINT,
     amp2 SMALLINT,
     amp3 SMALLINT,
@@ -466,9 +475,8 @@ CREATE TABLE IF NOT EXISTS pnorh_df103 (
     original_sentence TEXT NOT NULL,
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
-    num_cells SMALLINT NOT NULL,
-    first_cell SMALLINT NOT NULL,
-    ping_count INTEGER NOT NULL,
+    error_code INTEGER,
+    status_code CHAR(8),
     checksum CHAR(2)
 );
 """
@@ -485,21 +493,8 @@ CREATE TABLE IF NOT EXISTS pnorh_df104 (
     original_sentence TEXT NOT NULL,
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
-    instrument_id VARCHAR(30),
-    serial_number VARCHAR(20),
-    firmware_version VARCHAR(20),
-    num_cells SMALLINT NOT NULL,
-    first_cell SMALLINT NOT NULL,
-    num_beams TINYINT,
-    cell_size DECIMAL(6,3),
-    blanking DECIMAL(6,3),
-    nominal_freq INTEGER,
-    coordinate_system VARCHAR(10),
-    profile_interval DECIMAL(8,2),
-    burst_interval DECIMAL(8,2),
-    burst_length INTEGER,
-    ping_count INTEGER NOT NULL,
-    avg_interval DECIMAL(8,2),
+    error_code INTEGER,
+    status_code CHAR(8),
     checksum CHAR(2)
 );
 """
@@ -655,12 +650,12 @@ CREATE TABLE IF NOT EXISTS pnora_data (
     original_sentence TEXT NOT NULL,
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
-    method TINYINT,
-    distance DECIMAL(8,3),
-    status TINYINT,
-    pitch DECIMAL(6,2),
-    roll DECIMAL(6,2),
-    pressure DECIMAL(8,3),
+    pressure DECIMAL(7,3),
+    altimeter_distance DECIMAL(7,3),
+    quality INTEGER,
+    status CHAR(2),
+    pitch DECIMAL(4,1),
+    roll DECIMAL(4,1),
     checksum CHAR(2)
 );
 """

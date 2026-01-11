@@ -44,11 +44,11 @@ def test_pnori_error_branches():
         PNORI2.from_nmea("$INVALID,1,2,3,4,5,6,7")
 
 def test_pnors_error_branches():
-    # PNORS2 unknown tags (lines 314-315 newly added logic)
-    # 14 fields required + 1 extra
-    base = "$PNORS2,DT=101010,TM=101010,ER=00,ST=00,BT=12.0,SS=1500,HD=100,PT=0,RL=0,PR=10,TP=20,A1=0,A2=0"
+    # PNORS2 unknown tags
+    # 15 tags required + 1 extra
+    base = "$PNORS2,DATE=101010,TIME=101010,EC=00,SC=00,BV=12.0,SS=1500,HSD=0,H=100,PI=0,PISD=0,R=0,RSD=0,P=10,PSD=0,T=20"
     extra = ",XX=99*00"
-    with pytest.raises(ValueError, match="Unknown tags in PNORS2"):
+    with pytest.raises(ValueError, match="Unknown tag in PNORS2: XX"):
         PNORS2.from_nmea(base + extra)
         
     # PNORS3 invalid prefix (line 391)
@@ -56,8 +56,9 @@ def test_pnors_error_branches():
         PNORS3.from_nmea("$INVALID,1,2,3,4,5,6,7,8")
 
     # PNORS4 invalid prefix (line 451)
-    with pytest.raises(ValueError, match="Invalid prefix"):
-        PNORS4.from_nmea("$INVALID,1,2,3,4,5")
+    with pytest.raises(ValueError, match="Expected 8 fields"):
+         # Trigger field count error first if not enough fields
+         PNORS4.from_nmea("$INVALID,1,2,3,4,5")
 
 def test_ghost_files_explicitly():
     # Explicitly import and use the "0% coverage" classes to force loading
@@ -82,12 +83,13 @@ def test_ghost_files_explicitly():
     msg_wd = PNORWD.from_nmea("$PNORWD,MD,102115,090715,1,0.02,0.01,2,45.0,90.0*XX")
     assert msg_wd.direction_type == "MD"
     
-    # PNORH3 to_dict (line 78 in pnorh.py)
-    msg_h = PNORH3("102115", "090715", 10, 1, 100)
-    assert msg_h.to_dict()["sentence_type"] == "PNORH3"
+    # PNORH3 to_dict
+    msg_h = PNORH3("211021", "090715", 0, "00000000")
+    d = h_dict = msg_h.to_dict()
+    assert d["sentence_type"] == "PNORH3"
     
     # PNORS2 success path
-    s = "$PNORS2,DT=101010,TM=101010,ER=00000000,ST=00000000,BT=12.0,SS=1500,HD=100,PT=0,RL=0,PR=10,TP=20,A1=0,A2=0*00"
+    s = "$PNORS2,DATE=101010,TIME=101010,EC=00000000,SC=00000000,BV=12.0,SS=1500,HSD=0,H=100,PI=0,PISD=0,R=0,RSD=0,P=10,PSD=0,T=20*00"
     msg_s2 = PNORS2.from_nmea(s)
     assert msg_s2.battery == 12.0
 

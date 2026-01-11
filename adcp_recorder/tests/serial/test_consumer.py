@@ -39,7 +39,7 @@ class TestMessageRouter:
 
         # Should route to correct parser
         result1 = router.route("$PNORI,4,Test,4,20,0.20,1.00,0*00")
-        result2 = router.route("$PNORI1,4,Test,4,20,0.20,1.00,ENU*00")
+        result2 = router.route("$PNORI1,4,123,4,20,0.20,1.00,ENU*00")
 
         assert isinstance(result1, PNORI)
         assert isinstance(result2, PNORI1)
@@ -325,26 +325,26 @@ class TestSerialConsumer:
         
         consumer = SerialConsumer(queue, db, router)
         
-        # PNORI - Configuration
-        queue.put(b"$PNORI,4,Signature1000,4,20,0.20,1.00,0*2E")
-        # PNORS - Sensor
-        queue.put(b"$PNORS,102115,090715,00000000,2A480000,14.4,1523.0,275.9,15.7,2.3,0.0,22.45,0,0*1F")
-        # PNORC - Velocity
-        queue.put(b"$PNORC,102115,090715,1,0.123,-0.456,0.012*1B")
-        # PNORH4 - Header
-        queue.put(b"$PNORH4,102115,090715,20,1,50,ENU,60.0*45")
-        # PNORW - Wave
-        queue.put(b"$PNORW,102115,090715,2.5,4.1,8.5,285.0*38")
-        # PNORB - Wave Band Parameters
+        # PNORI - Configuration (8 fields)
+        queue.put(b"$PNORI,4,1001,4,20,0.20,1.00,0*2E")
+        # PNORS - Sensor (14 fields)
+        queue.put(b"$PNORS,102115,090715,0,00000000,14.4,1523.0,275.9,15.7,2.3,0.0,22.45,0,0*1F")
+        # PNORC - Velocity (19 fields)
+        queue.put(b"$PNORC,102115,090715,1,0.5,0.1,0.2,0.3,0.4,180.0,C,80,80,80,80,100,100,100,100*41")
+        # PNORH4 - Header (5 fields: Date,Time,EC,SC)
+        queue.put(b"$PNORH4,211021,090715,0,00000000*00")
+        # PNORW - Wave (22 fields)
+        queue.put(b"$PNORW,102115,090715,0,1,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0,0,0,0,0,0,0,0,0,0000*32")
+        # PNORB - Wave Band Parameters (14 fields)
         queue.put(b"$PNORB,102115,090715,1,4,0.02,0.20,0.27,7.54,12.00,82.42,75.46,82.10,0000*7C")
-        # PNORE - Echo
-        queue.put(b"$PNORE,102115,090715,1,50,60,70,80*45")
-        # PNORF - Frequency
-        queue.put(b"$PNORF,102115,090715,1000.0,25.0,90.0*4B")
-        # PNORWD - Wave Directional
-        queue.put(b"$PNORWD,102115,090715,10,180.0,20.0,50.0*5C")
-        # PNORA - Altitude
-        queue.put(b"$PNORA,102115,090715,1,15.50,95*45")
+        # PNORE - Echo (Prefix+Date+Time+Basis+Start+Step+Num+Values)
+        queue.put(b"$PNORE,102115,090715,1,0.02,0.01,3,1.0,2.0,3.0*1E")
+        # PNORF - Frequency (Prefix+Flag+Date+Time+Basis+Start+Step+Num+Values)
+        queue.put(b"$PNORF,A1,102115,090715,1,0.02,0.01,2,0.5,1.5*44")
+        # PNORWD - Wave Directional (Prefix+Type+Date+Time+Basis+Start+Step+Num+Values)
+        queue.put(b"$PNORWD,MD,102115,090715,1,0.02,0.01,2,45.0,90.0*42")
+        # PNORA - Altitude (9 fields, Date is YYMMDD)
+        queue.put(b"$PNORA,151021,090715,1,15.50,1,00,0.0,10.0*55")
         
         consumer.start()
         time.sleep(2.0)  # Wait longer

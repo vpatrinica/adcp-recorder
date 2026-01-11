@@ -2,45 +2,42 @@
 
 # PNORA Specification
 
-**Altitude/range data message** measuring distance from instrument to surface or bottom.
+**Altitude/range data message** for distance to surface or bottom.
 
 ## Format
 
 ```
-$PNORA,MMDDYY,HHMMSS,AltitudeMethod,Distance,Quality*CHECKSUM
+$PNORA,Date,Time,Pressure,Distance,Quality,Status,Pitch,Roll*CHECKSUM
 ```
 
-**Field Count**: 6 fields (including prefix)
+**Field Count**: 9 fields (including prefix)
 
 ## Field Definitions
 
 | Position | Field | Python Type | DuckDB Type | Unit | Range | Description |
 |----------|-------|-------------|-------------|------|-------|-------------|
 | 0 | Prefix | str | VARCHAR(10) | - | - | Always `$PNORA` |
-| 1 | Date | str | CHAR(6) | - | MMDDYY | Measurement date |
+| 1 | Date | str | CHAR(6) | - | YYMMDD | Measurement date |
 | 2 | Time | str | CHAR(6) | - | HHMMSS | Measurement time |
-| 3 | Method | int | TINYINT | - | 0-2 | Altitude measurement method |
-| 4 | Distance | float | DECIMAL(6,2) | meters | 0-1000 | Distance to surface or bottom |
-| 5 | Quality | int | TINYINT | % | 0-100 | Measurement quality indicator |
-
-## Altitude Methods
-
-- **0**: Pressure-based altitude
-- **1**: Acoustic Surface Tracking (AST)
-- **2**: Acoustic Bottom Tracking (ABT)
+| 3 | Pressure | float | DECIMAL(7,3) | decibars | 0-20000 | Water pressure |
+| 4 | Distance | float | DECIMAL(7,3) | meters | 0-1000 | Vertical distance |
+| 5 | Quality | int | INTEGER | - | - | Quality indicator/confidence |
+| 6 | Status | str | CHAR(2) | - | - | 2 hex digits status |
+| 7 | Pitch | float | DECIMAL(4,1) | degrees | -90 to +90 | Instrument pitch |
+| 8 | Roll | float | DECIMAL(4,1) | degrees | -90 to +90 | Instrument roll |
 
 ## Example Sentence
 
 ```
-$PNORA,102115,090715,1,15.50,95*XX
+$PNORA,141112,084201,10.123,5.678,95,01,1.2,-0.5*XX
 ```
 
-**Parsed**:
-- Date: October 21, 2015
-- Time: 09:07:15
-- Method: 1 (AST - Surface Tracking)
-- Distance: 15.50 m
-- Quality: 95%
+## Validation Rules
+
+1. Date/time validation
+2. Distance: 0-1000m
+3. Status: 2 hex digits
+4. Pitch/Roll: -90 to +90 degrees
 
 ## Related Documents
 

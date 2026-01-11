@@ -13,6 +13,7 @@ from .utils import (
     validate_time_string,
     validate_range,
     parse_tagged_field,
+    validate_hex_string,
 )
 
 
@@ -37,40 +38,22 @@ def _validate_common_header(
 @dataclass(frozen=True)
 class PNORH3:
     """PNORH3 tagged configuration header (DF=103).
-    Format: $PNORH3,ID=InstrumentID,TYPE=InstrumentType,SN=SerialNumber,FW=FirmwareVersion,DATE=YYMMDD,TIME=HHMMSS,MODE=RecordMode,LEN=BurstLength,INT=BurstInterval,SAMP=SampleRate,NBEAM=NumBeams,NCELL=NumCells,BLANK=BlankingDist,CELL=CellSize,COORD=CoordSystem*CS
+    Format: $PNORH3,DATE=YYMMDD,TIME=HHMMSS,EC=ErrorCode,SC=StatusCode*CS
     """
-    instrument_id: str
-    instrument_type: int
-    serial_number: str
-    firmware_version: str
     date: str
     time: str
-    record_mode: int
-    burst_length: int
-    burst_interval: int
-    sample_rate: float
-    num_beams: int
-    num_cells: int
-    blanking: float
-    cell_size: float
-    coordinate_system: str
+    error_code: int
+    status_code: str
     checksum: Optional[str] = field(default=None, repr=False)
 
     TAG_IDS = {
-        "ID": "instrument_id", "TYPE": "instrument_type", "SN": "serial_number",
-        "FW": "firmware_version", "DATE": "date", "TIME": "time",
-        "MODE": "record_mode", "LEN": "burst_length", "INT": "burst_interval",
-        "SAMP": "sample_rate", "NBEAM": "num_beams", "NCELL": "num_cells",
-        "BLANK": "blanking", "CELL": "cell_size", "COORD": "coordinate_system"
+        "DATE": "date", "TIME": "time", "EC": "error_code", "SC": "status_code"
     }
 
     def __post_init__(self):
         validate_date_yy_mm_dd(self.date)
         validate_time_string(self.time)
-        _validate_common_header(
-            self.instrument_type, self.num_beams, self.num_cells,
-            self.blanking, self.cell_size, self.coordinate_system
-        )
+        validate_hex_string(self.status_code, 8, 8)
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORH3":
@@ -91,10 +74,8 @@ class PNORH3:
                 raise ValueError(f"Unknown tag in PNORH3: {tag}")
             
             field_name = cls.TAG_IDS[tag]
-            if field_name in ["instrument_type", "record_mode", "burst_length", "burst_interval", "num_beams", "num_cells"]:
+            if field_name == "error_code":
                 data[field_name] = int(val)
-            elif field_name in ["sample_rate", "blanking", "cell_size"]:
-                data[field_name] = float(val)
             else:
                 data[field_name] = val
             
@@ -107,21 +88,10 @@ class PNORH3:
     def to_dict(self) -> Dict:
         return {
             "sentence_type": "PNORH3",
-            "instrument_id": self.instrument_id,
-            "instrument_type": self.instrument_type,
-            "serial_number": self.serial_number,
-            "firmware_version": self.firmware_version,
             "date": self.date,
             "time": self.time,
-            "record_mode": self.record_mode,
-            "burst_length": self.burst_length,
-            "burst_interval": self.burst_interval,
-            "sample_rate": self.sample_rate,
-            "num_beams": self.num_beams,
-            "num_cells": self.num_cells,
-            "blanking": self.blanking,
-            "cell_size": self.cell_size,
-            "coordinate_system": self.coordinate_system,
+            "error_code": self.error_code,
+            "status_code": self.status_code,
             "checksum": self.checksum
         }
 
@@ -129,32 +99,18 @@ class PNORH3:
 @dataclass(frozen=True)
 class PNORH4:
     """PNORH4 positional configuration header (DF=104).
-    Format: $PNORH4,ID,Type,SN,FW,YYMMDD,HHMMSS,Mode,Len,Int,Samp,NBeam,NCell,Blank,Cell,Coord*CS
+    Format: $PNORH4,YYMMDD,HHMMSS,ErrorCode,StatusCode*CS
     """
-    instrument_id: str
-    instrument_type: int
-    serial_number: str
-    firmware_version: str
     date: str
     time: str
-    record_mode: int
-    burst_length: int
-    burst_interval: int
-    sample_rate: float
-    num_beams: int
-    num_cells: int
-    blanking: float
-    cell_size: float
-    coordinate_system: str
+    error_code: int
+    status_code: str
     checksum: Optional[str] = field(default=None, repr=False)
 
     def __post_init__(self):
         validate_date_yy_mm_dd(self.date)
         validate_time_string(self.time)
-        _validate_common_header(
-            self.instrument_type, self.num_beams, self.num_cells,
-            self.blanking, self.cell_size, self.coordinate_system
-        )
+        validate_hex_string(self.status_code, 8, 8)
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORH4":
@@ -165,47 +121,25 @@ class PNORH4:
             checksum = checksum.strip().upper()
         
         fields = [f.strip() for f in data_part.split(",")]
-        if len(fields) != 16:
-            raise ValueError(f"Expected 16 fields for PNORH4, got {len(fields)}")
+        if len(fields) != 5:
+            raise ValueError(f"Expected 5 fields for PNORH4, got {len(fields)}")
         if fields[0] != "$PNORH4":
             raise ValueError(f"Invalid prefix: {fields[0]}")
             
         return cls(
-            instrument_id=fields[1],
-            instrument_type=int(fields[2]),
-            serial_number=fields[3],
-            firmware_version=fields[4],
-            date=fields[5],
-            time=fields[6],
-            record_mode=int(fields[7]),
-            burst_length=int(fields[8]),
-            burst_interval=int(fields[9]),
-            sample_rate=float(fields[10]),
-            num_beams=int(fields[11]),
-            num_cells=int(fields[12]),
-            blanking=float(fields[13]),
-            cell_size=float(fields[14]),
-            coordinate_system=fields[15],
+            date=fields[1],
+            time=fields[2],
+            error_code=int(fields[3]),
+            status_code=fields[4],
             checksum=checksum
         )
 
     def to_dict(self) -> Dict:
         return {
             "sentence_type": "PNORH4",
-            "instrument_id": self.instrument_id,
-            "instrument_type": self.instrument_type,
-            "serial_number": self.serial_number,
-            "firmware_version": self.firmware_version,
             "date": self.date,
             "time": self.time,
-            "record_mode": self.record_mode,
-            "burst_length": self.burst_length,
-            "burst_interval": self.burst_interval,
-            "sample_rate": self.sample_rate,
-            "num_beams": self.num_beams,
-            "num_cells": self.num_cells,
-            "blanking": self.blanking,
-            "cell_size": self.cell_size,
-            "coordinate_system": self.coordinate_system,
+            "error_code": self.error_code,
+            "status_code": self.status_code,
             "checksum": self.checksum
         }
