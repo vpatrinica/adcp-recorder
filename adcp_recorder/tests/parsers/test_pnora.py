@@ -38,6 +38,20 @@ class TestPNORA:
         assert d["distance"] == 15.5
         assert d["quality"] == 95
 
+    def test_pnora_tagged_format(self):
+        # Tagged format (DF=201)
+        sentence = "$PNORA,DATE=190902,TIME=122341,P=0.000,A=24.274,Q=13068,ST=08,PI=-2.6,R=-0.8*72"
+        msg = PNORA.from_nmea(sentence)
+        assert msg.date == "190902"
+        assert msg.time == "122341"
+        assert msg.pressure == 0.000
+        assert msg.distance == 24.274
+        assert msg.quality == 13068
+        assert msg.status == "08"
+        assert msg.pitch == -2.6
+        assert msg.roll == -0.8
+
     def test_pnora_invalid_field_count(self):
         with pytest.raises(ValueError, match="Expected 9 fields"):
             PNORA.from_nmea("$PNORA,1,2,3,4,5*00")
+

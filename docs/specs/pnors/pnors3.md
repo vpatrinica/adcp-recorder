@@ -7,34 +7,34 @@
 ## Format
 
 ```
-$PNORS3,MMDDYY,HHMMSS,Battery,Heading,Pitch,Roll,Pressure,Temperature*CHECKSUM
+$PNORS3,BV=Batt,SS=SndSpd,H=Head,PI=Pitch,R=Roll,P=Press,T=Temp*CS
 ```
 
-**Field Count**: 9 fields (including prefix)
+**Field Count**: Variable (tags), but 7 value fields required.
 
-## Field Definitions
+## Tag Definitions
 
-| Position | Field | Python Type | DuckDB Type | Unit | Range | Description |
-|----------|-------|-------------|-------------|------|-------|-------------|
-| 0 | Prefix | str | VARCHAR(10) | - | - | Always `$PNORS3` |
-| 1 | Date | str | CHAR(6) | - | MMDDYY | Measurement date |
-| 2 | Time | str | CHAR(6) | - | HHMMSS | Measurement time |
-| 3 | Battery Voltage | float | DECIMAL(4,1) | volts | 0-30 | Battery voltage |
-| 4 | Heading | float | DECIMAL(5,1) | degrees | 0-360 | Compass heading |
-| 5 | Pitch | float | DECIMAL(4,1) | degrees | -90 to +90 | Instrument pitch |
-| 6 | Roll | float | DECIMAL(5,1) | degrees | -180 to +180 | Instrument roll |
-| 7 | Pressure | float | DECIMAL(7,3) | decibars | 0-20000 | Water pressure |
-| 8 | Temperature | float | DECIMAL(5,2) | °C | -5 to +50 | Water temperature |
+| Tag | Field | Python Type | DuckDB Type | Unit | Range | Description |
+|-----|-------|-------------|-------------|------|-------|-------------|
+| - | Prefix | str | VARCHAR(10) | - | - | Always `$PNORS3` |
+| BV | Battery | float | DECIMAL(4,1) | volts | 0-30 | Battery voltage |
+| SS | Sound Speed | float | DECIMAL(6,1) | m/s | 1400-1600 | Speed of sound |
+| H | Heading | float | DECIMAL(5,1) | degrees | 0-360 | Compass heading |
+| PI | Pitch | float | DECIMAL(4,1) | degrees | -90 to +90 | Instrument pitch |
+| R | Roll | float | DECIMAL(5,1) | degrees | -180 to +180 | Instrument roll |
+| P | Pressure | float | DECIMAL(7,3) | decibars | 0-20000 | Water pressure |
+| T | Temperature | float | DECIMAL(5,2) | °C | -5 to +50 | Water temperature |
 
 ## Example Sentence
 
 ```
-$PNORS3,102115,090715,14.4,275.9,15.7,2.3,0.000,22.45*XX
+$PNORS3,BV=22.9,SS=1546.1,H=151.1,PI=-12.0,R=-5.2,P=705.669,T=24.96*7A
 ```
 
 ## Differences from PNORS
 
-- **Removed**: Error codes, status codes, sound speed, analog inputs
+- **Format**: Tagged (TAG=VALUE)
+- **Removed**: Date, time, error codes, status codes, analog inputs
 - **Compact**: Essential sensor data only
 - **Use**: Bandwidth-constrained applications
 

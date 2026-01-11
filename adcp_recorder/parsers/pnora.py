@@ -48,10 +48,38 @@ class PNORA:
             checksum = checksum.strip().upper()
         
         fields = [f.strip() for f in data_part.split(",")]
-        if len(fields) != 9:
-            raise ValueError(f"Expected 9 fields for PNORA, got {len(fields)}")
         if fields[0] != "$PNORA":
             raise ValueError(f"Invalid prefix: {fields[0]}")
+
+        # Check for tagged format (DF=201) usage by looking for '=' in fields
+        if any("=" in f for f in fields[1:]):
+            data_map = {}
+            for f in fields[1:]:
+                if "=" in f:
+                    key, value = f.split("=", 1)
+                    data_map[key] = value
+            
+            # Helper to safely get and convert
+            try:
+                return cls(
+                    date=data_map["DATE"],
+                    time=data_map["TIME"],
+                    pressure=float(data_map["P"]),
+                    distance=float(data_map["A"]),
+                    quality=int(data_map["Q"]),
+                    status=data_map["ST"],
+                    pitch=float(data_map["PI"]),
+                    roll=float(data_map["R"]),
+                    checksum=checksum
+                )
+            except KeyError as e:
+                raise ValueError(f"Missing required tag for PNORA DF=201: {e}")
+            except ValueError as e:
+                raise ValueError(f"Invalid data type in PNORA DF=201: {e}")
+
+        # Fallback to standard positional format (DF=200)
+        if len(fields) != 9:
+            raise ValueError(f"Expected 9 fields for PNORA, got {len(fields)}")
             
         return cls(
             date=fields[1],

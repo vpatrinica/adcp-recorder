@@ -7,33 +7,35 @@
 ## Format
 
 ```
-$PNORS2,DT=MMDDYY,TM=HHMMSS,ER=ErrorHex,ST=StatusHex,BT=Battery,SS=SoundSpeed,HD=Heading,PT=Pitch,RL=Roll,PR=Pressure,TP=Temperature,A1=Analog1,A2=Analog2*CHECKSUM
+$PNORS2,DATE=Date,TIME=Time,EC=Err,SC=Stat,BV=Batt,SS=SndSpd,HSD=HeadSD,H=Head,PI=Pitch,PISD=PitchSD,R=Roll,RSD=RollSD,P=Press,PSD=PressSD,T=Temp*CS
 ```
 
-**Field Count**: 15 fields (including prefix)
+**Field Count**: Variable (tags), but 15 value fields required.
 
 ## Tag Definitions
 
 | Tag | Field | Python Type | DuckDB Type | Description |
 |-----|-------|-------------|-------------|-------------|
-| DT | Date | str | CHAR(6) | MMDDYY format |
-| TM | Time | str | CHAR(6) | HHMMSS format |
-| ER | Error Code | str | CHAR(8) | 8-char hex |
-| ST | Status Code | str | CHAR(8) | 8-char hex |
-| BT | Battery | float | DECIMAL(4,1) | Voltage in volts |
+| DATE | Date | str | CHAR(6) | MMDDYY format |
+| TIME | Time | str | CHAR(6) | HHMMSS format |
+| EC | Error Code | int | INTEGER | Error identifier |
+| SC | Status Code | str | CHAR(8) | 8-char hex |
+| BV | Battery | float | DECIMAL(4,1) | Voltage in volts |
 | SS | Sound Speed | float | DECIMAL(6,1) | m/s |
-| HD | Heading | float | DECIMAL(5,1) | degrees |
-| PT | Pitch | float | DECIMAL(4,1) | degrees |
-| RL | Roll | float | DECIMAL(5,1) | degrees |
-| PR | Pressure | float | DECIMAL(7,3) | decibars |
-| TP | Temperature | float | DECIMAL(5,2) | degrees Celsius |
-| A1 | Analog Input 1 | int | SMALLINT | integer value |
-| A2 | Analog Input 2 | int | SMALLINT | integer value |
+| HSD | Heading StdDev | float | DECIMAL(5,1) | degrees |
+| H | Heading | float | DECIMAL(5,1) | degrees |
+| PI | Pitch | float | DECIMAL(4,1) | degrees |
+| PISD | Pitch StdDev | float | DECIMAL(4,1) | degrees |
+| R | Roll | float | DECIMAL(5,1) | degrees |
+| RSD | Roll StdDev | float | DECIMAL(5,1) | degrees |
+| P | Pressure | float | DECIMAL(7,3) | decibars |
+| PSD | Pressure StdDev | float | DECIMAL(7,3) | decibars |
+| T | Temperature | float | DECIMAL(5,2) | degrees Celsius |
 
 ## Example Sentence
 
 ```
-$PNORS2,DT=102115,TM=090715,ER=00000000,ST=2A480000,BT=14.4,SS=1523.0,HD=275.9,PT=15.7,RL=2.3,PR=0.000,TP=22.45,A1=0,A2=0*XX
+$PNORS2,DATE=083013,TIME=132455,EC=0,SC=34000034,BV=22.9,SS=1500.0,HSD=0.02,H=123.4,PI=45.6,PISD=0.02,R=23.4,RSD=0.02,P=123.456,PSD=0.02,T=24.56*3F
 ```
 
 ## Differences from PNORS
@@ -44,7 +46,7 @@ $PNORS2,DT=102115,TM=090715,ER=00000000,ST=2A480000,BT=14.4,SS=1523.0,HD=275.9,P
 
 ## Valid Tags
 
-Required: `DT`, `TM`, `ER`, `ST`, `BT`, `SS`, `HD`, `PT`, `RL`, `PR`, `TP`, `A1`, `A2`
+Required: `DATE`, `TIME`, `EC`, `SC`, `BV`, `SS`, `HSD`, `H`, `PI`, `PISD`, `R`, `RSD`, `P`, `PSD`, `T`
 
 ## Related Documents
 

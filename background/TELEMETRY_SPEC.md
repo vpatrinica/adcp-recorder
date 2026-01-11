@@ -61,7 +61,6 @@ This documentation specifies all NMEA telemetry data formats for Nortek AD2CP in
 ## Altimeter Mode (SET/GETTMALTI)
 
 28. **[PNORA-DF200.md](PNORA-DF200.md)** - Altimeter data without tags
-29. **[PNORA-DF201.md](PNORA-DF201.md)** - Altimeter data with tags
 
 ---
 
@@ -130,7 +129,7 @@ This documentation specifies all NMEA telemetry data formats for Nortek AD2CP in
 | Burst | 103 | With Tags | PNORH3, PNORS3, PNORC3 |
 | Burst | 104 | No Tags | PNORH4, PNORS4, PNORC4 |
 | Altimeter | 200 | No Tags | PNORA |
-| Altimeter | 201 | With Tags | PNORA |
+
 | Waves | 501 | NMEA | PNORW, PNORB, PNORE, PNORF, PNORWD |
 
 ---
@@ -453,27 +452,19 @@ NMEA-formatted averaged current data without tags from Averaging or Burst teleme
 - Column=2, Field=Time, Tag=TIME, Data Type=Integer, Format=HHMMSS, Unit=-, Description=Measurement time, Notes=Always present
 - Column=3, Field=Cell Number, Tag=CN, Data Type=Integer, Format=N, Unit=-, Description=Measurement cell index, Notes=Always present
 - Column=4, Field=Cell Position, Tag=CP, Data Type=Float, Format=dd.d, Unit=m, Description=Distance from transducer, Notes=Always present
-- Column=5, Field=Velocity East, Tag=VE, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=East velocity component, Notes=CY=ENU only
-- Column=6, Field=Velocity North, Tag=VN, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=North velocity component, Notes=CY=ENU only
-- Column=7, Field=Velocity Up, Tag=VU, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Up velocity component, Notes=CY=ENU only
-- Column=8, Field=Velocity Up 2, Tag=VU2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Second up velocity, Notes=CY=ENU only
-- Column=9, Field=Velocity X, Tag=VX, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=X velocity component, Notes=CY=XYZ only
-- Column=10, Field=Velocity Y, Tag=VY, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Y velocity component, Notes=CY=XYZ only
-- Column=11, Field=Velocity Z, Tag=VZ, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Z velocity component, Notes=CY=XYZ only
-- Column=12, Field=Velocity Z2, Tag=VZ2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Second Z velocity, Notes=CY=XYZ only
-- Column=13, Field=Velocity Beam 1, Tag=V1, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 1 velocity, Notes=CY=BEAM only
-- Column=14, Field=Velocity Beam 2, Tag=V2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 2 velocity, Notes=CY=BEAM only
-- Column=15, Field=Velocity Beam 3, Tag=V3, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 3 velocity, Notes=CY=BEAM only
-- Column=16, Field=Velocity Beam 4, Tag=V4, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 4 velocity, Notes=CY=BEAM only
-- Column=17, Field=Amplitude Beam 1, Tag=A1, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 1, Notes=Always present
-- Column=18, Field=Amplitude Beam 2, Tag=A2, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 2, Notes=Always present
-- Column=19, Field=Amplitude Beam 3, Tag=A3, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 3, Notes=Always present
-- Column=20, Field=Amplitude Beam 4, Tag=A4, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 4, Notes=Always present
-- Column=21, Field=Correlation Beam 1, Tag=C1, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 1, Notes=Always present
-- Column=22, Field=Correlation Beam 2, Tag=C2, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 2, Notes=Always present
-- Column=23, Field=Correlation Beam 3, Tag=C3, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 3, Notes=Always present
-- Column=24, Field=Correlation Beam 4, Tag=C4, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 4, Notes=Always present
-- Column=25, Field=Checksum, Tag=-, Data Type=Hex, Format=*hh, Unit=-, Description=NMEA checksum, Notes=Always present
+- Column=5, Field=Velocity 1, Tag=V1/VE/VX, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Velocity component 1, Notes=Meaning depends on CY
+- Column=6, Field=Velocity 2, Tag=V2/VN/VY, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Velocity component 2, Notes=Meaning depends on CY
+- Column=7, Field=Velocity 3, Tag=V3/VU/VZ, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Velocity component 3, Notes=Meaning depends on CY
+- Column=8, Field=Velocity 4, Tag=V4/VU2/VZ2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Velocity component 4, Notes=Meaning depends on CY
+- Column=9, Field=Amplitude Beam 1, Tag=A1, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 1, Notes=Always present
+- Column=10, Field=Amplitude Beam 2, Tag=A2, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 2, Notes=Always present
+- Column=11, Field=Amplitude Beam 3, Tag=A3, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 3, Notes=Always present
+- Column=12, Field=Amplitude Beam 4, Tag=A4, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 4, Notes=Always present
+- Column=13, Field=Correlation Beam 1, Tag=C1, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 1, Notes=Always present
+- Column=14, Field=Correlation Beam 2, Tag=C2, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 2, Notes=Always present
+- Column=15, Field=Correlation Beam 3, Tag=C3, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 3, Notes=Always present
+- Column=16, Field=Correlation Beam 4, Tag=C4, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 4, Notes=Always present
+- Column=17, Field=Checksum, Tag=-, Data Type=Hex, Format=*hh, Unit=-, Description=NMEA checksum, Notes=Always present
 
 ## Coordinate System Dependencies
 - CY=ENU: Velocity fields VE, VN, VU, VU2
@@ -634,27 +625,19 @@ NMEA-formatted averaged current data with tags from Averaging or Burst telemetry
 - Column=2, Field=Time, Tag=TIME, Data Type=Integer, Format=HHMMSS, Unit=-, Description=Measurement time, Notes=Always present
 - Column=3, Field=Cell Number, Tag=CN, Data Type=Integer, Format=N, Unit=-, Description=Measurement cell index, Notes=Always present
 - Column=4, Field=Cell Position, Tag=CP, Data Type=Float, Format=dd.d, Unit=m, Description=Distance from transducer, Notes=Always present
-- Column=5, Field=Velocity East, Tag=VE, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=East velocity component, Notes=CY=ENU only
-- Column=6, Field=Velocity North, Tag=VN, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=North velocity component, Notes=CY=ENU only
-- Column=7, Field=Velocity Up, Tag=VU, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Up velocity component, Notes=CY=ENU only
-- Column=8, Field=Velocity Up 2, Tag=VU2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Second up velocity, Notes=CY=ENU only
-- Column=9, Field=Velocity X, Tag=VX, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=X velocity component, Notes=CY=XYZ only
-- Column=10, Field=Velocity Y, Tag=VY, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Y velocity component, Notes=CY=XYZ only
-- Column=11, Field=Velocity Z, Tag=VZ, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Z velocity component, Notes=CY=XYZ only
-- Column=12, Field=Velocity Z2, Tag=VZ2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Second Z velocity, Notes=CY=XYZ only
-- Column=13, Field=Velocity Beam 1, Tag=V1, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 1 velocity, Notes=CY=BEAM only
-- Column=14, Field=Velocity Beam 2, Tag=V2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 2 velocity, Notes=CY=BEAM only
-- Column=15, Field=Velocity Beam 3, Tag=V3, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 3 velocity, Notes=CY=BEAM only
-- Column=16, Field=Velocity Beam 4, Tag=V4, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 4 velocity, Notes=CY=BEAM only
-- Column=17, Field=Amplitude Beam 1, Tag=A1, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 1, Notes=Always present
-- Column=18, Field=Amplitude Beam 2, Tag=A2, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 2, Notes=Always present
-- Column=19, Field=Amplitude Beam 3, Tag=A3, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 3, Notes=Always present
-- Column=20, Field=Amplitude Beam 4, Tag=A4, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 4, Notes=Always present
-- Column=21, Field=Correlation Beam 1, Tag=C1, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 1, Notes=Always present
-- Column=22, Field=Correlation Beam 2, Tag=C2, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 2, Notes=Always present
-- Column=23, Field=Correlation Beam 3, Tag=C3, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 3, Notes=Always present
-- Column=24, Field=Correlation Beam 4, Tag=C4, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 4, Notes=Always present
-- Column=25, Field=Checksum, Tag=-, Data Type=Hex, Format=*hh, Unit=-, Description=NMEA checksum, Notes=Always present
+- Column=5, Field=Velocity 1, Tag=V1/VE/VX, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Velocity component 1, Notes=Tag depends on CY (VE, VX, V1)
+- Column=6, Field=Velocity 2, Tag=V2/VN/VY, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Velocity component 2, Notes=Tag depends on CY (VN, VY, V2)
+- Column=7, Field=Velocity 3, Tag=V3/VU/VZ, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Velocity component 3, Notes=Tag depends on CY (VU, VZ, V3)
+- Column=8, Field=Velocity 4, Tag=V4/VU2/VZ2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Velocity component 4, Notes=Tag depends on CY (VU2, VZ2, V4)
+- Column=9, Field=Amplitude Beam 1, Tag=A1, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 1, Notes=Always present
+- Column=10, Field=Amplitude Beam 2, Tag=A2, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 2, Notes=Always present
+- Column=11, Field=Amplitude Beam 3, Tag=A3, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 3, Notes=Always present
+- Column=12, Field=Amplitude Beam 4, Tag=A4, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 4, Notes=Always present
+- Column=13, Field=Correlation Beam 1, Tag=C1, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 1, Notes=Always present
+- Column=14, Field=Correlation Beam 2, Tag=C2, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 2, Notes=Always present
+- Column=15, Field=Correlation Beam 3, Tag=C3, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 3, Notes=Always present
+- Column=16, Field=Correlation Beam 4, Tag=C4, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 4, Notes=Always present
+- Column=17, Field=Checksum, Tag=-, Data Type=Hex, Format=*hh, Unit=-, Description=NMEA checksum, Notes=Always present
 
 ## Coordinate System Dependencies
 - CY=ENU: Velocity fields VE=, VN=, VU=, VU2=
@@ -995,6 +978,7 @@ $PNORA,190902,122341,0.000,24.274,13068,08,-2.6,-0.8*7E
 - Time format: hhmmss
 ```
 
+
 **PNORA-DF201.md**
 ```markdown
 # PNORA - Altimeter Data with Tags (DF=201)
@@ -1051,7 +1035,6 @@ $PNORA,DATE=190902,TIME=122341,P=0.000,A=24.274,Q=13068,ST=08,PI=-2.6,R=-0.8*72
 - Time format: hhmmss
 - Same data as DF=200 but with tags
 ```
-
 **PNORW-DF501.md**
 ```markdown
 # PNORW - Wave Parameters (DF=501)
@@ -1543,27 +1526,19 @@ NMEA-formatted averaged current data without tags from Burst telemetry mode (Dat
 - Column=2, Field=Time, Tag=TIME, Data Type=Integer, Format=HHMMSS, Unit=-, Description=Measurement time, Notes=Always present
 - Column=3, Field=Cell Number, Tag=CN, Data Type=Integer, Format=N, Unit=-, Description=Measurement cell index, Notes=Always present
 - Column=4, Field=Cell Position, Tag=CP, Data Type=Float, Format=dd.d, Unit=m, Description=Distance from transducer, Notes=Always present
-- Column=5, Field=Velocity East, Tag=VE, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=East velocity component, Notes=CY=ENU only
-- Column=6, Field=Velocity North, Tag=VN, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=North velocity component, Notes=CY=ENU only
-- Column=7, Field=Velocity Up, Tag=VU, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Up velocity component, Notes=CY=ENU only
-- Column=8, Field=Velocity Up 2, Tag=VU2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Second up velocity, Notes=CY=ENU only
-- Column=9, Field=Velocity X, Tag=VX, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=X velocity component, Notes=CY=XYZ only
-- Column=10, Field=Velocity Y, Tag=VY, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Y velocity component, Notes=CY=XYZ only
-- Column=11, Field=Velocity Z, Tag=VZ, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Z velocity component, Notes=CY=XYZ only
-- Column=12, Field=Velocity Z2, Tag=VZ2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Second Z velocity, Notes=CY=XYZ only
-- Column=13, Field=Velocity Beam 1, Tag=V1, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 1 velocity, Notes=CY=BEAM only
-- Column=14, Field=Velocity Beam 2, Tag=V2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 2 velocity, Notes=CY=BEAM only
-- Column=15, Field=Velocity Beam 3, Tag=V3, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 3 velocity, Notes=CY=BEAM only
-- Column=16, Field=Velocity Beam 4, Tag=V4, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 4 velocity, Notes=CY=BEAM only
-- Column=17, Field=Amplitude Beam 1, Tag=A1, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 1, Notes=Always present
-- Column=18, Field=Amplitude Beam 2, Tag=A2, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 2, Notes=Always present
-- Column=19, Field=Amplitude Beam 3, Tag=A3, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 3, Notes=Always present
-- Column=20, Field=Amplitude Beam 4, Tag=A4, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 4, Notes=Always present
-- Column=21, Field=Correlation Beam 1, Tag=C1, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 1, Notes=Always present
-- Column=22, Field=Correlation Beam 2, Tag=C2, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 2, Notes=Always present
-- Column=23, Field=Correlation Beam 3, Tag=C3, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 3, Notes=Always present
-- Column=24, Field=Correlation Beam 4, Tag=C4, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 4, Notes=Always present
-- Column=25, Field=Checksum, Tag=-, Data Type=Hex, Format=*hh, Unit=-, Description=NMEA checksum, Notes=Always present
+- Column=5, Field=Velocity 1, Tag=V1/VE/VX, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Velocity component 1, Notes=Meaning depends on CY
+- Column=6, Field=Velocity 2, Tag=V2/VN/VY, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Velocity component 2, Notes=Meaning depends on CY
+- Column=7, Field=Velocity 3, Tag=V3/VU/VZ, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Velocity component 3, Notes=Meaning depends on CY
+- Column=8, Field=Velocity 4, Tag=V4/VU2/VZ2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Velocity component 4, Notes=Meaning depends on CY
+- Column=9, Field=Amplitude Beam 1, Tag=A1, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 1, Notes=Always present
+- Column=10, Field=Amplitude Beam 2, Tag=A2, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 2, Notes=Always present
+- Column=11, Field=Amplitude Beam 3, Tag=A3, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 3, Notes=Always present
+- Column=12, Field=Amplitude Beam 4, Tag=A4, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 4, Notes=Always present
+- Column=13, Field=Correlation Beam 1, Tag=C1, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 1, Notes=Always present
+- Column=14, Field=Correlation Beam 2, Tag=C2, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 2, Notes=Always present
+- Column=15, Field=Correlation Beam 3, Tag=C3, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 3, Notes=Always present
+- Column=16, Field=Correlation Beam 4, Tag=C4, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 4, Notes=Always present
+- Column=17, Field=Checksum, Tag=-, Data Type=Hex, Format=*hh, Unit=-, Description=NMEA checksum, Notes=Always present
 
 ## Coordinate System Dependencies
 - CY=ENU: Velocity fields VE, VN, VU, VU2
@@ -1730,27 +1705,19 @@ NMEA-formatted averaged current data with tags from Burst telemetry mode (Data F
 - Column=2, Field=Time, Tag=TIME, Data Type=Integer, Format=HHMMSS, Unit=-, Description=Measurement time, Notes=Always present
 - Column=3, Field=Cell Number, Tag=CN, Data Type=Integer, Format=N, Unit=-, Description=Measurement cell index, Notes=Always present
 - Column=4, Field=Cell Position, Tag=CP, Data Type=Float, Format=dd.d, Unit=m, Description=Distance from transducer, Notes=Always present
-- Column=5, Field=Velocity East, Tag=VE, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=East velocity component, Notes=CY=ENU only
-- Column=6, Field=Velocity North, Tag=VN, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=North velocity component, Notes=CY=ENU only
-- Column=7, Field=Velocity Up, Tag=VU, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Up velocity component, Notes=CY=ENU only
-- Column=8, Field=Velocity Up 2, Tag=VU2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Second up velocity, Notes=CY=ENU only
-- Column=9, Field=Velocity X, Tag=VX, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=X velocity component, Notes=CY=XYZ only
-- Column=10, Field=Velocity Y, Tag=VY, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Y velocity component, Notes=CY=XYZ only
-- Column=11, Field=Velocity Z, Tag=VZ, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Z velocity component, Notes=CY=XYZ only
-- Column=12, Field=Velocity Z2, Tag=VZ2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Second Z velocity, Notes=CY=XYZ only
-- Column=13, Field=Velocity Beam 1, Tag=V1, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 1 velocity, Notes=CY=BEAM only
-- Column=14, Field=Velocity Beam 2, Tag=V2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 2 velocity, Notes=CY=BEAM only
-- Column=15, Field=Velocity Beam 3, Tag=V3, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 3 velocity, Notes=CY=BEAM only
-- Column=16, Field=Velocity Beam 4, Tag=V4, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 4 velocity, Notes=CY=BEAM only
-- Column=17, Field=Amplitude Beam 1, Tag=A1, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 1, Notes=Always present
-- Column=18, Field=Amplitude Beam 2, Tag=A2, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 2, Notes=Always present
-- Column=19, Field=Amplitude Beam 3, Tag=A3, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 3, Notes=Always present
-- Column=20, Field=Amplitude Beam 4, Tag=A4, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 4, Notes=Always present
-- Column=21, Field=Correlation Beam 1, Tag=C1, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 1, Notes=Always present
-- Column=22, Field=Correlation Beam 2, Tag=C2, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 2, Notes=Always present
-- Column=23, Field=Correlation Beam 3, Tag=C3, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 3, Notes=Always present
-- Column=24, Field=Correlation Beam 4, Tag=C4, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 4, Notes=Always present
-- Column=25, Field=Checksum, Tag=-, Data Type=Hex, Format=*hh, Unit=-, Description=NMEA checksum, Notes=Always present
+- Column=5, Field=Velocity 1, Tag=V1/VE/VX, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Velocity component 1, Notes=Tag depends on CY (VE, VX, V1)
+- Column=6, Field=Velocity 2, Tag=V2/VN/VY, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Velocity component 2, Notes=Tag depends on CY (VN, VY, V2)
+- Column=7, Field=Velocity 3, Tag=V3/VU/VZ, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Velocity component 3, Notes=Tag depends on CY (VU, VZ, V3)
+- Column=8, Field=Velocity 4, Tag=V4/VU2/VZ2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Velocity component 4, Notes=Tag depends on CY (VU2, VZ2, V4)
+- Column=9, Field=Amplitude Beam 1, Tag=A1, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 1, Notes=Always present
+- Column=10, Field=Amplitude Beam 2, Tag=A2, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 2, Notes=Always present
+- Column=11, Field=Amplitude Beam 3, Tag=A3, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 3, Notes=Always present
+- Column=12, Field=Amplitude Beam 4, Tag=A4, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 4, Notes=Always present
+- Column=13, Field=Correlation Beam 1, Tag=C1, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 1, Notes=Always present
+- Column=14, Field=Correlation Beam 2, Tag=C2, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 2, Notes=Always present
+- Column=15, Field=Correlation Beam 3, Tag=C3, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 3, Notes=Always present
+- Column=16, Field=Correlation Beam 4, Tag=C4, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 4, Notes=Always present
+- Column=17, Field=Checksum, Tag=-, Data Type=Hex, Format=*hh, Unit=-, Description=NMEA checksum, Notes=Always present
 
 ## Coordinate System Dependencies
 - CY=ENU: Velocity fields VE=, VN=, VU=, VU2=
