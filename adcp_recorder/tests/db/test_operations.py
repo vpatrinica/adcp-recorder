@@ -373,18 +373,17 @@ class TestPNORIConfigurationOperations:
         # Verify insertion
         result = conn.execute(
             """
-            SELECT sentence_type, instrument_type_name, head_id, beam_count,
+            SELECT instrument_type_name, head_id, beam_count,
                    coord_system_name
-            FROM pnori_configurations WHERE config_id = ?
+            FROM pnori WHERE config_id = ?
             """,
             [config_id],
         ).fetchone()
 
-        assert result[0] == "PNORI"
-        assert result[1] == "SIGNATURE"
-        assert result[2] == "Signature1000900001"
-        assert result[3] == 4
-        assert result[4] == "ENU"
+        assert result[0] == "SIGNATURE"
+        assert result[1] == "Signature1000900001"
+        assert result[2] == 4
+        assert result[3] == "ENU"
 
     def test_insert_pnori1_configuration(self):
         """Test inserting PNORI1 configuration."""
@@ -400,15 +399,14 @@ class TestPNORIConfigurationOperations:
         # Verify insertion with string coordinate system
         result = conn.execute(
             """
-            SELECT sentence_type, coord_system_name, coord_system_code
-            FROM pnori_configurations WHERE config_id = ?
+            SELECT coord_system_name, coord_system_code
+            FROM pnori1 WHERE config_id = ?
             """,
             [config_id],
         ).fetchone()
 
-        assert result[0] == "PNORI1"
-        assert result[1] == "BEAM"
-        assert result[2] == 2  # BEAM maps to 2
+        assert result[0] == "BEAM"
+        assert result[1] == 2  # BEAM maps to 2
 
     def test_insert_pnori2_configuration(self):
         """Test inserting PNORI2 tagged configuration."""
@@ -424,15 +422,14 @@ class TestPNORIConfigurationOperations:
         # Verify tagged variant
         result = conn.execute(
             """
-            SELECT sentence_type, head_id, coord_system_name
-            FROM pnori_configurations WHERE config_id = ?
+            SELECT head_id, coord_system_name
+            FROM pnori2 WHERE config_id = ?
             """,
             [config_id],
         ).fetchone()
 
-        assert result[0] == "PNORI2"
-        assert result[1] == "789012"
-        assert result[2] == "XYZ"
+        assert result[0] == "789012"
+        assert result[1] == "XYZ"
 
     def test_query_pnori_configurations_all(self):
         """Test querying all PNORI configurations."""
@@ -540,13 +537,13 @@ class TestPNORIConfigurationOperations:
         with pytest.raises(Exception):  # DuckDB constraint violation
             conn.execute(
                 """
-                INSERT INTO pnori_configurations (
-                    config_id, sentence_type, original_sentence,
+                INSERT INTO pnori (
+                    config_id, original_sentence,
                     instrument_type_name, instrument_type_code, head_id,
                     beam_count, cell_count, blanking_distance, cell_size,
                     coord_system_name, coord_system_code, checksum
                 )
-                VALUES (1, 'PNORI', '$TEST', 'INVALID', 99, 'Test', 4, 20, 0.20, 1.00, 'ENU', 0, '00')
+                VALUES (1, '$TEST', 'INVALID', 99, 'Test', 4, 20, 0.20, 1.00, 'ENU', 0, '00')
                 """
             )
 
@@ -561,18 +558,18 @@ class TestPNORIConfigurationOperations:
         with pytest.raises(Exception):  # DuckDB constraint violation
             conn.execute(
                 """
-                INSERT INTO pnori_configurations (
-                    config_id, sentence_type, original_sentence,
+                INSERT INTO pnori (
+                    config_id, original_sentence,
                     instrument_type_name, instrument_type_code, head_id,
                     beam_count, cell_count, blanking_distance, cell_size,
                     coord_system_name, coord_system_code, checksum
                 )
-                VALUES (1, 'PNORI', '$TEST', 'SIGNATURE', 4, 'Test', 3, 20, 0.20, 1.00, 'ENU', 0, '00')
+                VALUES (1, '$TEST', 'SIGNATURE', 4, 'Test', 3, 20, 0.20, 1.00, 'ENU', 0, '00')
                 """
             )
 
     def test_pnori_coordinate_system_mapping(self):
-        """Test that coordinate system mappings are enforced."""
+        """Test that coordinate system mappings are enforced on pnori1."""
         db = DatabaseManager(":memory:")
         conn = db.get_connection()
 
@@ -582,13 +579,13 @@ class TestPNORIConfigurationOperations:
         with pytest.raises(Exception):  # DuckDB constraint violation
             conn.execute(
                 """
-                INSERT INTO pnori_configurations (
-                    config_id, sentence_type, original_sentence,
+                INSERT INTO pnori1 (
+                    config_id, original_sentence,
                     instrument_type_name, instrument_type_code, head_id,
                     beam_count, cell_count, blanking_distance, cell_size,
                     coord_system_name, coord_system_code, checksum
                 )
-                VALUES (1, 'PNORI', '$TEST', 'SIGNATURE', 4, 'Test', 4, 20, 0.20, 1.00, 'ENU', 1, '00')
+                VALUES (1, '$TEST', 'SIGNATURE', 4, 'Test', 4, 20, 0.20, 1.00, 'ENU', 1, '00')
                 """
             )
 

@@ -100,7 +100,7 @@ class TestConsumerParseErrors:
     def test_pnorb_parse_error(self, consumer_stack):
         q, _, db = consumer_stack
         # PNORB: Invalid field count
-        self._verify_error_captured(q, db, "PNORB", "$PNORB,1,2*XX")
+        self._verify_error_captured(q, db, "PNORB", "$PNORB,1,2,3,4,5,6,7,8,9,10,11,12*XX")  # Missing 2 fields
 
     def test_pnore_parse_error(self, consumer_stack):
         q, _, db = consumer_stack

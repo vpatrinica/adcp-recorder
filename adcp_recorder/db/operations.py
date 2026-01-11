@@ -322,7 +322,7 @@ def query_parse_errors(
 def insert_pnori_configuration(
     conn: duckdb.DuckDBPyConnection, pnori_dict: Dict[str, Any], original_sentence: str
 ) -> int:
-    """Insert PNORI/PNORI1/PNORI2 configuration into database.
+    """Insert PNORI/PNORI1/PNORI2 configuration into database - routes to correct table.
 
     Args:
         conn: DuckDB connection
@@ -337,16 +337,31 @@ def insert_pnori_configuration(
         >>> config = PNORI.from_nmea("$PNORI,4,Test,4,20,0.20,1.00,0*2E")
         >>> config_id = insert_pnori_configuration(conn, config.to_dict(), "$PNORI...")
     """
+    sentence_type = pnori_dict["sentence_type"]
+    
+    # Route to correct table based on sentence type
+    if sentence_type == "PNORI":
+        table = "pnori"
+        seq = "pnori_seq"
+    elif sentence_type == "PNORI1":
+        table = "pnori1"
+        seq = "pnori1_seq"
+    elif sentence_type == "PNORI2":
+        table = "pnori2"
+        seq = "pnori2_seq"
+    else:
+        raise ValueError(f"Unknown PNORI sentence type: {sentence_type}")
+    
     result = conn.execute(
-        """
-        INSERT INTO pnori_configurations (
-            config_id, sentence_type, original_sentence,
+        f"""
+        INSERT INTO {table} (
+            config_id, original_sentence,
             instrument_type_name, instrument_type_code, head_id,
             beam_count, cell_count, blanking_distance, cell_size,
             coord_system_name, coord_system_code, checksum
         )
         VALUES (
-            nextval('pnori_configurations_seq'), ?, ?,
+            nextval('{seq}'), ?,
             ?, ?, ?,
             ?, ?, ?, ?,
             ?, ?, ?
@@ -354,7 +369,6 @@ def insert_pnori_configuration(
         RETURNING config_id
         """,
         [
-            pnori_dict["sentence_type"],
             original_sentence,
             pnori_dict["instrument_type_name"],
             pnori_dict["instrument_type_code"],
@@ -379,196 +393,304 @@ def query_pnori_configurations(
     sentence_type: Optional[str] = None,
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
-    limit: int = 1000,
+    limit: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
-    """Query PNORI configurations with optional filters.
+    """Query PNORI configurations from all 3 tables (pnori, pnori1, pnori2).
 
     Args:
         conn: DuckDB connection
-        head_id: Filter by instrument head ID
-        sentence_type: Filter by sentence type ('PNORI', 'PNORI1', 'PNORI2')
-        start_time: Filter records after this timestamp
-        end_time: Filter records before this timestamp
+        head_id: Filter by head_id
+        sentence_type: Filter by sentence type ('PNORI', 'PNORI1', or 'PNORI2')
+        start_time: Filter records received after this time
+        end_time: Filter records received before this time
         limit: Maximum number of records to return
 
     Returns:
         List of dictionaries containing configuration data
-
-    Example:
-        >>> configs = query_pnori_configurations(conn, head_id='Signature1000900001', limit=10)
     """
-    where_clauses = []
-    params = []
-
-    if head_id is not None:
-        where_clauses.append("head_id = ?")
-        params.append(head_id)
-
-    if sentence_type is not None:
-        where_clauses.append("sentence_type = ?")
-        params.append(sentence_type)
-
-    if start_time is not None:
-        where_clauses.append("received_at >= ?")
-        params.append(start_time)
-
-    if end_time is not None:
-        where_clauses.append("received_at <= ?")
-        params.append(end_time)
-
-    where_clause = " AND ".join(where_clauses) if where_clauses else "1=1"
-
-    sql = f"""
-        SELECT config_id, received_at, sentence_type, original_sentence,
+    # Build query to UNION all 3 tables
+    query = """
+        SELECT config_id, received_at, 'PNORI' as sentence_type, original_sentence,
                instrument_type_name, instrument_type_code, head_id,
                beam_count, cell_count, blanking_distance, cell_size,
                coord_system_name, coord_system_code, checksum
-        FROM pnori_configurations
-        WHERE {where_clause}
-        ORDER BY received_at DESC
-        LIMIT ?
+        FROM pnori
+        UNION ALL
+        SELECT config_id, received_at, 'PNORI1' as sentence_type, original_sentence,
+               instrument_type_name, instrument_type_code, head_id,
+               beam_count, cell_count, blanking_distance, cell_size,
+               coord_system_name, coord_system_code, checksum
+        FROM pnori1
+        UNION ALL
+        SELECT config_id, received_at, 'PNORI2' as sentence_type, original_sentence,
+               instrument_type_name, instrument_type_code, head_id,
+               beam_count, cell_count, blanking_distance, cell_size,
+               coord_system_name, coord_system_code, checksum
+        FROM pnori2
     """
 
-    params.append(limit)
+    conditions = []
+    params = []
 
-    results = conn.execute(sql, params).fetchall()
+    if head_id:
+        conditions.append("head_id = ?")
+        params.append(head_id)
 
-    # Convert to list of dictionaries
-    return [
-        {
-            "config_id": row[0],
-            "received_at": row[1],
-            "sentence_type": row[2],
-            "original_sentence": row[3],
-            "instrument_type_name": row[4],
-            "instrument_type_code": row[5],
-            "head_id": row[6],
-            "beam_count": row[7],
-            "cell_count": row[8],
-            "blanking_distance": row[9],
-            "cell_size": row[10],
-            "coord_system_name": row[11],
-            "coord_system_code": row[12],
-            "checksum": row[13],
-        }
-        for row in results
+    if sentence_type:
+        conditions.append("sentence_type = ?")
+        params.append(sentence_type)
+
+    if start_time:
+        conditions.append("received_at >= ?")
+        params.append(start_time)
+
+    if end_time:
+        conditions.append("received_at <= ?")
+        params.append(end_time)
+
+    if conditions:
+        query = f"SELECT * FROM ({query}) WHERE {' AND '.join(conditions)}"
+
+    query += " ORDER BY received_at DESC"
+
+    if limit:
+        query += f" LIMIT {limit}"
+
+    result = conn.execute(query, params).fetchall()
+
+    # Convert to list of dicts
+    columns = [
+        "config_id",
+        "received_at",
+        "sentence_type",
+        "original_sentence",
+        "instrument_type_name",
+        "instrument_type_code",
+        "head_id",
+        "beam_count",
+        "cell_count",
+        "blanking_distance",
+        "cell_size",
+        "coord_system_name",
+        "coord_system_code",
+        "checksum",
     ]
+
+    return [dict(zip(columns, row)) for row in result]
 
 
 def insert_sensor_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, data: Dict) -> int:
-    """Insert sensor data into sensor_data table."""
-    query = """
-    INSERT INTO sensor_data (
-        record_id, original_sentence, sentence_type,
+    """Insert sensor data - routes to correct table based on sentence type."""
+    sentence_type = data["sentence_type"]
+    
+    # Route to correct table based on data format
+    if sentence_type == "PNORS":
+        table = "pnors_df100"
+        seq = "pnors_df100_seq"
+        fields = "error_code, status_code, battery, sound_speed, heading, pitch, roll, pressure, temperature, analog1, analog2"
+        placeholders = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
+        values = (
+            data.get("error_code"), data.get("status_code"), data.get("battery"), data.get("sound_speed"),
+            data.get("heading"), data.get("pitch"), data.get("roll"), data.get("pressure"), data.get("temperature"),
+            data.get("analog1"), data.get("analog2")
+        )
+    elif sentence_type == "PNORS1":
+        table = "pnors_df101"
+        seq = "pnors_df101_seq"
+        fields = "error_code, status_code, battery, sound_speed, heading, pitch, roll, pressure, temperature, analog1, analog2, salinity"
+        placeholders = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
+        values = (
+            data.get("error_code"), data.get("status_code"), data.get("battery"), data.get("sound_speed"),
+            data.get("heading"), data.get("pitch"), data.get("roll"), data.get("pressure"), data.get("temperature"),
+            data.get("analog1"), data.get("analog2"), data.get("salinity")
+        )
+    elif sentence_type == "PNORS2":
+        table = "pnors_df102"
+        seq = "pnors_df102_seq"
+        fields = "error_code, status_code, battery, sound_speed, heading, pitch, roll, pressure, temperature, analog1, analog2"
+        placeholders = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
+        values = (
+            data.get("error_code"), data.get("status_code"), data.get("battery"), data.get("sound_speed"),
+            data.get("heading"), data.get("pitch"), data.get("roll"), data.get("pressure"), data.get("temperature"),
+            data.get("analog1"), data.get("analog2")
+        )
+    elif sentence_type == "PNORS3":
+        table = "pnors_df103"
+        seq = "pnors_df103_seq"
+        fields = "battery, heading, pitch, roll, pressure, temperature"
+        placeholders = "?, ?, ?, ?, ?, ?"
+        values = (
+            data.get("battery"), data.get("heading"), data.get("pitch"), data.get("roll"),
+            data.get("pressure"), data.get("temperature")
+        )
+    elif sentence_type == "PNORS4":
+        table = "pnors_df104"
+        seq = "pnors_df104_seq"
+        fields = "heading, pressure, temperature"
+        placeholders = "?, ?, ?"
+        values = (data.get("heading"), data.get("pressure"), data.get("temperature"))
+    else:
+        raise ValueError(f"Unknown sensor sentence type: {sentence_type}")
+    
+    query = f"""
+    INSERT INTO {table} (
+        record_id, original_sentence,
         measurement_date, measurement_time,
-        error_code, status_code, battery, sound_speed,
-        heading, pitch, roll, pressure, temperature,
-        analog1, analog2, salinity, checksum
+        {fields}, checksum
     ) VALUES (
-        nextval('sensor_data_seq'), ?, ?,
-        ?, ?,
-        ?, ?, ?, ?,
-        ?, ?, ?, ?, ?,
-        ?, ?, ?, ?
+        nextval('{seq}'), ?, ?, ?, {placeholders}, ?
     ) RETURNING record_id;
     """
     
-    params = (
-        original_sentence, data["sentence_type"],
-        data["date"], data["time"],
-        data.get("error_code"), data.get("status_code"), data.get("battery"), data.get("sound_speed"),
-        data.get("heading"), data.get("pitch"), data.get("roll"), data.get("pressure"), data.get("temperature"),
-        data.get("analog1"), data.get("analog2"), data.get("salinity"), data.get("checksum")
-    )
-    
+    params = (original_sentence, data["date"], data["time"], *values, data.get("checksum"))
     result = conn.execute(query, params).fetchone()
     conn.commit()
     return result[0]
+
+
 
 
 def insert_velocity_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, data: Dict) -> int:
-    """Insert current velocity data into velocity_data table."""
-    query = """
-    INSERT INTO velocity_data (
-        record_id, original_sentence, sentence_type,
-        measurement_date, measurement_time, cell_index,
-        vel1, vel2, vel3,
-        corr1, corr2, corr3,
-        amp1, amp2, amp3, amp4,
-        checksum
+    """Insert velocity data - routes to correct table based on sentence type."""
+    sentence_type = data["sentence_type"]
+    
+    # Route to correct table based on data format
+    if sentence_type == "PNORC":
+        table = "pnorc_df100"
+        seq = "pnorc_df100_seq"
+        fields = "cell_index, vel1, vel2, vel3"
+        placeholders = "?, ?, ?, ?"
+        values = (data["cell_index"], data["vel1"], data["vel2"], data["vel3"])
+    elif sentence_type == "PNORC1":
+        table = "pnorc_df101"
+        seq = "pnorc_df101_seq"
+        fields = "cell_index, vel1, vel2, vel3, corr1, corr2, corr3"
+        placeholders = "?, ?, ?, ?, ?, ?, ?"
+        values = (
+            data["cell_index"], data["vel1"], data["vel2"], data["vel3"],
+            data.get("corr1"), data.get("corr2"), data.get("corr3")
+        )
+    elif sentence_type == "PNORC2":
+        table = "pnorc_df102"
+        seq = "pnorc_df102_seq"
+        fields = "cell_index, vel1, vel2, vel3"
+        placeholders = "?, ?, ?, ?"
+        values = (data["cell_index"], data["vel1"], data["vel2"], data["vel3"])
+    elif sentence_type == "PNORC3":
+        table = "pnorc_df103"
+        seq = "pnorc_df103_seq"
+        fields = "cell_index, vel1, vel2, vel3, amp1, amp2, amp3, amp4"
+        placeholders = "?, ?, ?, ?, ?, ?, ?, ?"
+        values = (
+            data["cell_index"], data["vel1"], data["vel2"], data["vel3"],
+            data.get("amp1"), data.get("amp2"), data.get("amp3"), data.get("amp4")
+        )
+    elif sentence_type == "PNORC4":
+        table = "pnorc_df104"
+        seq = "pnorc_df104_seq"
+        fields = "cell_index, vel1, vel2, vel3, corr1, corr2, corr3, amp1, amp2, amp3, amp4"
+        placeholders = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
+        values = (
+            data["cell_index"], data["vel1"], data["vel2"], data["vel3"],
+            data.get("corr1"), data.get("corr2"), data.get("corr3"),
+            data.get("amp1"), data.get("amp2"), data.get("amp3"), data.get("amp4")
+        )
+    else:
+        raise ValueError(f"Unknown velocity sentence type: {sentence_type}")
+    
+    query = f"""
+    INSERT INTO {table} (
+        record_id, original_sentence,
+        measurement_date, measurement_time,
+        {fields}, checksum
     ) VALUES (
-        nextval('velocity_data_seq'), ?, ?,
-        ?, ?, ?,
-        ?, ?, ?,
-        ?, ?, ?,
-        ?, ?, ?, ?,
-        ?
+        nextval('{seq}'), ?, ?, ?, {placeholders}, ?
     ) RETURNING record_id;
     """
     
-    params = (
-        original_sentence, data["sentence_type"],
-        data["date"], data["time"], data["cell_index"],
-        data["vel1"], data["vel2"], data["vel3"],
-        data.get("corr1"), data.get("corr2"), data.get("corr3"),
-        data.get("amp1"), data.get("amp2"), data.get("amp3"), data.get("amp4"),
-        data.get("checksum")
-    )
-    
+    params = (original_sentence, data["date"], data["time"], *values, data.get("checksum"))
     result = conn.execute(query, params).fetchone()
     conn.commit()
     return result[0]
 
 
+
+
 def insert_header_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, data: Dict) -> int:
-    """Insert header data into header_data table."""
-    query = """
-    INSERT INTO header_data (
-        record_id, original_sentence, sentence_type,
+    """Insert header data - routes to correct table based on sentence type."""
+    sentence_type = data["sentence_type"]
+    
+    # Route to correct table based on data format
+    if sentence_type == "PNORH3":
+        table = "pnorh_df103"
+        seq = "pnorh_df103_seq"
+        fields = "num_cells, first_cell, ping_count"
+        placeholders = "?, ?, ?"
+        values = (data["num_cells"], data["first_cell"], data["ping_count"])
+    elif sentence_type == "PNORH4":
+        table = "pnorh_df104"
+        seq = "pnorh_df104_seq"
+        fields = "num_cells, first_cell, ping_count, coordinate_system, profile_interval"
+        placeholders = "?, ?, ?, ?, ?"
+        values = (
+            data["num_cells"], data["first_cell"], data["ping_count"],
+            data.get("coordinate_system"), data.get("profile_interval")
+        )
+    else:
+        raise ValueError(f"Unknown header sentence type: {sentence_type}")
+    
+    query = f"""
+    INSERT INTO {table} (
+        record_id, original_sentence,
         measurement_date, measurement_time,
-        num_cells, first_cell, ping_count,
-        coord_system, profile_interval, checksum
+        {fields}, checksum
     ) VALUES (
-        nextval('header_data_seq'), ?, ?,
-        ?, ?,
-        ?, ?, ?,
-        ?, ?, ?
+        nextval('{seq}'), ?, ?, ?, {placeholders}, ?
     ) RETURNING record_id;
     """
     
-    params = (
-        original_sentence, data["sentence_type"],
-        data["date"], data["time"],
-        data["num_cells"], data["first_cell"], data["ping_count"],
-        data.get("coordinate_system"), data.get("profile_interval"), data.get("checksum")
-    )
-    
+    params = (original_sentence, data["date"], data["time"], *values, data.get("checksum"))
     result = conn.execute(query, params).fetchone()
     conn.commit()
     return result[0]
 
 
 def insert_echo_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, data: Dict) -> int:
-    """Insert echo intensity data into echo_data table."""
+    """Insert wave energy density spectrum into echo_data table.
+    
+    Args:
+        conn: DuckDB connection
+        original_sentence: Original NMEA sentence
+        data: Dictionary from PNORE.to_dict() containing spectrum_basis,
+              frequencies, and energy_densities array
+    
+    Returns:
+        The generated record_id
+    """
+    import json
+    
     query = """
     INSERT INTO echo_data (
         record_id, original_sentence, sentence_type,
-        measurement_date, measurement_time, cell_index,
-        echo1, echo2, echo3, echo4,
-        checksum
+        measurement_date, measurement_time,
+        spectrum_basis, start_frequency, step_frequency, num_frequencies,
+        energy_densities, checksum
     ) VALUES (
         nextval('echo_data_seq'), ?, ?,
-        ?, ?, ?,
+        ?, ?,
         ?, ?, ?, ?,
-        ?
+        ?, ?
     ) RETURNING record_id;
     """
     
+    # Serialize energy_densities list to JSON string
+    energy_json = json.dumps(data["energy_densities"])
+    
     params = (
         original_sentence, data["sentence_type"],
-        data["date"], data["time"], data["cell_index"],
-        data["echo1"], data["echo2"], data["echo3"], data["echo4"],
-        data.get("checksum")
+        data["date"], data["time"],
+        data["spectrum_basis"], data["start_frequency"], data["step_frequency"], data["num_frequencies"],
+        energy_json, data.get("checksum")
     )
     
     result = conn.execute(query, params).fetchone()
@@ -603,51 +725,87 @@ def insert_pnorw_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
 
 
 def insert_pnorb_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, data: Dict) -> int:
-    """Insert into pnorb_data table."""
+    """Insert PNORB wave band parameters into pnorb_data table.
+    
+    Args:
+        conn: DuckDB connection
+        original_sentence: Original NMEA sentence
+        data: Dictionary from PNORB.to_dict() containing wave band parameters
+        
+    Returns:
+        The generated record_id
+    """
     query = """
     INSERT INTO pnorb_data (
         record_id, original_sentence, sentence_type,
         measurement_date, measurement_time,
-        vel_east, vel_north, vel_up, bottom_dist, quality,
-        checksum
+        spectrum_basis, processing_method,
+        freq_low, freq_high,
+        hmo, tm02, tp,
+        dirtp, sprtp, main_dir,
+        wave_error_code, checksum
     ) VALUES (
         nextval('pnorb_data_seq'), ?, ?,
         ?, ?,
-        ?, ?, ?, ?, ?,
-        ?
+        ?, ?,
+        ?, ?,
+        ?, ?, ?,
+        ?, ?, ?,
+        ?, ?
     ) RETURNING record_id;
     """
+    
     params = (
         original_sentence, data["sentence_type"],
         data["date"], data["time"],
-        data["vel_east"], data["vel_north"], data["vel_up"], data["bottom_dist"], data["quality"],
-        data.get("checksum")
+        data["spectrum_basis"], data["processing_method"],
+        data["freq_low"], data["freq_high"],
+        data["hmo"], data["tm02"], data["tp"],
+        data["dirtp"], data["sprtp"], data["main_dir"],
+        data["wave_error_code"], data.get("checksum")
     )
+    
     result = conn.execute(query, params).fetchone()
     conn.commit()
     return result[0]
 
 
 def insert_pnorf_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, data: Dict) -> int:
-    """Insert into pnorf_data table."""
+    """Insert Fourier coefficient spectra into pnorf_data table.
+    
+    Args:
+        conn: DuckDB connection
+        original_sentence: Original NMEA sentence
+        data: Dictionary from PNORF.to_dict() containing coefficient_flag, 
+              spectrum_basis, frequencies, and coefficients array
+    
+    Returns:
+        The generated record_id
+    """
+    import json
+    
     query = """
     INSERT INTO pnorf_data (
         record_id, original_sentence, sentence_type,
-        measurement_date, measurement_time,
-        frequency, bandwidth, transmit_power,
-        checksum
+        coefficient_flag, measurement_date, measurement_time,
+        spectrum_basis, start_frequency, step_frequency, num_frequencies,
+        coefficients, checksum
     ) VALUES (
         nextval('pnorf_data_seq'), ?, ?,
-        ?, ?,
         ?, ?, ?,
-        ?
+        ?, ?, ?, ?,
+        ?, ?
     ) RETURNING record_id;
     """
+    
+    # Serialize coefficients list to JSON string
+    coefficients_json = json.dumps(data["coefficients"])
+    
     params = (
         original_sentence, data["sentence_type"],
-        data["date"], data["time"],
-        data["frequency"], data["bandwidth"], data["transmit_power"],
-        data.get("checksum")
+        data["coefficient_flag"], data["date"], data["time"],
+        data["spectrum_basis"], data["start_frequency"], data["step_frequency"], data["num_frequencies"],
+        coefficients_json, data.get("checksum")
     )
     result = conn.execute(query, params).fetchone()
     conn.commit()
@@ -655,25 +813,41 @@ def insert_pnorf_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
 
 
 def insert_pnorwd_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, data: Dict) -> int:
-    """Insert into pnorwd_data table."""
+    """Insert wave directional spectra into pnorwd_data table.
+    
+    Args:
+        conn: DuckDB connection
+        original_sentence: Original NMEA sentence
+        data: Dictionary from PNORWD.to_dict() containing direction_type,
+              spectrum_basis, frequencies, and values array
+    
+    Returns:
+        The generated record_id
+    """
+    import json
+    
     query = """
     INSERT INTO pnorwd_data (
         record_id, original_sentence, sentence_type,
-        measurement_date, measurement_time,
-        freq_bin, direction, spread_angle, energy,
-        checksum
+        direction_type, measurement_date, measurement_time,
+        spectrum_basis, start_frequency, step_frequency, num_frequencies,
+        values, checksum
     ) VALUES (
         nextval('pnorwd_data_seq'), ?, ?,
-        ?, ?,
+        ?, ?, ?,
         ?, ?, ?, ?,
-        ?
+        ?, ?
     ) RETURNING record_id;
     """
+    
+    # Serialize values list to JSON string
+    values_json = json.dumps(data["values"])
+    
     params = (
         original_sentence, data["sentence_type"],
-        data["date"], data["time"],
-        data["freq_bin"], data["direction"], data["spread_angle"], data["energy"],
-        data.get("checksum")
+        data["direction_type"], data["date"], data["time"],
+        data["spectrum_basis"], data["start_frequency"], data["step_frequency"], data["num_frequencies"],
+        values_json, data.get("checksum")
     )
     result = conn.execute(query, params).fetchone()
     conn.commit()

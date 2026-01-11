@@ -8,8 +8,7 @@ from adcp_recorder.parsers.pnors import PNORS2, PNORS3, PNORS4, PNORS2Tag
 from adcp_recorder.serial.consumer import SerialConsumer, MessageRouter
 from adcp_recorder.db.db import DatabaseManager
 from adcp_recorder.db.operations import (
-    insert_echo_data, insert_pnorw_data, query_echo_data, query_pnorw_data,
-    query_sensor_data, query_velocity_data, query_header_data
+    insert_echo_data, insert_pnorw_data
 )
 from adcp_recorder.core.nmea import extract_prefix
 from adcp_recorder.parsers.pnorh import PNORH3
@@ -66,21 +65,21 @@ def test_ghost_files_explicitly():
     from adcp_recorder.parsers.pnorf import PNORF
     from adcp_recorder.parsers.pnorwd import PNORWD
     
-    # PNORB
-    msg_b = PNORB.from_nmea("$PNORB,102115,090715,1,2,3,100,99*XX")
-    assert msg_b.vel_east == 1.0
+    # PNORB - Wave Band Parameters (14 fields)
+    msg_b = PNORB.from_nmea("$PNORB,102115,090715,1,4,0.02,0.20,0.27,7.54,12.00,82.42,75.46,82.10,0000*XX")
+    assert msg_b.spectrum_basis == 1
     
-    # PNORE
-    msg_e = PNORE.from_nmea("$PNORE,102115,090715,1,10,20,30,40*XX")
-    assert msg_e.echo1 == 10
+    # PNORE - now uses energy density spectrum format
+    msg_e = PNORE.from_nmea("$PNORE,102115,090715,1,0.02,0.01,3,1.5,2.5,3.5*XX")
+    assert msg_e.spectrum_basis == 1
     
-    # PNORF
-    msg_f = PNORF.from_nmea("$PNORF,102115,090715,500,20,10.0*XX")
-    assert msg_f.frequency == 500
+    # PNORF - now uses Fourier coefficient format
+    msg_f = PNORF.from_nmea("$PNORF,A1,102115,090715,1,0.02,0.01,2,0.5,1.5*XX")
+    assert msg_f.coefficient_flag == "A1"
     
-    # PNORWD
-    msg_wd = PNORWD.from_nmea("$PNORWD,102115,090715,10,20,30,40*XX")
-    assert msg_wd.freq_bin == 10
+    # PNORWD - now uses directional spectra format
+    msg_wd = PNORWD.from_nmea("$PNORWD,MD,102115,090715,1,0.02,0.01,2,45.0,90.0*XX")
+    assert msg_wd.direction_type == "MD"
     
     # PNORH3 to_dict (line 78 in pnorh.py)
     msg_h = PNORH3("102115", "090715", 10, 1, 100)
@@ -92,25 +91,26 @@ def test_ghost_files_explicitly():
     assert msg_s2.battery == 12.0
 
 def test_operations_echo_and_wave(tmp_path):
-    # Cover insert_echo_data, insert_wave_data, query_echo_data, query_wave_data
-    # specifically line 653-656 in operations.py (query_echo_data)
+    # Cover insert_echo_data, insert_wave_data
     db_file = tmp_path / "compliance.db"
     db = DatabaseManager(str(db_file))
     conn = db.get_connection()
     
-    # Echo Data
+    # Echo Data - new format with energy densities
     echo_data = {
         "sentence_type": "PNORE",
         "date": "102115",
         "time": "090715",
-        "cell_index": 1,
-        "echo1": 100, "echo2": 100, "echo3": 100, "echo4": 100,
+        "spectrum_basis": 1,
+        "start_frequency": 0.02,
+        "step_frequency": 0.01,
+        "num_frequencies": 3,
+        "energy_densities": [1.0, 2.0, 3.0],
         "checksum": "00"
     }
     insert_echo_data(conn, "$PNORE,...", echo_data)
-    results = query_echo_data(conn)
+    results = conn.execute("SELECT * FROM echo_data").fetchall()
     assert len(results) == 1
-    assert results[0]["sentence_type"] == "PNORE"
     
     # Wave Data
     wave_data = {
@@ -124,7 +124,7 @@ def test_operations_echo_and_wave(tmp_path):
         "checksum": "00"
     }
     insert_pnorw_data(conn, "$PNORW,...", wave_data)
-    results = query_pnorw_data(conn)
+    results = conn.execute("SELECT * FROM pnorw_data").fetchall()
     assert len(results) == 1
 
 def test_consumer_specific_branches(tmp_path):
@@ -193,19 +193,17 @@ def test_consumer_specific_branches(tmp_path):
     assert len(pending) == 1
 
 def test_missing_queries(tmp_path):
-    # Cover query_sensor_data, query_velocity_data, query_header_data
-    # from operations.py
+    # Query functions no longer exist for merged tables - they were removed
+    # Just verify database can be created successfully
     db_file = tmp_path / "queries.db"
     db = DatabaseManager(str(db_file))
     conn = db.get_connection()
     
-    # Just call them - they return empty lists if no data, which is fine for coverage
+    # Verify new separate tables exist
+    tables = conn.execute("SHOW TABLES").fetchall()
+    table_names = [t[0] for t in tables]
     
-    s = query_sensor_data(conn)
-    assert isinstance(s, list)
-    
-    v = query_velocity_data(conn)
-    assert isinstance(v, list)
-    
-    h = query_header_data(conn)
-    assert isinstance(h, list)
+    # Check that new separate tables exist
+    assert "pnors_df100" in table_names
+    assert "pnorc_df100" in table_names
+    assert "pnorh_df103" in table_names
