@@ -131,3 +131,6 @@ def last_heartbeat(self) -> float:
 ---
 
 [⬆️ Back to Architecture](overview.md) | [🏠 Home](../README.md)
+
+See the [alignment protocol log](../quality-reports/alignment-protocol-log.md) for the reality-check notes feeding the tracksheet.
+

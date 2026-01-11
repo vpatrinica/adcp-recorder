@@ -9,6 +9,7 @@ import threading
 import time
 from queue import Full, Queue
 from typing import Optional
+from adcp_recorder.serial.binary_chunk import BinaryChunk
 
 from adcp_recorder.core.nmea import is_binary_data
 from adcp_recorder.serial.port_manager import SerialConnectionManager
@@ -62,6 +63,7 @@ class SerialProducer:
         self._thread: Optional[threading.Thread] = None
         self._last_heartbeat = time.time()
         self._line_buffer = b""
+        self._blob_mode = False
 
     @property
     def is_running(self) -> bool:
@@ -125,8 +127,14 @@ class SerialProducer:
             # Check for binary data
             if is_binary_data(line_bytes):
                 logger.warning(f"Binary data detected: {line_bytes[:50]}")
-                # Push binary data to queue for error logging
-                self._push_to_queue(line_bytes)
+                # Enter blob mode and stream binary chunks to the consumer
+                if not self._blob_mode:
+                    self._blob_mode = True
+                    chunk = BinaryChunk(data=line_bytes, start=True)
+                else:
+                    chunk = BinaryChunk(data=line_bytes)
+
+                self._push_to_queue(chunk)
                 self._update_heartbeat()
                 continue
 
@@ -135,13 +143,26 @@ class SerialProducer:
                 line_str = line_bytes.decode("ascii").strip()
             except UnicodeDecodeError:
                 logger.warning(f"Failed to decode ASCII: {line_bytes[:50]}")
-                # Treat as binary
-                self._push_to_queue(line_bytes)
+                # Treat as binary (enter blob mode)
+                if not self._blob_mode:
+                    self._blob_mode = True
+                    chunk = BinaryChunk(data=line_bytes, start=True)
+                else:
+                    chunk = BinaryChunk(data=line_bytes)
+
+                self._push_to_queue(chunk)
                 self._update_heartbeat()
                 continue
 
             # Push complete line
             if line_str:
+                # If we were in blob mode but now have a printable line, mark blob end
+                if self._blob_mode:
+                    # push explicit end marker then the recovered line
+                    end_chunk = BinaryChunk(data=b"", end=True)
+                    self._push_to_queue(end_chunk)
+                    self._blob_mode = False
+
                 self._push_to_queue(line_str.encode("ascii"))
                 self._update_heartbeat()
 

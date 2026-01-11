@@ -40,9 +40,9 @@ def _validate_beam_count(instrument_type: InstrumentType, beam_count: int) -> No
 
 
 def _validate_cell_count(cell_count: int) -> None:
-    """Validate cell count range (spec limit 128)."""
-    if cell_count < 1 or cell_count > 128:
-        raise ValueError(f"Cell count must be 1-128, got {cell_count}")
+    """Validate cell count range (spec limit 1000)."""
+    if cell_count < 1 or cell_count > 1000:
+        raise ValueError(f"Cell count must be 1-1000, got {cell_count}")
 
 
 def _validate_distance(value: float, field_name: str) -> None:

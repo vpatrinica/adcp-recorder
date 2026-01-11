@@ -13,6 +13,8 @@ from typing import Any, Callable, Dict, Optional, Type
 import duckdb
 
 from adcp_recorder.export.file_writer import FileWriter
+from adcp_recorder.export.binary_writer import BinaryBlobWriter
+from adcp_recorder.serial.binary_chunk import BinaryChunk
 
 from adcp_recorder.core.nmea import extract_prefix, is_binary_data
 from adcp_recorder.db import (
@@ -129,6 +131,9 @@ class SerialConsumer:
         self._router = router
         self._heartbeat_interval = heartbeat_interval
         self._file_writer = file_writer
+        self._binary_writer = BinaryBlobWriter(
+            file_writer.base_path if file_writer else "."
+        )
 
         self._running = False
         self._thread: Optional[threading.Thread] = None
@@ -177,18 +182,52 @@ class SerialConsumer:
         while self._running:
             try:
                 # Pull from queue with timeout
-                line_bytes = self._queue.get(timeout=1.0)
+                item = self._queue.get(timeout=1.0)
             except Empty:
                 # Queue empty - continue
                 continue
-
-            # Process line
+            # Binary chunk streaming handling
             try:
-                self._process_line(conn, line_bytes)
+                if isinstance(item, BinaryChunk):
+                    # Start of blob
+                    if item.start:
+                        # record parse error/marker once at blob start
+                        insert_parse_error(
+                            conn,
+                            "<BINARY_BLOB>",
+                            error_type="BINARY_BLOB",
+                            error_message="Binary blob captured",
+                        )
+                        insert_raw_line(
+                            conn,
+                            "<BINARY_BLOB>",
+                            parse_status="FAIL",
+                            error_message="Binary blob captured",
+                        )
+                        # start file
+                        self._binary_writer.start_blob(item.data)
+                    elif item.end:
+                        path = self._binary_writer.finish_blob()
+                        logger.info(f"Binary blob saved to {path}")
+                    else:
+                        # middle chunk
+                        self._binary_writer.append_chunk(item.data)
+
+                    self._update_heartbeat()
+                    continue
+
+                # Otherwise it's a normal line (bytes)
+                line_bytes = item
+
+                # Process line
+                try:
+                    self._process_line(conn, line_bytes)
+                except Exception as e:
+                    logger.error(f"Error processing line: {e}", exc_info=True)
+                    # Try to keep going
             except Exception as e:
-                logger.error(f"Error processing line: {e}", exc_info=True)
-                # Try to keep going
-            
+                logger.error(f"Consumer loop processing error: {e}", exc_info=True)
+
             self._update_heartbeat()
 
         logger.info("Consumer loop exiting")

@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "CI spec alignment",
+      "type": "shell",
+      "command": ".venv/bin/python",
+      "args": [
+        "scripts/check_parser_spec_alignment.py"
+      ],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

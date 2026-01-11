@@ -2,7 +2,7 @@
 
 ## Overview
 This documentation specifies all NMEA telemetry data formats for Nortek AD2CP instruments. Each message type is documented in a separate file below.
-
+Parser and persistence has to use logical interpretation of the fields definitions below, the nortek definitions are just for reference. In case there is no discrepancy between the nortek definition and our implementation, we will follow the fields specification.
 ---
 
 ## Averaging Mode (SET/GETTMAVG)
@@ -61,6 +61,7 @@ This documentation specifies all NMEA telemetry data formats for Nortek AD2CP in
 ## Altimeter Mode (SET/GETTMALTI)
 
 28. **[PNORA-DF200.md](PNORA-DF200.md)** - Altimeter data without tags
+29. **[PNORA-DF201.md](PNORA-DF201.md)** - Altimeter data with tags
 
 ---
 
@@ -129,7 +130,7 @@ This documentation specifies all NMEA telemetry data formats for Nortek AD2CP in
 | Burst | 103 | With Tags | PNORH3, PNORS3, PNORC3 |
 | Burst | 104 | No Tags | PNORH4, PNORS4, PNORC4 |
 | Altimeter | 200 | No Tags | PNORA |
-
+| Altimeter | 201 | With Tags | PNORA |
 | Waves | 501 | NMEA | PNORW, PNORB, PNORE, PNORF, PNORWD |
 
 ---
@@ -446,7 +447,35 @@ NMEA-formatted averaged current data without tags from Averaging or Burst teleme
 ## Format
 `$PNORC1,<date>,<time>,<cell_num>,<cell_pos>,<velocity_fields>,<amplitude_fields>,<correlation_fields>*<checksum>`
 
-## Data Fields
+## Data Fields Nortek Definition
+- Column=0, Field=Identifier, Tag=-, Data Type=String, Format="$PNORC1", Unit=-, Description=Sentence identifier, Notes=Always present
+- Column=1, Field=Date, Tag=DATE, Data Type=Integer, Format=MMDDYY, Unit=-, Description=Measurement date, Notes=Always present
+- Column=2, Field=Time, Tag=TIME, Data Type=Integer, Format=HHMMSS, Unit=-, Description=Measurement time, Notes=Always present
+- Column=3, Field=Cell Number, Tag=CN, Data Type=Integer, Format=N, Unit=-, Description=Measurement cell index, Notes=Always present
+- Column=4, Field=Cell Position, Tag=CP, Data Type=Float, Format=dd.d, Unit=m, Description=Distance from transducer, Notes=Always present
+- Column=5, Field=Velocity East, Tag=VE, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=East velocity component, Notes=CY=ENU only
+- Column=6, Field=Velocity North, Tag=VN, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=North velocity component, Notes=CY=ENU only
+- Column=7, Field=Velocity Up, Tag=VU, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Up velocity component, Notes=CY=ENU only
+- Column=8, Field=Velocity Up 2, Tag=VU2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Second up velocity, Notes=CY=ENU only
+- Column=9, Field=Velocity X, Tag=VX, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=X velocity component, Notes=CY=XYZ only
+- Column=10, Field=Velocity Y, Tag=VY, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Y velocity component, Notes=CY=XYZ only
+- Column=11, Field=Velocity Z, Tag=VZ, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Z velocity component, Notes=CY=XYZ only
+- Column=12, Field=Velocity Z2, Tag=VZ2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Second Z velocity, Notes=CY=XYZ only
+- Column=13, Field=Velocity Beam 1, Tag=V1, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 1 velocity, Notes=CY=BEAM only
+- Column=14, Field=Velocity Beam 2, Tag=V2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 2 velocity, Notes=CY=BEAM only
+- Column=15, Field=Velocity Beam 3, Tag=V3, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 3 velocity, Notes=CY=BEAM only
+- Column=16, Field=Velocity Beam 4, Tag=V4, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 4 velocity, Notes=CY=BEAM only
+- Column=17, Field=Amplitude Beam 1, Tag=A1, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 1, Notes=Always present
+- Column=18, Field=Amplitude Beam 2, Tag=A2, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 2, Notes=Always present
+- Column=19, Field=Amplitude Beam 3, Tag=A3, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 3, Notes=Always present
+- Column=20, Field=Amplitude Beam 4, Tag=A4, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 4, Notes=Always present
+- Column=21, Field=Correlation Beam 1, Tag=C1, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 1, Notes=Always present
+- Column=22, Field=Correlation Beam 2, Tag=C2, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 2, Notes=Always present
+- Column=23, Field=Correlation Beam 3, Tag=C3, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 3, Notes=Always present
+- Column=24, Field=Correlation Beam 4, Tag=C4, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 4, Notes=Always present
+- Column=25, Field=Checksum, Tag=-, Data Type=Hex, Format=*hh, Unit=-, Description=NMEA checksum, Notes=Always present
+
+## Data Fields Logical Interpretation for Parser 
 - Column=0, Field=Identifier, Tag=-, Data Type=String, Format="$PNORC1", Unit=-, Description=Sentence identifier, Notes=Always present
 - Column=1, Field=Date, Tag=DATE, Data Type=Integer, Format=MMDDYY, Unit=-, Description=Measurement date, Notes=Always present
 - Column=2, Field=Time, Tag=TIME, Data Type=Integer, Format=HHMMSS, Unit=-, Description=Measurement time, Notes=Always present
@@ -619,7 +648,35 @@ NMEA-formatted averaged current data with tags from Averaging or Burst telemetry
 ## Format
 `$PNORC2,DATE=<date>,TIME=<time>,CN=<cell_num>,CP=<cell_pos>,<velocity_tags>,<amplitude_tags>,<correlation_tags>*<checksum>`
 
-## Data Fields
+## Data Fields Nortek definition
+- Column=0, Field=Identifier, Tag=-, Data Type=String, Format="$PNORC2", Unit=-, Description=Sentence identifier, Notes=Always present
+- Column=1, Field=Date, Tag=DATE, Data Type=Integer, Format=MMDDYY, Unit=-, Description=Measurement date, Notes=Always present
+- Column=2, Field=Time, Tag=TIME, Data Type=Integer, Format=HHMMSS, Unit=-, Description=Measurement time, Notes=Always present
+- Column=3, Field=Cell Number, Tag=CN, Data Type=Integer, Format=N, Unit=-, Description=Measurement cell index, Notes=Always present
+- Column=4, Field=Cell Position, Tag=CP, Data Type=Float, Format=dd.d, Unit=m, Description=Distance from transducer, Notes=Always present
+- Column=5, Field=Velocity East, Tag=VE, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=East velocity component, Notes=CY=ENU only
+- Column=6, Field=Velocity North, Tag=VN, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=North velocity component, Notes=CY=ENU only
+- Column=7, Field=Velocity Up, Tag=VU, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Up velocity component, Notes=CY=ENU only
+- Column=8, Field=Velocity Up 2, Tag=VU2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Second up velocity, Notes=CY=ENU only
+- Column=9, Field=Velocity X, Tag=VX, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=X velocity component, Notes=CY=XYZ only
+- Column=10, Field=Velocity Y, Tag=VY, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Y velocity component, Notes=CY=XYZ only
+- Column=11, Field=Velocity Z, Tag=VZ, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Z velocity component, Notes=CY=XYZ only
+- Column=12, Field=Velocity Z2, Tag=VZ2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Second Z velocity, Notes=CY=XYZ only
+- Column=13, Field=Velocity Beam 1, Tag=V1, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 1 velocity, Notes=CY=BEAM only
+- Column=14, Field=Velocity Beam 2, Tag=V2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 2 velocity, Notes=CY=BEAM only
+- Column=15, Field=Velocity Beam 3, Tag=V3, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 3 velocity, Notes=CY=BEAM only
+- Column=16, Field=Velocity Beam 4, Tag=V4, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 4 velocity, Notes=CY=BEAM only
+- Column=17, Field=Amplitude Beam 1, Tag=A1, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 1, Notes=Always present
+- Column=18, Field=Amplitude Beam 2, Tag=A2, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 2, Notes=Always present
+- Column=19, Field=Amplitude Beam 3, Tag=A3, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 3, Notes=Always present
+- Column=20, Field=Amplitude Beam 4, Tag=A4, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 4, Notes=Always present
+- Column=21, Field=Correlation Beam 1, Tag=C1, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 1, Notes=Always present
+- Column=22, Field=Correlation Beam 2, Tag=C2, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 2, Notes=Always present
+- Column=23, Field=Correlation Beam 3, Tag=C3, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 3, Notes=Always present
+- Column=24, Field=Correlation Beam 4, Tag=C4, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 4, Notes=Always present
+- Column=25, Field=Checksum, Tag=-, Data Type=Hex, Format=*hh, Unit=-, Description=NMEA checksum, Notes=Always present
+
+## Data Fields Logical Interpretation for Parser
 - Column=0, Field=Identifier, Tag=-, Data Type=String, Format="$PNORC2", Unit=-, Description=Sentence identifier, Notes=Always present
 - Column=1, Field=Date, Tag=DATE, Data Type=Integer, Format=MMDDYY, Unit=-, Description=Measurement date, Notes=Always present
 - Column=2, Field=Time, Tag=TIME, Data Type=Integer, Format=HHMMSS, Unit=-, Description=Measurement time, Notes=Always present
@@ -978,7 +1035,6 @@ $PNORA,190902,122341,0.000,24.274,13068,08,-2.6,-0.8*7E
 - Time format: hhmmss
 ```
 
-
 **PNORA-DF201.md**
 ```markdown
 # PNORA - Altimeter Data with Tags (DF=201)
@@ -1035,6 +1091,7 @@ $PNORA,DATE=190902,TIME=122341,P=0.000,A=24.274,Q=13068,ST=08,PI=-2.6,R=-0.8*72
 - Time format: hhmmss
 - Same data as DF=200 but with tags
 ```
+
 **PNORW-DF501.md**
 ```markdown
 # PNORW - Wave Parameters (DF=501)
@@ -1520,7 +1577,7 @@ NMEA-formatted averaged current data without tags from Burst telemetry mode (Dat
 ## Format
 `$PNORC1,<date>,<time>,<cell_num>,<cell_pos>,<velocity_fields>,<amplitude_fields>,<correlation_fields>*<checksum>`
 
-## Data Fields
+## Data Fields Logical Interpretation for Parser
 - Column=0, Field=Identifier, Tag=-, Data Type=String, Format="$PNORC1", Unit=-, Description=Sentence identifier, Notes=Always present
 - Column=1, Field=Date, Tag=DATE, Data Type=Integer, Format=MMDDYY, Unit=-, Description=Measurement date, Notes=Always present
 - Column=2, Field=Time, Tag=TIME, Data Type=Integer, Format=HHMMSS, Unit=-, Description=Measurement time, Notes=Always present
@@ -1539,6 +1596,33 @@ NMEA-formatted averaged current data without tags from Burst telemetry mode (Dat
 - Column=15, Field=Correlation Beam 3, Tag=C3, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 3, Notes=Always present
 - Column=16, Field=Correlation Beam 4, Tag=C4, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 4, Notes=Always present
 - Column=17, Field=Checksum, Tag=-, Data Type=Hex, Format=*hh, Unit=-, Description=NMEA checksum, Notes=Always present
+## Data Fields Nortek Definition
+- Column=0, Field=Identifier, Tag=-, Data Type=String, Format="$PNORC1", Unit=-, Description=Sentence identifier, Notes=Always present
+- Column=1, Field=Date, Tag=DATE, Data Type=Integer, Format=MMDDYY, Unit=-, Description=Measurement date, Notes=Always present
+- Column=2, Field=Time, Tag=TIME, Data Type=Integer, Format=HHMMSS, Unit=-, Description=Measurement time, Notes=Always present
+- Column=3, Field=Cell Number, Tag=CN, Data Type=Integer, Format=N, Unit=-, Description=Measurement cell index, Notes=Always present
+- Column=4, Field=Cell Position, Tag=CP, Data Type=Float, Format=dd.d, Unit=m, Description=Distance from transducer, Notes=Always present
+- Column=5, Field=Velocity East, Tag=VE, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=East velocity component, Notes=CY=ENU only
+- Column=6, Field=Velocity North, Tag=VN, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=North velocity component, Notes=CY=ENU only
+- Column=7, Field=Velocity Up, Tag=VU, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Up velocity component, Notes=CY=ENU only
+- Column=8, Field=Velocity Up 2, Tag=VU2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Second up velocity, Notes=CY=ENU only
+- Column=9, Field=Velocity X, Tag=VX, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=X velocity component, Notes=CY=XYZ only
+- Column=10, Field=Velocity Y, Tag=VY, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Y velocity component, Notes=CY=XYZ only
+- Column=11, Field=Velocity Z, Tag=VZ, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Z velocity component, Notes=CY=XYZ only
+- Column=12, Field=Velocity Z2, Tag=VZ2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Second Z velocity, Notes=CY=XYZ only
+- Column=13, Field=Velocity Beam 1, Tag=V1, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 1 velocity, Notes=CY=BEAM only
+- Column=14, Field=Velocity Beam 2, Tag=V2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 2 velocity, Notes=CY=BEAM only
+- Column=15, Field=Velocity Beam 3, Tag=V3, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 3 velocity, Notes=CY=BEAM only
+- Column=16, Field=Velocity Beam 4, Tag=V4, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 4 velocity, Notes=CY=BEAM only
+- Column=17, Field=Amplitude Beam 1, Tag=A1, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 1, Notes=Always present
+- Column=18, Field=Amplitude Beam 2, Tag=A2, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 2, Notes=Always present
+- Column=19, Field=Amplitude Beam 3, Tag=A3, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 3, Notes=Always present
+- Column=20, Field=Amplitude Beam 4, Tag=A4, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 4, Notes=Always present
+- Column=21, Field=Correlation Beam 1, Tag=C1, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 1, Notes=Always present
+- Column=22, Field=Correlation Beam 2, Tag=C2, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 2, Notes=Always present
+- Column=23, Field=Correlation Beam 3, Tag=C3, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 3, Notes=Always present
+- Column=24, Field=Correlation Beam 4, Tag=C4, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 4, Notes=Always present
+- Column=25, Field=Checksum, Tag=-, Data Type=Hex, Format=*hh, Unit=-, Description=NMEA checksum, Notes=Always present
 
 ## Coordinate System Dependencies
 - CY=ENU: Velocity fields VE, VN, VU, VU2
@@ -1699,7 +1783,35 @@ NMEA-formatted averaged current data with tags from Burst telemetry mode (Data F
 ## Format
 `$PNORC2,DATE=<date>,TIME=<time>,CN=<cell_num>,CP=<cell_pos>,<velocity_tags>,<amplitude_tags>,<correlation_tags>*<checksum>`
 
-## Data Fields
+## Data Fields Nortek Definition
+- Column=0, Field=Identifier, Tag=-, Data Type=String, Format="$PNORC2", Unit=-, Description=Sentence identifier, Notes=Always present
+- Column=1, Field=Date, Tag=DATE, Data Type=Integer, Format=MMDDYY, Unit=-, Description=Measurement date, Notes=Always present
+- Column=2, Field=Time, Tag=TIME, Data Type=Integer, Format=HHMMSS, Unit=-, Description=Measurement time, Notes=Always present
+- Column=3, Field=Cell Number, Tag=CN, Data Type=Integer, Format=N, Unit=-, Description=Measurement cell index, Notes=Always present
+- Column=4, Field=Cell Position, Tag=CP, Data Type=Float, Format=dd.d, Unit=m, Description=Distance from transducer, Notes=Always present
+- Column=5, Field=Velocity East, Tag=VE, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=East velocity component, Notes=CY=ENU only
+- Column=6, Field=Velocity North, Tag=VN, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=North velocity component, Notes=CY=ENU only
+- Column=7, Field=Velocity Up, Tag=VU, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Up velocity component, Notes=CY=ENU only
+- Column=8, Field=Velocity Up 2, Tag=VU2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Second up velocity, Notes=CY=ENU only
+- Column=9, Field=Velocity X, Tag=VX, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=X velocity component, Notes=CY=XYZ only
+- Column=10, Field=Velocity Y, Tag=VY, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Y velocity component, Notes=CY=XYZ only
+- Column=11, Field=Velocity Z, Tag=VZ, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Z velocity component, Notes=CY=XYZ only
+- Column=12, Field=Velocity Z2, Tag=VZ2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Second Z velocity, Notes=CY=XYZ only
+- Column=13, Field=Velocity Beam 1, Tag=V1, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 1 velocity, Notes=CY=BEAM only
+- Column=14, Field=Velocity Beam 2, Tag=V2, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 2 velocity, Notes=CY=BEAM only
+- Column=15, Field=Velocity Beam 3, Tag=V3, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 3 velocity, Notes=CY=BEAM only
+- Column=16, Field=Velocity Beam 4, Tag=V4, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Beam 4 velocity, Notes=CY=BEAM only
+- Column=17, Field=Amplitude Beam 1, Tag=A1, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 1, Notes=Always present
+- Column=18, Field=Amplitude Beam 2, Tag=A2, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 2, Notes=Always present
+- Column=19, Field=Amplitude Beam 3, Tag=A3, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 3, Notes=Always present
+- Column=20, Field=Amplitude Beam 4, Tag=A4, Data Type=Float, Format=ddd.d, Unit=dB, Description=Echo amplitude beam 4, Notes=Always present
+- Column=21, Field=Correlation Beam 1, Tag=C1, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 1, Notes=Always present
+- Column=22, Field=Correlation Beam 2, Tag=C2, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 2, Notes=Always present
+- Column=23, Field=Correlation Beam 3, Tag=C3, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 3, Notes=Always present
+- Column=24, Field=Correlation Beam 4, Tag=C4, Data Type=Integer, Format=N, Unit=%, Description=Correlation beam 4, Notes=Always present
+- Column=25, Field=Checksum, Tag=-, Data Type=Hex, Format=*hh, Unit=-, Description=NMEA checksum, Notes=Always present
+
+## Data Fields Logical Interpretation for Parser
 - Column=0, Field=Identifier, Tag=-, Data Type=String, Format="$PNORC2", Unit=-, Description=Sentence identifier, Notes=Always present
 - Column=1, Field=Date, Tag=DATE, Data Type=Integer, Format=MMDDYY, Unit=-, Description=Measurement date, Notes=Always present
 - Column=2, Field=Time, Tag=TIME, Data Type=Integer, Format=HHMMSS, Unit=-, Description=Measurement time, Notes=Always present
@@ -1812,19 +1924,256 @@ NMEA-formatted sensor data with tags from Burst telemetry mode (Data Format 103)
 
 ## Example
 ```
-$PNORS3,BV=22.9,SS=1546.1,H=151.1,PI=-12.0,R=2.0,P=1012.3,T=22.5*4B
+$PNORS3,BV=22.9,SS=1546.1,H=151.1,PI=-12.0,R=-5.2,P=705.669,T=24.96*7A
 ```
+
+## Interpretation
+- Battery: 22.9 volts (BV=22.9)
+- Sound speed: 1546.1 m/s (SS=1546.1)
+- Heading: 151.1° (H=151.1)
+- Pitch: -12.0° (PI=-12.0, tilted backward)
+- Roll: -5.2° (R=-5.2, tilted left)
+- Pressure: 705.669 dBar (P=705.669, ~700 m depth)
+- Temperature: 24.96°C (T=24.96)
+- Checksum: 7A
 
 ## Notes
 - Used in Burst mode with DF=103
 - Identical to Averaging mode PNORS3
-- Simplified sensor format
+- Simplified sensor data format
+- No date/time (in header PNORH3)
+- No error/status codes (in header PNORH3)
+- No standard deviation measurements
 - All fields have tags
-- Battery voltage in V
-- Sound speed in m/s
-- Heading in degrees
-- Pitch and roll in degrees
-- Pressure in dBar
-- Temperature in °C
-- Checksum as 2 hex digits
-- Part of Burst telemetry data stream   
+- Temperature with two decimal places
+- Part of Burst telemetry data stream
+```
+
+**PNORC3-BURST-DF103.md**
+```markdown
+# PNORC3 - Averaged Current Data Format 3 (Burst Mode, DF=103)
+
+## Description
+NMEA-formatted averaged current data with tags from Burst telemetry mode (Data Format 103). Identical to Averaging mode PNORC3.
+
+## Format
+`$PNORC3,CP=<cell_position>,SP=<speed>,DIR=<direction>,AC=<avg_correlation>,AA=<avg_amplitude>*<checksum>`
+
+## Data Fields
+- Column=0, Field=Identifier, Tag=-, Data Type=String, Format="$PNORC3", Unit=-, Description=Sentence identifier, Notes=Always present
+- Column=1, Field=Cell Position, Tag=CP, Data Type=Float, Format=dd.d, Unit=m, Description=Distance from transducer, Notes=Always present
+- Column=2, Field=Speed, Tag=SP, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Current speed magnitude, Notes=0.000-99.999 m/s
+- Column=3, Field=Direction, Tag=DIR, Data Type=Float, Format=ddd.d, Unit=deg, Description=Current direction, Notes=0.0-359.9°
+- Column=4, Field=Averaged Correlation, Tag=AC, Data Type=Integer, Format=N, Unit=-, Description=Average correlation, Notes=0-100 typically
+- Column=5, Field=Averaged Amplitude, Tag=AA, Data Type=Integer, Format=N, Unit=-, Description=Average amplitude, Notes=0-255 typically
+- Column=6, Field=Checksum, Tag=-, Data Type=Hex, Format=*hh, Unit=-, Description=NMEA checksum, Notes=Always present
+
+## Example
+```
+$PNORC3,CP=4.5,SP=3.519,DIR=110.9,AC=6,AA=28*3B
+```
+
+## Interpretation
+- Cell position: 4.5 m from transducer (CP=4.5)
+- Speed: 3.519 m/s (SP=3.519)
+- Direction: 110.9° (DIR=110.9, ESE)
+- Average correlation: 6 (AC=6)
+- Average amplitude: 28 (AA=28)
+- Checksum: 3B
+
+## Notes
+- Used in Burst mode with DF=103
+- Identical to Averaging mode PNORC3
+- Simplified current data format
+- No beam-specific velocities (only speed/direction)
+- No individual beam amplitudes/correlations (only averages)
+- All fields have tags
+- Repeated for each measurement cell
+- Direction follows oceanographic convention (coming from)
+- Speed with three decimal places
+- Part of Burst telemetry data stream
+```
+
+**PNORH4-BURST-DF104.md**
+```markdown
+# PNORH4 - Header Data Format 4 (Burst Mode, DF=104)
+
+## Description
+NMEA-formatted header data without tags from Burst telemetry mode (Data Format 104). Identical to Averaging mode PNORH4.
+
+## Format
+`$PNORH4,<date>,<time>,<error_code>,<status_code>*<checksum>`
+
+## Data Fields
+- Column=0, Field=Identifier, Tag=-, Data Type=String, Format="$PNORH4", Unit=-, Description=Sentence identifier, Notes=Always present
+- Column=1, Field=Date, Tag=DATE, Data Type=Integer, Format=YYMMDD, Unit=-, Description=Measurement date, Notes=YearMonthDay
+- Column=2, Field=Time, Tag=TIME, Data Type=Integer, Format=HHMMSS, Unit=-, Description=Measurement time, Notes=HourMinuteSecond
+- Column=3, Field=Error Code, Tag=EC, Data Type=Integer, Format=N, Unit=-, Description=System error code, Notes=0=no error
+- Column=4, Field=Status Code, Tag=SC, Data Type=Hex, Format=hhhhhhhh, Unit=-, Description=System status, Notes=8 hex digits
+- Column=5, Field=Checksum, Tag=-, Data Type=Hex, Format=*hh, Unit=-, Description=NMEA checksum, Notes=Always present
+
+## Example
+```
+$PNORH4,141112,083149,0,2A4C0000*4A68
+```
+
+## Interpretation
+- Date: November 14, 2012 (141112)
+- Time: 08:31:49 UTC (083149)
+- Error: 0 (no error)
+- Status: 0x2A4C0000 (2A4C0000)
+- Checksum: 4A68
+
+## Notes
+- Used in Burst mode with DF=104
+- Identical to Averaging mode PNORH4
+- Simplified header format
+- No tags in data fields
+- Date format: YYMMDD (different from MMDDYY in DF=101/102)
+- Same data as PNORH3 but without tags
+- Checksum may include more characters
+- Part of Burst telemetry data stream
+```
+
+**PNORS4-BURST-DF104.md**
+```markdown
+# PNORS4 - Sensor Data Format 4 (Burst Mode, DF=104)
+
+## Description
+NMEA-formatted sensor data without tags from Burst telemetry mode (Data Format 104). Identical to Averaging mode PNORS4.
+
+## Format
+`$PNORS4,<battery>,<sound_speed>,<heading>,<pitch>,<roll>,<pressure>,<temperature>*<checksum>`
+
+## Data Fields
+- Column=0, Field=Identifier, Tag=-, Data Type=String, Format="$PNORS4", Unit=-, Description=Sentence identifier, Notes=Always present
+- Column=1, Field=Battery Voltage, Tag=BV, Data Type=Float, Format=dd.d, Unit=V, Description=Power supply, Notes=10.0-16.0V typical
+- Column=2, Field=Sound Speed, Tag=SS, Data Type=Float, Format=dddd.d, Unit=m/s, Description=Measured sound speed, Notes=1400.0-1600.0 m/s
+- Column=3, Field=Heading, Tag=H, Data Type=Float, Format=ddd.d, Unit=deg, Description=Compass heading, Notes=0.0-359.9°
+- Column=4, Field=Pitch, Tag=PI, Data Type=Float, Format=dd.d, Unit=deg, Description=Instrument pitch, Notes=-90.0 to +90.0°
+- Column=5, Field=Roll, Tag=R, Data Type=Float, Format=dd.d, Unit=deg, Description=Instrument roll, Notes=-90.0 to +90.0°
+- Column=6, Field=Pressure, Tag=P, Data Type=Float, Format=ddd.ddd, Unit=dBar, Description=Water pressure, Notes=Depth equivalent
+- Column=7, Field=Temperature, Tag=T, Data Type=Float, Format=dd.dd, Unit=°C, Description=Water temperature, Notes=-5.00 to +35.00°C
+- Column=8, Field=Checksum, Tag=-, Data Type=Hex, Format=*hh, Unit=-, Description=NMEA checksum, Notes=Always present
+
+## Example
+```
+$PNORS4,22.9,1546.1,151.2,-11.9,-5.3,705.658,24.95*5A
+```
+
+## Interpretation
+- Battery: 22.9 volts
+- Sound speed: 1546.1 m/s
+- Heading: 151.2°
+- Pitch: -11.9° (tilted backward)
+- Roll: -5.3° (tilted left)
+- Pressure: 705.658 dBar (~700 m depth)
+- Temperature: 24.95°C
+- Checksum: 5A
+
+## Notes
+- Used in Burst mode with DF=104
+- Identical to Averaging mode PNORS4
+- Simplified sensor data format
+- No tags in data fields
+- No date/time (in header PNORH4)
+- No error/status codes (in header PNORH4)
+- No standard deviation measurements
+- Same data as PNORS3 but without tags
+- Part of Burst telemetry data stream
+```
+
+**PNORC4-BURST-DF104.md**
+```markdown
+# PNORC4 - Averaged Current Data Format 4 (Burst Mode, DF=104)
+
+## Description
+NMEA-formatted averaged current data without tags from Burst telemetry mode (Data Format 104). Identical to Averaging mode PNORC4.
+
+## Format
+`$PNORC4,<cell_position>,<speed>,<direction>,<avg_correlation>,<avg_amplitude>*<checksum>`
+
+## Data Fields
+- Column=0, Field=Identifier, Tag=-, Data Type=String, Format="$PNORC4", Unit=-, Description=Sentence identifier, Notes=Always present
+- Column=1, Field=Cell Position, Tag=CP, Data Type=Float, Format=dd.d, Unit=m, Description=Distance from transducer, Notes=Always present
+- Column=2, Field=Speed, Tag=SP, Data Type=Float, Format=dd.ddd, Unit=m/s, Description=Current speed magnitude, Notes=0.000-99.999 m/s
+- Column=3, Field=Direction, Tag=DIR, Data Type=Float, Format=ddd.d, Unit=deg, Description=Current direction, Notes=0.0-359.9°
+- Column=4, Field=Averaged Correlation, Tag=AC, Data Type=Integer, Format=N, Unit=-, Description=Average correlation, Notes=0-100 typically
+- Column=5, Field=Averaged Amplitude, Tag=AA, Data Type=Integer, Format=N, Unit=-, Description=Average amplitude, Notes=0-255 typically
+- Column=6, Field=Checksum, Tag=-, Data Type=Hex, Format=*hh, Unit=-, Description=NMEA checksum, Notes=Always present
+
+## Example
+```
+$PNORC4,27.5,1.815,322.6,4,28*70
+```
+
+## Interpretation
+- Cell position: 27.5 m from transducer
+- Speed: 1.815 m/s
+- Direction: 322.6° (NW)
+- Average correlation: 4
+- Average amplitude: 28
+- Checksum: 70
+
+## Notes
+- Used in Burst mode with DF=104
+- Identical to Averaging mode PNORC4
+- Simplified current data format
+- No tags in data fields
+- No beam-specific velocities (only speed/direction)
+- No individual beam amplitudes/correlations (only averages)
+- Same data as PNORC3 but without tags
+- Repeated for each measurement cell
+- Direction follows oceanographic convention (coming from)
+- Part of Burst telemetry data stream
+```
+
+**README.md**
+```markdown
+# AD2CP NMEA Telemetry Data Formats Documentation
+
+## Overview
+This documentation provides comprehensive specifications for all NMEA telemetry data formats supported by Nortek AD2CP instruments. Each message type is documented in a separate file for easy reference and integration.
+
+## Documentation Structure
+- **Master Index**: Overview of all message types and their relationships
+- **Individual Message Files**: Detailed specifications for each NMEA sentence type
+- **Common Notes**: Shared information applicable across multiple formats
+
+## Key Features
+- Complete coverage of all NMEA telemetry formats (DF=100, 101, 102, 103, 104, 200, 201, 501)
+- Clear field-by-field specifications without tables
+- Examples from the official Nortek documentation
+- Enumerations and valid value ranges
+- Coordinate system dependencies
+- Invalid data indicators
+- Checksum calculation details
+
+## How to Use This Documentation
+1. Start with the Master Index to find the relevant message type
+2. Navigate to the specific message file for detailed specifications
+3. Refer to Common Notes for shared concepts and conventions
+4. Use the examples to validate your parsing implementation
+
+## Integration Notes
+- All NMEA sentences start with `$` and end with `*<checksum>`
+- Checksum is XOR of characters between `$` and `*`
+- Invalid data typically marked with -9.00, -999, or empty fields
+- Coordinate systems affect which velocity fields are included
+- Date/time formats vary between message types
+
+## Quick Start
+For current measurements:
+- DF=100: PNORI, PNORS, PNORC (legacy format)
+- DF=101/102: PNORI1/2, PNORS1/2, PNORC1/2 (modern format without/with tags)
+- DF=103/104: PNORH3/4, PNORS3/4, PNORC3/4 (simplified format without/with tags)
+
+For altimeter measurements:
+- DF=200: PNORA (without tags)
+- DF=201: PNORA (with tags)
+
+For wave measurements:
+- DF=501: PNORW, PNORB, PNORE, PNORF, PNORWD
+
+
+```
