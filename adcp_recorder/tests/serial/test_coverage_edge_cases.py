@@ -1,0 +1,167 @@
+"""Targeted coverage tests for SerialProducer, SerialConsumer, and various parser edge cases.
+"""
+
+import pytest
+import time
+from queue import Queue
+from unittest.mock import Mock, patch
+from adcp_recorder.serial.producer import SerialProducer
+from adcp_recorder.serial.consumer import SerialConsumer, MessageRouter
+from adcp_recorder.serial.port_manager import SerialConnectionManager
+from adcp_recorder.db.db import DatabaseManager
+from adcp_recorder.parsers.pnora import PNORA
+from adcp_recorder.parsers.pnorh import PNORH3, PNORH4
+from adcp_recorder.parsers.pnorc import PNORC, PNORC1, PNORC2, PNORC3, PNORC4
+from adcp_recorder.parsers.pnori import PNORI
+from adcp_recorder.parsers.pnors import PNORS4, PNORS2Tag
+from adcp_recorder.parsers.pnorw import PNORW
+from adcp_recorder.parsers.pnorb import PNORB
+from adcp_recorder.parsers.pnore import PNORE
+from adcp_recorder.parsers.pnorf import PNORF
+from adcp_recorder.parsers.pnorwd import PNORWD
+from adcp_recorder.core.enums import InstrumentType, CoordinateSystem
+
+def test_producer_unicode_decode_error_threshold(tmp_path):
+    """Test hitting UnicodeDecodeError in producer without hitting is_binary_data."""
+    manager = Mock(spec=SerialConnectionManager)
+    manager.is_connected.return_value = True
+    
+    # invalid_data fails decode but is NOT binary by 10% rule
+    invalid_data = b"ABCDEFG\x80HI"
+    import itertools
+    # Infinite empty bytes after invalid data
+    manager.read_line.side_effect = itertools.chain([invalid_data], itertools.cycle([b""]))
+    
+    queue = Queue()
+    producer = SerialProducer(manager, queue)
+    
+    with patch("adcp_recorder.serial.producer.logger") as mock_logger:
+        producer.start()
+        time.sleep(0.2)
+        producer.stop()
+        
+        mock_logger.warning.assert_any_call(f"Failed to decode ASCII: {invalid_data[:50]}")
+        assert queue.qsize() == 1
+
+def test_consumer_unicode_decode_error(tmp_path):
+    """Test handle UnicodeDecodeError in consumer."""
+    db_path = tmp_path / "test_consumer_cov.db"
+    db = DatabaseManager(str(db_path))
+    queue = Queue()
+    router = MessageRouter()
+    
+    consumer = SerialConsumer(queue, db, router)
+    
+    # Data that fails decode
+    invalid_data = b"ABCDEFG\x80HI"
+    queue.put(invalid_data)
+    
+    consumer.start()
+    time.sleep(0.2)
+    consumer.stop()
+    
+    conn = db.get_connection()
+    errors = conn.execute("SELECT error_type FROM parse_errors").fetchall()
+    assert len(errors) == 1
+    assert errors[0][0] == "DECODE_ERROR"
+
+def test_consumer_empty_sentence(tmp_path):
+    """Test handling of empty or whitespace-only lines in consumer."""
+    db_path = tmp_path / "test_consumer_empty.db"
+    db = DatabaseManager(str(db_path))
+    queue = Queue()
+    router = MessageRouter()
+    
+    consumer = SerialConsumer(queue, db, router)
+    queue.put(b"   \r\n")
+    
+    consumer.start()
+    time.sleep(0.2)
+    consumer.stop()
+    
+    conn = db.get_connection()
+    count = conn.execute("SELECT count(*) FROM raw_lines").fetchone()[0]
+    assert count == 0
+
+def test_pnora_coverage():
+    with pytest.raises(ValueError, match="Expected 6 fields"):
+        PNORA.from_nmea("$PNORA,1,2,3,4*00")
+    with pytest.raises(ValueError, match="Invalid prefix"):
+        PNORA.from_nmea("$NOTRA,1,2,3,4,5*00")
+    msg = PNORA("102115", "090715", 1, 10.0, 95)
+    assert msg.to_dict()["sentence_type"] == "PNORA"
+
+def test_pnorh_coverage():
+    # PNORH3
+    with pytest.raises(ValueError, match="Expected 6 fields"):
+        PNORH3.from_nmea("$PNORH3,1,2,3,4*00")
+    with pytest.raises(ValueError, match="Invalid prefix"):
+        PNORH3.from_nmea("$NOTRH3,1,2,3,4,5*00")
+        
+    # PNORH4
+    with pytest.raises(ValueError, match="Expected 8 fields"):
+        PNORH4.from_nmea("$PNORH4,1,2,3,4,5,6*00")
+    with pytest.raises(ValueError, match="Invalid prefix"):
+        PNORH4.from_nmea("$NOTRH4,1,2,3,4,5,6,7*00")
+
+def test_pnori_coverage():
+    # Beam count validation
+    with pytest.raises(ValueError, match="Beam count must be 1-4"):
+        PNORI.from_nmea("$PNORI,4,Test,5,20,0.20,1.00,0*00")
+    
+    # Valid init
+    msg = PNORI(InstrumentType.SIGNATURE, "H1", 4, 20, 0.2, 1.0, CoordinateSystem.ENU, "00")
+    d = msg.to_dict()
+    assert d["head_id"] == "H1"
+
+def test_pnorw_family_coverage():
+    # Covering missing branches in pnorw parsers
+    for cls, count, prefix in [
+        (PNORW, 7, "$PNORW"),
+        (PNORB, 8, "$PNORB"),
+        (PNORE, 8, "$PNORE"),
+        (PNORF, 6, "$PNORF"),
+        (PNORWD, 7, "$PNORWD")
+    ]:
+        # Using a simpler match pattern to avoid regex issues with parentheses or other chars
+        with pytest.raises(ValueError, match="Expected .* fields"):
+            cls.from_nmea(f"{prefix}," + ",".join(["1"] * (count-2)) + "*00")
+        with pytest.raises(ValueError, match="Invalid prefix"):
+            cls.from_nmea(f"$NOTR," + ",".join(["1"] * (count-1)) + "*00")
+
+def test_pnors_coverage():
+    # PNORS4 to_dict
+    msg = PNORS4("102115", "090715", 270.0, 10.0, 15.0)
+    assert msg.to_dict()["sentence_type"] == "PNORS4"
+    
+    # PNORS2Tag coverage
+    with pytest.raises(ValueError, match="must contain '='"):
+        PNORS2Tag.parse_tagged_field("INVALID")
+
+def test_pnorc_coverage():
+    # PNORC
+    with pytest.raises(ValueError, match="Expected 7 fields"):
+        PNORC.from_nmea("$PNORC,1,2,3,4,5*00") # 6 fields
+
+    with pytest.raises(ValueError, match="Invalid prefix"):
+        PNORC.from_nmea("$NOTRC,010101,101010,1,0,0,0*00")
+
+    # PNORC1
+    with pytest.raises(ValueError, match="Expected 10 fields"):
+        PNORC1.from_nmea("$PNORC1,1,2,3,4,5,6,7,8*00") 
+    
+    # PNORC2
+    with pytest.raises(ValueError, match="Expected at least 7 fields"):
+            PNORC2.from_nmea("$PNORC2,1,2,3,4,5*00")
+    with pytest.raises(ValueError, match="Invalid prefix"):
+            PNORC2.from_nmea("$NOTRC2,DT=010101,TM=120000,CI=1,VE=0,VN=0,VU=0*00")
+    with pytest.raises(ValueError, match="Duplicate tag"):
+            PNORC2.from_nmea("$PNORC2,DT=010101,DT=010101,TM=120000,CI=1,VE=0,VN=0,VU=0*00")
+
+    # PNORC3
+    with pytest.raises(ValueError, match="Expected 11 fields"):
+        PNORC3.from_nmea("$PNORC3,1,2,3,4,5,6,7,8,9*00")
+
+    # PNORC4
+    with pytest.raises(ValueError, match="Expected 14 fields"):
+        PNORC4.from_nmea("$PNORC4,1,2,3,4,5,6,7,8,9,10,11,12*00")
