@@ -34,8 +34,8 @@ class TestPNORFParser:
         assert pnorf.coefficients[2] == pytest.approx(0.1372)
         
         # Verify invalid data markers
-        assert pnorf.coefficients[8] == pytest.approx(-9.0000)
-        assert pnorf.coefficients[9] == pytest.approx(-9.0000)
+        assert pnorf.coefficients[8] is None
+        assert pnorf.coefficients[9] is None
 
     def test_all_coefficient_types(self):
         """Test all four coefficient types: A1, B1, A2, B2."""

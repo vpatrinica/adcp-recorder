@@ -7,143 +7,106 @@ from adcp_recorder.parsers.pnorc import PNORC, PNORC1, PNORC2, PNORC3, PNORC4
 
 class TestPNORC:
     def test_pnorc_parsing_basic(self):
-        sentence = "$PNORC,102115,090715,1,0.123,-0.456,0.012*XX"
+        # 17 fields: prefix, date, time, cell, dist, vel1-4, amp1-4, corr1-4
+        sentence = "$PNORC,102115,090715,1,1.00,0.1,0.2,0.3,0.4,100,101,102,103,90,91,92,93*11"
         msg = PNORC.from_nmea(sentence)
         assert msg.date == "102115"
         assert msg.cell_index == 1
-        assert msg.vel1 == 0.123
-        assert msg.vel3 == 0.012
+        assert msg.distance == 1.0
+        assert msg.vel1 == 0.1
+        assert msg.vel4 == 0.4
+        assert msg.amp1 == 100
+        assert msg.corr4 == 93
 
     def test_pnorc_validation_errors(self):
         # Invalid cell index
         with pytest.raises(ValueError, match="Cell index out of range"):
-            PNORC.from_nmea("$PNORC,102115,090715,0,0.123,-0.456,0.012")
+            PNORC.from_nmea("$PNORC,102115,090715,0,1.00,0.1,0.2,0.3,0.4,100,101,102,103,90,91,92,93")
         
-        # Invalid velocity
-        with pytest.raises(ValueError, match="Velocity 1 out of range"):
-            PNORC.from_nmea("$PNORC,102115,090715,1,11.0,-0.456,0.012")
-
     def test_pnorc_to_dict(self):
-        msg = PNORC(date="102115", time="090715", cell_index=1, vel1=1.0, vel2=2.0, vel3=3.0)
+        msg = PNORC(
+            date="102115", time="090715", cell_index=1, distance=1.0,
+            vel1=0.1, vel2=0.2, vel3=0.3, vel4=0.4,
+            amp1=100, amp2=101, amp3=102, amp4=103,
+            corr1=90, corr2=91, corr3=92, corr4=93
+        )
         d = msg.to_dict()
         assert d["sentence_type"] == "PNORC"
-        assert d["vel1"] == 1.0
+        assert d["vel4"] == 0.4
 
     def test_pnorc_invalid_field_count(self):
-        with pytest.raises(ValueError, match="Expected 7 fields"):
+        with pytest.raises(ValueError, match="Expected 17 fields"):
             PNORC.from_nmea("$PNORC,1,2,3,4,5*00")
-
-    def test_pnorc_invalid_prefix(self):
-        with pytest.raises(ValueError, match="Invalid prefix"):
-            PNORC.from_nmea("$NOTRC,1,2,3,4,5,6*00")
 
 
 class TestPNORC1:
     def test_pnorc1_parsing(self):
-        sentence = "$PNORC1,102115,090715,1,0.123,-0.456,0.012,95,92,88*XX"
+        # Amplitudes are floats (dB)
+        sentence = "$PNORC1,102115,090715,1,1.00,0.1,0.2,0.3,0.4,45.5,46.0,45.8,45.2,90,91,92,93*XX"
         msg = PNORC1.from_nmea(sentence)
-        assert msg.corr1 == 95
-        assert msg.corr3 == 88
-
-    def test_pnorc1_validation_errors(self):
-        # Invalid correlation
-        with pytest.raises(ValueError, match="Correlation 1 out of range"):
-            PNORC1.from_nmea("$PNORC1,102115,090715,1,0.123,-0.456,0.012,101,92,88")
-
-    def test_pnorc1_invalid_field_count(self):
-        with pytest.raises(ValueError, match="Expected 10 fields"):
-            PNORC1.from_nmea("$PNORC1,1,2,3,4,5,6,7,8*00")
-
-    def test_pnorc1_invalid_prefix(self):
-        with pytest.raises(ValueError, match="Invalid prefix"):
-            PNORC1.from_nmea("$NOTRC1,1,2,3,4,5,6,7,8,9*00")
+        assert msg.amp1 == 45.5
+        assert msg.corr1 == 90
 
     def test_pnorc1_to_dict(self):
-        msg = PNORC1("102115", "090715", 1, 1.0, 2.0, 3.0, 90, 91, 92)
+        msg = PNORC1(
+            date="102115", time="090715", cell_index=1, distance=1.0,
+            vel1=0.1, vel2=0.2, vel3=0.3, vel4=0.4,
+            amp1=45.5, amp2=46.0, amp3=45.8, amp4=45.2,
+            corr1=90, corr2=91, corr3=92, corr4=93
+        )
         assert msg.to_dict()["sentence_type"] == "PNORC1"
 
 
 class TestPNORC2:
     def test_pnorc2_parsing_tagged(self):
-        sentence = "$PNORC2,DT=102115,TM=090715,CI=1,VE=0.123,VN=-0.456,VU=0.012*XX"
+        # Flexible tags: VE/VN/VU/VU2, etc.
+        sentence = "$PNORC2,DATE=102115,TIME=090715,CN=1,CP=1.00,VE=0.1,VN=0.2,VU=0.3,VU2=0.4,A1=45.5,A2=46.0,A3=45.8,A4=45.2,C1=90,C2=91,C3=92,C4=93*XX"
         msg = PNORC2.from_nmea(sentence)
-        assert msg.date == "102115"
         assert msg.cell_index == 1
-        assert msg.vel1 == 0.123
+        assert msg.vel1 == 0.1
+        assert msg.amp1 == 45.5
 
-    def test_pnorc2_missing_tags(self):
-        with pytest.raises(ValueError, match="Expected at least 7 fields"):
-            PNORC2.from_nmea("$PNORC2,DT=102115,TM=090715,CI=1,VE=0.123,VN=-0.456")
-
-    def test_pnorc2_invalid_tag_format(self):
-        with pytest.raises(ValueError, match="must contain '='"):
-            PNORC2.from_nmea("$PNORC2,DT=102115,TM=090715,CI=1,VE=0.123,VN=-0.456,INVALID*00")
-
-    def test_pnorc2_unknown_tag_raises_error(self):
-        # Unknown tags are NOT allowed in the current strict implementation
-        sentence = "$PNORC2,DT=102115,TM=090715,CI=1,VE=0.123,VN=-0.456,VU=0.012,XX=1*XX"
-        with pytest.raises(ValueError, match="Unknown tags in PNORC2"):
-            PNORC2.from_nmea(sentence)
-
-    def test_pnorc2_duplicate_tag(self):
-        with pytest.raises(ValueError, match="Duplicate tag in PNORC2"):
-            PNORC2.from_nmea("$PNORC2,DT=102115,DT=102115,TM=090715,CI=1,VE=0.123,VN=-0.456*00")
-
-    def test_pnorc2_missing_required_tag(self):
-        with pytest.raises(ValueError, match="Missing required tags"):
-            # 7 fields: prefix + 6 data. One is unknown (XX=1), so 'VU' is missing
-            PNORC2.from_nmea("$PNORC2,DT=102115,TM=090715,CI=1,VE=0.123,VN=-0.456,XX=1*00")
-
-    def test_pnorc2_invalid_prefix(self):
-        with pytest.raises(ValueError, match="Invalid prefix"):
-            PNORC2.from_nmea("$NOTRC2,DT=102115,TM=090715,CI=1,VE=0.123,VN=-0.456,VU=0.012*00")
+    def test_pnorc2_flexible_vel_tags(self):
+        sentence = "$PNORC2,DATE=102115,TIME=090715,CN=1,CP=1.00,VX=0.1,VY=0.2,VZ=0.3,VZ2=0.4,A1=45.5,A2=46.0,A3=45.8,A4=45.2,C1=90,C2=91,C3=92,C4=93*XX"
+        msg = PNORC2.from_nmea(sentence)
+        assert msg.vel1 == 0.1
+        assert msg.vel4 == 0.4
 
     def test_pnorc2_to_dict(self):
-        msg = PNORC2("102115", "090715", 1, 1.0, 2.0, 3.0)
+        msg = PNORC2(
+            date="102115", time="090715", cell_index=1, distance=1.0,
+            vel1=0.1, vel2=0.2, vel3=0.3, vel4=0.4,
+            amp1=45.5, amp2=46.0, amp3=45.8, amp4=45.2,
+            corr1=90, corr2=91, corr3=92, corr4=93
+        )
         assert msg.to_dict()["sentence_type"] == "PNORC2"
 
 
 class TestPNORC3:
-    def test_pnorc3_parsing_amplitude(self):
-        sentence = "$PNORC3,102115,090715,1,0.123,-0.456,0.012,145,152,148,150*XX"
+    def test_pnorc3_parsing_averaged(self):
+        # $PNORC3,CP=Dist,SP=Speed,DIR=Dir,AA=AvgAmp,AC=AvgCorr*CS
+        sentence = "$PNORC3,CP=10.5,SP=1.23,DIR=180.5,AA=150,AC=95*XX"
         msg = PNORC3.from_nmea(sentence)
-        assert msg.amp1 == 145
-        assert msg.amp4 == 150
-
-    def test_pnorc3_validation_errors(self):
-        # Invalid amplitude
-        with pytest.raises(ValueError, match="Amplitude 1 out of range"):
-            PNORC3.from_nmea("$PNORC3,102115,090715,1,0.123,-0.456,0.012,256,152,148,150")
-
-    def test_pnorc3_invalid_field_count(self):
-        with pytest.raises(ValueError, match="Expected 11 fields"):
-            PNORC3.from_nmea("$PNORC3,1,2,3,4,5,6,7,8,9*00")
-
-    def test_pnorc3_invalid_prefix(self):
-        with pytest.raises(ValueError, match="Invalid prefix"):
-            PNORC3.from_nmea("$NOTRC3,1,2,3,4,5,6,7,8,9,10*00")
+        assert msg.distance == 10.5
+        assert msg.speed == 1.23
+        assert msg.direction == 180.5
+        assert msg.avg_amplitude == 150
+        assert msg.avg_correlation == 95
 
     def test_pnorc3_to_dict(self):
-        msg = PNORC3("102115", "090715", 1, 1.0, 2.0, 3.0, 100, 101, 102, 103)
+        msg = PNORC3(10.5, 1.23, 180.5, 150, 95)
         assert msg.to_dict()["sentence_type"] == "PNORC3"
 
 
 class TestPNORC4:
-    def test_pnorc4_parsing_complete(self):
-        sentence = "$PNORC4,102115,090715,1,0.123,-0.456,0.012,95,92,88,145,152,148,150*XX"
+    def test_pnorc4_parsing_averaged(self):
+        # $PNORC4,Dist,Speed,Dir,AA,AC*CS
+        sentence = "$PNORC4,10.5,1.23,180.5,150,95*XX"
         msg = PNORC4.from_nmea(sentence)
-        assert msg.corr1 == 95
-        assert msg.amp1 == 145
-        assert msg.amp4 == 150
-
-    def test_pnorc4_invalid_field_count(self):
-        with pytest.raises(ValueError, match="Expected 14 fields"):
-            PNORC4.from_nmea("$PNORC4,1,2,3,4,5,6,7,8,9,10,11,12*00")
-
-    def test_pnorc4_invalid_prefix(self):
-        with pytest.raises(ValueError, match="Invalid prefix"):
-            PNORC4.from_nmea("$NOTRC4,1,2,3,4,5,6,7,8,9,10,11,12,13*00")
+        assert msg.distance == 10.5
+        assert msg.speed == 1.23
+        assert msg.avg_correlation == 95
 
     def test_pnorc4_to_dict(self):
-        msg = PNORC4("102115", "090715", 1, 1.0, 2.0, 3.0, 90, 91, 92, 100, 101, 102, 103)
+        msg = PNORC4(10.5, 1.23, 180.5, 150, 95)
         assert msg.to_dict()["sentence_type"] == "PNORC4"

@@ -4,45 +4,43 @@ from dataclasses import dataclass, field
 from typing import Dict, Optional
 
 from .utils import (
-    validate_date_string,
+    validate_date_mm_dd_yy,
     validate_time_string,
     validate_range,
+    parse_optional_float,
 )
 
 
 @dataclass(frozen=True)
 class PNORB:
     """PNORB wave band parameters message (DF=501).
-    Format: $PNORB,<date>,<time>,<spectrum_basis>,<processing_method>,<freq_low>,<freq_high>,
-            <hmo>,<tm02>,<tp>,<dirtp>,<sprtp>,<main_dir>,<wave_error_code>*CS
+    Format: $PNORB,Date,Time,Basis,Method,FreqLow,FreqHigh,Hm0,Tm02,Tp,DirTp,SprTp,MainDir,ErrorCode*CS
     """
     date: str
     time: str
-    spectrum_basis: int  # 0=pressure, 1=velocity, 3=AST
-    processing_method: int  # Processing method code
-    freq_low: float  # Lower frequency limit (Hz)
-    freq_high: float  # Upper frequency limit (Hz)
-    hmo: float  # Significant wave height (m)
-    tm02: float  # Mean zero-crossing period (s)
-    tp: float  # Peak period (s)
-    dirtp: float  # Direction at peak period (degrees)
-    sprtp: float  # Spreading at peak period (degrees)
-    main_dir: float  # Main direction (degrees)
-    wave_error_code: str  # 4-digit error code
+    spectrum_basis: int
+    processing_method: int
+    freq_low: float
+    freq_high: float
+    hm0: Optional[float]
+    tm02: Optional[float]
+    tp: Optional[float]
+    dir_tp: Optional[float]
+    spr_tp: Optional[float]
+    main_dir: Optional[float]
+    wave_error_code: str  # 4 hex digits
     checksum: Optional[str] = field(default=None, repr=False)
 
     def __post_init__(self):
-        validate_date_string(self.date)
+        validate_date_mm_dd_yy(self.date)
         validate_time_string(self.time)
         validate_range(self.spectrum_basis, "Spectrum basis", 0, 3)
+        validate_range(self.processing_method, "Processing method", 1, 4)
         validate_range(self.freq_low, "Frequency low", 0.0, 10.0)
         validate_range(self.freq_high, "Frequency high", 0.0, 10.0)
-        validate_range(self.hmo, "Significant wave height", 0.0, 100.0)
-        validate_range(self.tm02, "Mean period", 0.0, 100.0)
-        validate_range(self.tp, "Peak period", 0.0, 100.0)
-        validate_range(self.dirtp, "Direction at peak", 0.0, 360.0)
-        validate_range(self.sprtp, "Spreading at peak", 0.0, 360.0)
-        validate_range(self.main_dir, "Main direction", 0.0, 360.0)
+        if self.hm0 is not None: validate_range(self.hm0, "Hm0", 0.0, 100.0)
+        if self.tm02 is not None: validate_range(self.tm02, "Tm02", 0.0, 100.0)
+        if self.tp is not None: validate_range(self.tp, "Tp", 0.0, 100.0)
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORB":
@@ -65,12 +63,12 @@ class PNORB:
             processing_method=int(fields[4]),
             freq_low=float(fields[5]),
             freq_high=float(fields[6]),
-            hmo=float(fields[7]),
-            tm02=float(fields[8]),
-            tp=float(fields[9]),
-            dirtp=float(fields[10]),
-            sprtp=float(fields[11]),
-            main_dir=float(fields[12]),
+            hm0=parse_optional_float(fields[7]),
+            tm02=parse_optional_float(fields[8]),
+            tp=parse_optional_float(fields[9]),
+            dir_tp=parse_optional_float(fields[10]),
+            spr_tp=parse_optional_float(fields[11]),
+            main_dir=parse_optional_float(fields[12]),
             wave_error_code=fields[13],
             checksum=checksum
         )
@@ -84,11 +82,11 @@ class PNORB:
             "processing_method": self.processing_method,
             "freq_low": self.freq_low,
             "freq_high": self.freq_high,
-            "hmo": self.hmo,
+            "hm0": self.hm0,
             "tm02": self.tm02,
             "tp": self.tp,
-            "dirtp": self.dirtp,
-            "sprtp": self.sprtp,
+            "dir_tp": self.dir_tp,
+            "spr_tp": self.spr_tp,
             "main_dir": self.main_dir,
             "wave_error_code": self.wave_error_code,
             "checksum": self.checksum

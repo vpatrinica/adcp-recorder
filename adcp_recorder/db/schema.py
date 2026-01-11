@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS pnori (\n    config_id BIGINT PRIMARY KEY,
     beam_count TINYINT NOT NULL 
         CHECK (beam_count > 0 AND beam_count <= 4),
     cell_count SMALLINT NOT NULL 
-        CHECK (cell_count > 0 AND cell_count <= 1000),
+        CHECK (cell_count > 0 AND cell_count <= 128),
     blanking_distance DECIMAL(5,2) NOT NULL 
         CHECK (blanking_distance > 0 AND blanking_distance <= 100),
     cell_size DECIMAL(5,2) NOT NULL 
@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS pnori1 (
     beam_count TINYINT NOT NULL 
         CHECK (beam_count > 0 AND beam_count <= 4),
     cell_count SMALLINT NOT NULL 
-        CHECK (cell_count > 0 AND cell_count <= 1000),
+        CHECK (cell_count > 0 AND cell_count <= 128),
     blanking_distance DECIMAL(5,2) NOT NULL 
         CHECK (blanking_distance > 0 AND blanking_distance <= 100),
     cell_size DECIMAL(5,2) NOT NULL 
@@ -150,7 +150,7 @@ CREATE TABLE IF NOT EXISTS pnori2 (
     beam_count TINYINT NOT NULL 
         CHECK (beam_count > 0 AND beam_count <= 4),
     cell_count SMALLINT NOT NULL 
-        CHECK (cell_count > 0 AND cell_count <= 1000),
+        CHECK (cell_count > 0 AND cell_count <= 128),
     blanking_distance DECIMAL(5,2) NOT NULL 
         CHECK (blanking_distance > 0 AND blanking_distance <= 100),
     cell_size DECIMAL(5,2) NOT NULL 
@@ -220,18 +220,19 @@ CREATE TABLE IF NOT EXISTS pnors_df101 (
     original_sentence TEXT NOT NULL,
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
-    error_code CHAR(8),
+    error_code INTEGER,
     status_code CHAR(8),
     battery DECIMAL(4,1),
     sound_speed DECIMAL(6,1),
+    heading_std_dev DECIMAL(5,1),
     heading DECIMAL(5,1),
     pitch DECIMAL(4,1),
+    pitch_std_dev DECIMAL(4,1),
     roll DECIMAL(5,1),
+    roll_std_dev DECIMAL(5,1),
     pressure DECIMAL(7,3),
+    pressure_std_dev DECIMAL(7,3),
     temperature DECIMAL(5,2),
-    analog1 SMALLINT,
-    analog2 SMALLINT,
-    salinity DECIMAL(4,1),
     checksum CHAR(2)
 );
 """
@@ -248,17 +249,19 @@ CREATE TABLE IF NOT EXISTS pnors_df102 (
     original_sentence TEXT NOT NULL,
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
-    error_code CHAR(8),
+    error_code INTEGER,
     status_code CHAR(8),
     battery DECIMAL(4,1),
     sound_speed DECIMAL(6,1),
+    heading_std_dev DECIMAL(5,1),
     heading DECIMAL(5,1),
     pitch DECIMAL(4,1),
+    pitch_std_dev DECIMAL(4,1),
     roll DECIMAL(5,1),
+    roll_std_dev DECIMAL(5,1),
     pressure DECIMAL(7,3),
+    pressure_std_dev DECIMAL(7,3),
     temperature DECIMAL(5,2),
-    analog1 SMALLINT,
-    analog2 SMALLINT,
     checksum CHAR(2)
 );
 """
@@ -321,9 +324,19 @@ CREATE TABLE IF NOT EXISTS pnorc_df100 (
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
     cell_index SMALLINT NOT NULL CHECK (cell_index > 0),
+    distance DECIMAL(8,3),
     vel1 DECIMAL(8,4),
     vel2 DECIMAL(8,4),
     vel3 DECIMAL(8,4),
+    vel4 DECIMAL(8,4),
+    amp1 SMALLINT,
+    amp2 SMALLINT,
+    amp3 SMALLINT,
+    amp4 SMALLINT,
+    corr1 SMALLINT,
+    corr2 SMALLINT,
+    corr3 SMALLINT,
+    corr4 SMALLINT,
     checksum CHAR(2)
 );
 """
@@ -342,12 +355,19 @@ CREATE TABLE IF NOT EXISTS pnorc_df101 (
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
     cell_index SMALLINT NOT NULL,
+    distance DECIMAL(8,3),
     vel1 DECIMAL(8,4),
     vel2 DECIMAL(8,4),
     vel3 DECIMAL(8,4),
-    corr1 TINYINT,
-    corr2 TINYINT,
-    corr3 TINYINT,
+    vel4 DECIMAL(8,4),
+    amp1 DECIMAL(6,2),
+    amp2 DECIMAL(6,2),
+    amp3 DECIMAL(6,2),
+    amp4 DECIMAL(6,2),
+    corr1 SMALLINT,
+    corr2 SMALLINT,
+    corr3 SMALLINT,
+    corr4 SMALLINT,
     checksum CHAR(2)
 );
 """
@@ -366,9 +386,19 @@ CREATE TABLE IF NOT EXISTS pnorc_df102 (
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
     cell_index SMALLINT NOT NULL,
+    distance DECIMAL(8,3),
     vel1 DECIMAL(8,4),
     vel2 DECIMAL(8,4),
     vel3 DECIMAL(8,4),
+    vel4 DECIMAL(8,4),
+    amp1 DECIMAL(6,2),
+    amp2 DECIMAL(6,2),
+    amp3 DECIMAL(6,2),
+    amp4 DECIMAL(6,2),
+    corr1 SMALLINT,
+    corr2 SMALLINT,
+    corr3 SMALLINT,
+    corr4 SMALLINT,
     checksum CHAR(2)
 );
 """
@@ -387,13 +417,11 @@ CREATE TABLE IF NOT EXISTS pnorc_df103 (
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
     cell_index SMALLINT NOT NULL,
-    vel1 DECIMAL(8,4),
-    vel2 DECIMAL(8,4),
-    vel3 DECIMAL(8,4),
-    amp1 TINYINT,
-    amp2 TINYINT,
-    amp3 TINYINT,
-    amp4 TINYINT,
+    distance DECIMAL(8,3),
+    speed DECIMAL(8,4),
+    direction DECIMAL(5,2),
+    avg_amplitude SMALLINT,
+    avg_correlation SMALLINT,
     checksum CHAR(2)
 );
 """
@@ -412,16 +440,11 @@ CREATE TABLE IF NOT EXISTS pnorc_df104 (
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
     cell_index SMALLINT NOT NULL,
-    vel1 DECIMAL(8,4),
-    vel2 DECIMAL(8,4),
-    vel3 DECIMAL(8,4),
-    corr1 TINYINT,
-    corr2 TINYINT,
-    corr3 TINYINT,
-    amp1 TINYINT,
-    amp2 TINYINT,
-    amp3 TINYINT,
-    amp4 TINYINT,
+    distance DECIMAL(8,3),
+    speed DECIMAL(8,4),
+    direction DECIMAL(5,2),
+    avg_amplitude SMALLINT,
+    avg_correlation SMALLINT,
     checksum CHAR(2)
 );
 """
@@ -462,11 +485,21 @@ CREATE TABLE IF NOT EXISTS pnorh_df104 (
     original_sentence TEXT NOT NULL,
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
+    instrument_id VARCHAR(30),
+    serial_number VARCHAR(20),
+    firmware_version VARCHAR(20),
     num_cells SMALLINT NOT NULL,
     first_cell SMALLINT NOT NULL,
-    ping_count INTEGER NOT NULL,
+    num_beams TINYINT,
+    cell_size DECIMAL(6,3),
+    blanking DECIMAL(6,3),
+    nominal_freq INTEGER,
     coordinate_system VARCHAR(10),
-    profile_interval DECIMAL(7,1),
+    profile_interval DECIMAL(8,2),
+    burst_interval DECIMAL(8,2),
+    burst_length INTEGER,
+    ping_count INTEGER NOT NULL,
+    avg_interval DECIMAL(8,2),
     checksum CHAR(2)
 );
 """
@@ -510,10 +543,25 @@ CREATE TABLE IF NOT EXISTS pnorw_data (
     original_sentence TEXT NOT NULL,
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
-    sig_wave_height DECIMAL(5,2),
-    max_wave_height DECIMAL(5,2),
-    peak_period DECIMAL(5,1),
-    mean_direction DECIMAL(5,1),
+    spectrum_basis TINYINT,
+    processing_method TINYINT,
+    hm0 DECIMAL(6,3),
+    hmax DECIMAL(6,3),
+    tp DECIMAL(6,3),
+    tm02 DECIMAL(6,3),
+    mean_dir DECIMAL(6,2),
+    peak_dir DECIMAL(6,2),
+    directional_spread DECIMAL(6,2),
+    peak_directional_spread DECIMAL(6,2),
+    mean_period DECIMAL(6,3),
+    mean_peak_period DECIMAL(6,3),
+    mean_directional_spread DECIMAL(6,2),
+    peak_directional_spread_m2 DECIMAL(6,2),
+    mean_wavelength DECIMAL(8,3),
+    peak_wavelength DECIMAL(8,3),
+    mean_steepness DECIMAL(8,5),
+    peak_steepness DECIMAL(8,5),
+    wave_error_code CHAR(4),
     checksum CHAR(2)
 );
 """
@@ -608,8 +656,11 @@ CREATE TABLE IF NOT EXISTS pnora_data (
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
     method TINYINT,
-    distance DECIMAL(6,2),
-    quality TINYINT,
+    distance DECIMAL(8,3),
+    status TINYINT,
+    pitch DECIMAL(6,2),
+    roll DECIMAL(6,2),
+    pressure DECIMAL(8,3),
     checksum CHAR(2)
 );
 """

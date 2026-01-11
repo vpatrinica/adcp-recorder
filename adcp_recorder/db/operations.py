@@ -497,38 +497,43 @@ def insert_sensor_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
     elif sentence_type == "PNORS1":
         table = "pnors_df101"
         seq = "pnors_df101_seq"
-        fields = "error_code, status_code, battery, sound_speed, heading, pitch, roll, pressure, temperature, analog1, analog2, salinity"
-        placeholders = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
+        fields = "error_code, status_code, battery, sound_speed, heading_std_dev, heading, pitch, pitch_std_dev, roll, roll_std_dev, pressure, pressure_std_dev, temperature"
+        placeholders = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
         values = (
             data.get("error_code"), data.get("status_code"), data.get("battery"), data.get("sound_speed"),
-            data.get("heading"), data.get("pitch"), data.get("roll"), data.get("pressure"), data.get("temperature"),
-            data.get("analog1"), data.get("analog2"), data.get("salinity")
+            data.get("heading_std_dev"), data.get("heading"), data.get("pitch"), data.get("pitch_std_dev"),
+            data.get("roll"), data.get("roll_std_dev"), data.get("pressure"), data.get("pressure_std_dev"),
+            data.get("temperature")
         )
     elif sentence_type == "PNORS2":
         table = "pnors_df102"
         seq = "pnors_df102_seq"
-        fields = "error_code, status_code, battery, sound_speed, heading, pitch, roll, pressure, temperature, analog1, analog2"
-        placeholders = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
+        fields = "error_code, status_code, battery, sound_speed, heading_std_dev, heading, pitch, pitch_std_dev, roll, roll_std_dev, pressure, pressure_std_dev, temperature"
+        placeholders = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
         values = (
             data.get("error_code"), data.get("status_code"), data.get("battery"), data.get("sound_speed"),
-            data.get("heading"), data.get("pitch"), data.get("roll"), data.get("pressure"), data.get("temperature"),
-            data.get("analog1"), data.get("analog2")
+            data.get("heading_std_dev"), data.get("heading"), data.get("pitch"), data.get("pitch_std_dev"),
+            data.get("roll"), data.get("roll_std_dev"), data.get("pressure"), data.get("pressure_std_dev"),
+            data.get("temperature")
         )
     elif sentence_type == "PNORS3":
         table = "pnors_df103"
         seq = "pnors_df103_seq"
-        fields = "battery, heading, pitch, roll, pressure, temperature"
-        placeholders = "?, ?, ?, ?, ?, ?"
+        fields = "battery, sound_speed, heading, pitch, roll, pressure, temperature"
+        placeholders = "?, ?, ?, ?, ?, ?, ?"
         values = (
-            data.get("battery"), data.get("heading"), data.get("pitch"), data.get("roll"),
-            data.get("pressure"), data.get("temperature")
+            data.get("battery"), data.get("sound_speed"), data.get("heading"), data.get("pitch"), 
+            data.get("roll"), data.get("pressure"), data.get("temperature")
         )
     elif sentence_type == "PNORS4":
         table = "pnors_df104"
         seq = "pnors_df104_seq"
-        fields = "heading, pressure, temperature"
-        placeholders = "?, ?, ?"
-        values = (data.get("heading"), data.get("pressure"), data.get("temperature"))
+        fields = "battery, sound_speed, heading, pitch, roll, pressure, temperature"
+        placeholders = "?, ?, ?, ?, ?, ?, ?"
+        values = (
+            data.get("battery"), data.get("sound_speed"), data.get("heading"), data.get("pitch"),
+            data.get("roll"), data.get("pressure"), data.get("temperature")
+        )
     else:
         raise ValueError(f"Unknown sensor sentence type: {sentence_type}")
     
@@ -558,42 +563,55 @@ def insert_velocity_data(conn: duckdb.DuckDBPyConnection, original_sentence: str
     if sentence_type == "PNORC":
         table = "pnorc_df100"
         seq = "pnorc_df100_seq"
-        fields = "cell_index, vel1, vel2, vel3"
-        placeholders = "?, ?, ?, ?"
-        values = (data["cell_index"], data["vel1"], data["vel2"], data["vel3"])
+        fields = "cell_index, distance, vel1, vel2, vel3, vel4, amp1, amp2, amp3, amp4, corr1, corr2, corr3, corr4"
+        placeholders = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
+        values = (
+            data["cell_index"], data["distance"],
+            data["vel1"], data["vel2"], data["vel3"], data["vel4"],
+            data["amp1"], data["amp2"], data["amp3"], data["amp4"],
+            data["corr1"], data["corr2"], data["corr3"], data["corr4"]
+        )
     elif sentence_type == "PNORC1":
         table = "pnorc_df101"
         seq = "pnorc_df101_seq"
-        fields = "cell_index, vel1, vel2, vel3, corr1, corr2, corr3"
-        placeholders = "?, ?, ?, ?, ?, ?, ?"
+        fields = "cell_index, distance, vel1, vel2, vel3, vel4, amp1, amp2, amp3, amp4, corr1, corr2, corr3, corr4"
+        placeholders = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
         values = (
-            data["cell_index"], data["vel1"], data["vel2"], data["vel3"],
-            data.get("corr1"), data.get("corr2"), data.get("corr3")
+            data["cell_index"], data["distance"],
+            data["vel1"], data["vel2"], data["vel3"], data["vel4"],
+            data["amp1"], data["amp2"], data["amp3"], data["amp4"],
+            data["corr1"], data["corr2"], data["corr3"], data["corr4"]
         )
     elif sentence_type == "PNORC2":
         table = "pnorc_df102"
         seq = "pnorc_df102_seq"
-        fields = "cell_index, vel1, vel2, vel3"
-        placeholders = "?, ?, ?, ?"
-        values = (data["cell_index"], data["vel1"], data["vel2"], data["vel3"])
+        fields = "cell_index, distance, vel1, vel2, vel3, vel4, amp1, amp2, amp3, amp4, corr1, corr2, corr3, corr4"
+        placeholders = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
+        values = (
+            data["cell_index"], data["distance"],
+            data["vel1"], data["vel2"], data["vel3"], data["vel4"],
+            data["amp1"], data["amp2"], data["amp3"], data["amp4"],
+            data["corr1"], data["corr2"], data["corr3"], data["corr4"]
+        )
     elif sentence_type == "PNORC3":
         table = "pnorc_df103"
         seq = "pnorc_df103_seq"
-        fields = "cell_index, vel1, vel2, vel3, amp1, amp2, amp3, amp4"
-        placeholders = "?, ?, ?, ?, ?, ?, ?, ?"
+        fields = "cell_index, distance, speed, direction, avg_amplitude, avg_correlation"
+        placeholders = "?, ?, ?, ?, ?, ?"
         values = (
-            data["cell_index"], data["vel1"], data["vel2"], data["vel3"],
-            data.get("amp1"), data.get("amp2"), data.get("amp3"), data.get("amp4")
+            data.get("cell_index", 1),
+            data["distance"], data["speed"], data["direction"],
+            data["avg_amplitude"], data["avg_correlation"]
         )
     elif sentence_type == "PNORC4":
         table = "pnorc_df104"
         seq = "pnorc_df104_seq"
-        fields = "cell_index, vel1, vel2, vel3, corr1, corr2, corr3, amp1, amp2, amp3, amp4"
-        placeholders = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
+        fields = "cell_index, distance, speed, direction, avg_amplitude, avg_correlation"
+        placeholders = "?, ?, ?, ?, ?, ?"
         values = (
-            data["cell_index"], data["vel1"], data["vel2"], data["vel3"],
-            data.get("corr1"), data.get("corr2"), data.get("corr3"),
-            data.get("amp1"), data.get("amp2"), data.get("amp3"), data.get("amp4")
+            data.get("cell_index", 1),
+            data["distance"], data["speed"], data["direction"],
+            data["avg_amplitude"], data["avg_correlation"]
         )
     else:
         raise ValueError(f"Unknown velocity sentence type: {sentence_type}")
@@ -630,11 +648,14 @@ def insert_header_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
     elif sentence_type == "PNORH4":
         table = "pnorh_df104"
         seq = "pnorh_df104_seq"
-        fields = "num_cells, first_cell, ping_count, coordinate_system, profile_interval"
-        placeholders = "?, ?, ?, ?, ?"
+        fields = "instrument_id, serial_number, firmware_version, num_cells, first_cell, num_beams, cell_size, blanking, nominal_freq, coordinate_system, profile_interval, burst_interval, burst_length, ping_count, avg_interval"
+        placeholders = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
         values = (
-            data["num_cells"], data["first_cell"], data["ping_count"],
-            data.get("coordinate_system"), data.get("profile_interval")
+            data.get("instrument_id"), data.get("serial_number"), data.get("firmware_version"),
+            data.get("num_cells"), data.get("first_cell"), data.get("num_beams"),
+            data.get("cell_size"), data.get("blanking"), data.get("nominal_frequency"),
+            data.get("coordinate_system"), data.get("profile_interval"), data.get("burst_interval"),
+            data.get("burst_length"), data.get("ping_count"), data.get("avg_interval")
         )
     else:
         raise ValueError(f"Unknown header sentence type: {sentence_type}")
@@ -704,20 +725,32 @@ def insert_pnorw_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
     INSERT INTO pnorw_data (
         record_id, original_sentence, sentence_type,
         measurement_date, measurement_time,
-        sig_wave_height, max_wave_height, peak_period, mean_direction,
-        checksum
+        spectrum_basis, processing_method,
+        hm0, hmax, tp, tm02, 
+        mean_dir, peak_dir, directional_spread, peak_directional_spread,
+        mean_period, mean_peak_period, mean_directional_spread, peak_directional_spread_m2,
+        mean_wavelength, peak_wavelength, mean_steepness, peak_steepness,
+        wave_error_code, checksum
     ) VALUES (
         nextval('pnorw_data_seq'), ?, ?,
         ?, ?,
+        ?, ?,
         ?, ?, ?, ?,
-        ?
+        ?, ?, ?, ?,
+        ?, ?, ?, ?,
+        ?, ?, ?, ?,
+        ?, ?
     ) RETURNING record_id;
     """
     params = (
         original_sentence, data["sentence_type"],
         data["date"], data["time"],
-        data["sig_wave_height"], data["max_wave_height"], data["peak_period"], data["mean_direction"],
-        data.get("checksum")
+        data.get("spectrum_basis"), data.get("processing_method"),
+        data.get("hm0"), data.get("hmax"), data.get("tp"), data.get("tm02"),
+        data.get("mean_dir"), data.get("peak_dir"), data.get("directional_spread"), data.get("peak_directional_spread"),
+        data.get("mean_period"), data.get("mean_peak_period"), data.get("mean_directional_spread"), data.get("peak_directional_spread_m2"),
+        data.get("mean_wavelength"), data.get("peak_wavelength"), data.get("mean_steepness"), data.get("peak_steepness"),
+        data.get("wave_error_code"), data.get("checksum")
     )
     result = conn.execute(query, params).fetchone()
     conn.commit()
@@ -860,11 +893,13 @@ def insert_pnora_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
     INSERT INTO pnora_data (
         record_id, original_sentence, sentence_type,
         measurement_date, measurement_time,
-        method, distance, quality,
+        method, distance, status,
+        pitch, roll, pressure,
         checksum
     ) VALUES (
         nextval('pnora_data_seq'), ?, ?,
         ?, ?,
+        ?, ?, ?,
         ?, ?, ?,
         ?
     ) RETURNING record_id;
@@ -872,7 +907,8 @@ def insert_pnora_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
     params = (
         original_sentence, data["sentence_type"],
         data["date"], data["time"],
-        data["method"], data["distance"], data["quality"],
+        data["method"], data["distance"], data.get("status"),
+        data.get("pitch"), data.get("roll"), data.get("pressure"),
         data.get("checksum")
     )
     result = conn.execute(query, params).fetchone()
@@ -883,31 +919,58 @@ def insert_pnora_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
 def query_sensor_data(
     conn: duckdb.DuckDBPyConnection, limit: int = 100
 ) -> List[Dict[str, Any]]:
-    """Query recent sensor data records."""
-    cols = conn.execute("DESCRIBE sensor_data").fetchall()
-    col_names = [c[0] for c in cols]
-    results = conn.execute(f"SELECT * FROM sensor_data LIMIT {limit}").fetchall()
-    return [dict(zip(col_names, row)) for row in results]
+    """Query recent sensor data records (UNION from DF100-104)."""
+    query = """
+        SELECT record_id, received_at, 'DF100' as format, heading, pitch, roll, pressure, temperature FROM pnors_df100
+        UNION ALL
+        SELECT record_id, received_at, 'DF101' as format, heading, pitch, roll, pressure, temperature FROM pnors_df101
+        UNION ALL
+        SELECT record_id, received_at, 'DF102' as format, heading, pitch, roll, pressure, temperature FROM pnors_df102
+        UNION ALL
+        SELECT record_id, received_at, 'DF103' as format, heading, pitch, roll, pressure, temperature FROM pnors_df103
+        UNION ALL
+        SELECT record_id, received_at, 'DF104' as format, heading, NULL as pitch, NULL as roll, pressure, temperature FROM pnors_df104
+        ORDER BY received_at DESC
+        LIMIT ?
+    """
+    results = conn.execute(query, [limit]).fetchall()
+    columns = ["record_id", "received_at", "format", "heading", "pitch", "roll", "pressure", "temperature"]
+    return [dict(zip(columns, row)) for row in results]
 
 
 def query_velocity_data(
     conn: duckdb.DuckDBPyConnection, limit: int = 100
 ) -> List[Dict[str, Any]]:
-    """Query recent velocity data records."""
-    cols = conn.execute("DESCRIBE velocity_data").fetchall()
-    col_names = [c[0] for c in cols]
-    results = conn.execute(f"SELECT * FROM velocity_data LIMIT {limit}").fetchall()
-    return [dict(zip(col_names, row)) for row in results]
+    """Query recent velocity data records (from DF100/101/102)."""
+    # Note: DF103/104 are averaged current, not velocity profiles, so excluded here
+    query = """
+        SELECT record_id, received_at, 'DF100' as format, cell_index, vel1, vel2, vel3, vel4 FROM pnorc_df100
+        UNION ALL
+        SELECT record_id, received_at, 'DF101' as format, cell_index, vel1, vel2, vel3, vel4 FROM pnorc_df101
+        UNION ALL
+        SELECT record_id, received_at, 'DF102' as format, cell_index, vel1, vel2, vel3, vel4 FROM pnorc_df102
+        ORDER BY received_at DESC
+        LIMIT ?
+    """
+    results = conn.execute(query, [limit]).fetchall()
+    columns = ["record_id", "received_at", "format", "cell_index", "vel1", "vel2", "vel3", "vel4"]
+    return [dict(zip(columns, row)) for row in results]
 
 
 def query_header_data(
     conn: duckdb.DuckDBPyConnection, limit: int = 100
 ) -> List[Dict[str, Any]]:
-    """Query recent header data records."""
-    cols = conn.execute("DESCRIBE header_data").fetchall()
-    col_names = [c[0] for c in cols]
-    results = conn.execute(f"SELECT * FROM header_data LIMIT {limit}").fetchall()
-    return [dict(zip(col_names, row)) for row in results]
+    """Query recent header data records (DF103/104)."""
+    query = """
+        SELECT record_id, received_at, 'DF103' as format, num_cells, first_cell, ping_count FROM pnorh_df103
+        UNION ALL
+        SELECT record_id, received_at, 'DF104' as format, num_cells, first_cell, ping_count FROM pnorh_df104
+        ORDER BY received_at DESC
+        LIMIT ?
+    """
+    results = conn.execute(query, [limit]).fetchall()
+    columns = ["record_id", "received_at", "format", "num_cells", "first_cell", "ping_count"]
+    return [dict(zip(columns, row)) for row in results]
 
 
 def query_echo_data(

@@ -13,7 +13,8 @@ from adcp_recorder.parsers.pnora import PNORA
 from adcp_recorder.parsers.pnorh import PNORH3, PNORH4
 from adcp_recorder.parsers.pnorc import PNORC, PNORC1, PNORC2, PNORC3, PNORC4
 from adcp_recorder.parsers.pnori import PNORI
-from adcp_recorder.parsers.pnors import PNORS4, PNORS2Tag
+from adcp_recorder.parsers.pnors import PNORS4
+from adcp_recorder.parsers.utils import parse_tagged_field
 from adcp_recorder.parsers.pnorw import PNORW
 from adcp_recorder.parsers.pnorb import PNORB
 from adcp_recorder.parsers.pnore import PNORE
@@ -132,9 +133,9 @@ def test_pnors_coverage():
     msg = PNORS4("102115", "090715", 270.0, 10.0, 15.0)
     assert msg.to_dict()["sentence_type"] == "PNORS4"
     
-    # PNORS2Tag coverage
+    # parse_tagged_field coverage
     with pytest.raises(ValueError, match="must contain '='"):
-        PNORS2Tag.parse_tagged_field("INVALID")
+        parse_tagged_field("INVALID")
 
 def test_pnorc_coverage():
     # PNORC
