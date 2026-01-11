@@ -369,3 +369,61 @@ class TestSerialConsumer:
         assert conn.execute("SELECT count(*) FROM pnorf_data").fetchone()[0] == 1
         assert conn.execute("SELECT count(*) FROM pnorwd_data").fetchone()[0] == 1
         assert conn.execute("SELECT count(*) FROM pnora_data").fetchone()[0] == 1
+
+    def test_consume_writes_to_file(self, db_path):
+        """Test that consumer writes to file writer."""
+        queue = Queue(maxsize=100)
+        db = DatabaseManager(db_path)
+        router = MessageRouter()
+        router.register_parser("PNORI", PNORI)
+        mock_file_writer = Mock()
+
+        consumer = SerialConsumer(queue, db, router, file_writer=mock_file_writer)
+
+        sentence = "$PNORI,4,Test,4,20,0.20,1.00,0*2E"
+        queue.put(sentence.encode("ascii"))
+
+        consumer.start()
+        time.sleep(0.5)
+        consumer.stop()
+
+        mock_file_writer.write.assert_called_with("PNORI", sentence)
+
+    def test_consume_writes_binary_errors_to_file(self, db_path):
+        """Test that consumer writes binary errors to file writer."""
+        queue = Queue(maxsize=100)
+        db = DatabaseManager(db_path)
+        router = MessageRouter()
+        mock_file_writer = Mock()
+
+        consumer = SerialConsumer(queue, db, router, file_writer=mock_file_writer)
+
+        binary_data = b"\x00\x01\x02"
+        queue.put(binary_data)
+
+        consumer.start()
+        time.sleep(0.5)
+        consumer.stop()
+
+        mock_file_writer.write.assert_called_once()
+        args = mock_file_writer.write.call_args[0]
+        assert args[0] == "ERRORS"
+        assert "\x00\x01\x02" in args[1]
+    
+    def test_consume_writes_unknown_to_file(self, db_path):
+        """Test that consumer writes unknown messages to file writer."""
+        queue = Queue(maxsize=100)
+        db = DatabaseManager(db_path)
+        router = MessageRouter()
+        mock_file_writer = Mock()
+        
+        consumer = SerialConsumer(queue, db, router, file_writer=mock_file_writer)
+        
+        sentence = "$UNKNOWN,1,2*00"
+        queue.put(sentence.encode("ascii"))
+        
+        consumer.start()
+        time.sleep(0.5)
+        consumer.stop()
+        
+        mock_file_writer.write.assert_called_with("UNKNOWN", sentence)
