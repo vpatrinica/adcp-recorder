@@ -21,6 +21,9 @@ dev = [
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.11.0",
 ]
+win = [
+    "pywin32>=306; sys_platform == 'win32'",
+]
 
 [project.scripts]
 adcp-recorder = "adcp_recorder.cli.main:cli"
