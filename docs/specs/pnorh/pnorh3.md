@@ -2,63 +2,58 @@
 
 # PNORH3 Specification
 
-**Header data variant 3** for current velocity measurement series.
+**Header data variant 3** with tags for current velocity measurement series.
 
 ## Format
 
 ```
-$PNORH3,MMDDYY,HHMMSS,NumCells,FirstCell,PingCount*CHECKSUM
+$PNORH3,DATE=YYMMDD,TIME=HHMMSS,EC=ErrorCode,SC=StatusCode*CHECKSUM
 ```
 
-**Field Count**: 6 fields (including prefix)
+**Field Count**: 5 fields (including prefix)
 
 ## Field Definitions
 
-| Position | Field | Python Type | DuckDB Type | Unit | Range | Description |
-|----------|-------|-------------|-------------|------|-------|-------------|
-| 0 | Prefix | str | VARCHAR(10) | - | - | Always `$PNORH3` |
-| 1 | Date | str | CHAR(6) | - | MMDDYY | Measurement series date |
-| 2 | Time | str | CHAR(6) | - | HHMMSS | Measurement series time |
-| 3 | Number of Cells | int | SMALLINT | - | 1-1000 | Total cells in this series |
-| 4 | First Cell | int | SMALLINT | - | 1-1000 | Index of first cell |
-| 5 | Ping Count | int | INTEGER | - | 1-10000 | Number of pings averaged |
+| Position | Field | Tag | Python Type | DuckDB Type | Unit | Range | Description |
+|----------|-------|-----|-------------|-------------|------|-------|-------------|
+| 0 | Prefix | - | str | VARCHAR(10) | - | - | Always `$PNORH3` |
+| 1 | Date | DATE | str | CHAR(6) | - | YYMMDD | Measurement date |
+| 2 | Time | TIME | str | CHAR(6) | - | HHMMSS | Measurement time |
+| 3 | Error Code | EC | int | INTEGER | - | - | Error status code (0=no error) |
+| 4 | Status Code | SC | str | CHAR(8) | - | 8 hex digits | System status bitfield |
 
 ## Example Sentence
 
 ```
-$PNORH3,102115,090715,20,1,50*XX
+$PNORH3,DATE=141112,TIME=081946,EC=0,SC=2A4C0000*5F
 ```
 
 **Parsed**:
-- Date: October 21, 2015
-- Time: 09:07:15
-- Number of Cells: 20
-- First Cell: 1
-- Ping Count: 50
+- Date: November 12, 2014
+- Time: 08:19:46
+- Error Code: 0
+- Status Code: 2A4C0000
 
 ## Usage
 
 PNORH3 precedes a series of PNORC/PNORC1-4 messages:
 
 ```
-$PNORH3,102115,090715,20,1,50*XX    ← Header
-$PNORC,102115,090715,1,...*XX       ← Cell 1 data
-$PNORC,102115,090715,2,...*XX       ← Cell 2 data
-...
-$PNORC,102115,090715,20,...*XX      ← Cell 20 data
+$PNORH3,DATE=141112,TIME=081946,EC=0,SC=2A4C0000*5F    ← Header
+$PNORC,141112,081946,1,...*XX                         ← Cell 1 data
+$PNORC,141112,081946,2,...*XX                         ← Cell 2 data
 ```
 
 ## Validation Rules
 
 1. Date/time format validation
-2. Number of cells: 1-1000
-3. First cell: 1 to number of cells
-4. Ping count: ≥ 1
+2. Status code: Must be 8-digit hexadecimal
+3. Error code: Integer value (0 or higher)
 
 ## Related Documents
 
 - [PNORH Family Overview](README.md)
-- [PNORC Family](../pnorc/README.md)
+- [PNORC Family Overview](../pnorc/README.md)
 
 ---
 

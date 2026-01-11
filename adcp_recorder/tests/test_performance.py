@@ -48,11 +48,12 @@ def test_throughput_performance():
     """Measure messages per second throughput using file-based DB."""
     # Generate 50 messages
     sentences = [
-        b"$PNORI,4,PerfTest,4,20,0.20,1.00,0*34\r\n",
-        b"$PNORS,102115,090715,00000000,2A480000,14.4,1523.0,275.9,15.7,2.3,0.000,22.45,0,0*3E\r\n",
+        b"$PNORI,4,1001,4,20,0.20,1.00,0*34\r\n",
+        b"$PNORS,102115,090715,0,00000000,14.4,1523.0,275.9,15.7,2.3,0.0,22.45,0,0*3E\r\n",
     ]
     for i in range(1, 49):
-        sentences.append(f"$PNORC,102115,090715,{i % 20 + 1},0.1,0.2,0.3*33\r\n".encode())
+        # PNORC: 19 fields
+        sentences.append(f"$PNORC,102115,090715,{i % 20 + 1},0.1,0.2,0.3,0.4,180.0,C,80,80,80,80,100,100,100,100*33\r\n".encode())
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         db_path = Path(tmp_dir) / "perf.duckdb"
@@ -100,7 +101,8 @@ def test_throughput_performance():
 def test_memory_stability():
     """Monitor memory usage during a sustained run."""
     # 500 messages
-    sentences = [f"$PNORC,102115,090715,1,0.1,0.2,0.3*33\r\n".encode() for _ in range(500)]
+    # 500 messages (PNORC with 19 fields)
+    sentences = [f"$PNORC,102115,090715,1,0.1,0.2,0.3,0.4,180.0,C,80,80,80,80,100,100,100,100*33\r\n".encode() for _ in range(500)]
     
     with tempfile.TemporaryDirectory() as tmp_dir:
         db_path = Path(tmp_dir) / "mem_test.duckdb"

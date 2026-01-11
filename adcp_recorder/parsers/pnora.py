@@ -11,32 +11,33 @@ from .utils import (
     validate_date_yy_mm_dd,
     validate_time_string,
     validate_range,
+    validate_hex_string,
 )
 
 
 @dataclass(frozen=True)
 class PNORA:
     """PNORA altitude/range data message (DF=200, 201).
-    Format: $PNORA,Date,Time,Method,Distance,Status,Pitch,Roll,Pressure*CS
+    Format: $PNORA,Date,Time,Pressure,Distance,Quality,Status,Pitch,Roll*CS
     """
     date: str
     time: str
-    method: int
+    pressure: float
     distance: float
-    status: int
+    quality: int
+    status: str
     pitch: float
     roll: float
-    pressure: float
     checksum: Optional[str] = field(default=None, repr=False)
 
     def __post_init__(self):
         validate_date_yy_mm_dd(self.date)
         validate_time_string(self.time)
-        validate_range(self.method, "Altitude method", 0, 2)
+        validate_range(self.pressure, "Pressure", 0.0, 20000.0)
         validate_range(self.distance, "Distance", 0.0, 1000.0)
         validate_range(self.pitch, "Pitch", -90.0, 90.0)
         validate_range(self.roll, "Roll", -90.0, 90.0)
-        validate_range(self.pressure, "Pressure", 0.0, 20000.0)
+        validate_hex_string(self.status, 2, 2)
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORA":
@@ -55,12 +56,12 @@ class PNORA:
         return cls(
             date=fields[1],
             time=fields[2],
-            method=int(fields[3]),
+            pressure=float(fields[3]),
             distance=float(fields[4]),
-            status=int(fields[5]),
-            pitch=float(fields[6]),
-            roll=float(fields[7]),
-            pressure=float(fields[8]),
+            quality=int(fields[5]),
+            status=fields[6],
+            pitch=float(fields[7]),
+            roll=float(fields[8]),
             checksum=checksum
         )
 
@@ -69,11 +70,11 @@ class PNORA:
             "sentence_type": "PNORA",
             "date": self.date,
             "time": self.time,
-            "method": self.method,
+            "pressure": self.pressure,
             "distance": self.distance,
+            "quality": self.quality,
             "status": self.status,
             "pitch": self.pitch,
             "roll": self.roll,
-            "pressure": self.pressure,
             "checksum": self.checksum
         }

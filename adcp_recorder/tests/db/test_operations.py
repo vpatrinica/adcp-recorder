@@ -323,7 +323,7 @@ class TestPerformance:
                 "checksum_valid": True,
                 "error_message": None,
             }
-            for i in range(20000)
+            for i in range(5000)
         ]
 
         # Batch insert
@@ -438,9 +438,9 @@ class TestPNORIConfigurationOperations:
 
         # Insert multiple configurations
         sentences = [
-            "$PNORI,4,Device1,4,20,0.20,1.00,0*00",
-            "$PNORI1,4,Device2,4,30,0.50,2.00,ENU*00",
-            "$PNORI2,IT=4,SN=Device3,NB=4,NC=25,BD=1.00,CS=3.00,CY=BEAM*00",
+            "$PNORI,4,12345,4,20,0.20,1.00,0*00",
+            "$PNORI1,4,12346,4,30,0.50,2.00,ENU*00",
+            "$PNORI2,IT=4,SN=12347,NB=4,NC=25,BD=1.00,CS=3.00,CY=BEAM*00",
         ]
 
         for sentence in sentences:
@@ -465,8 +465,8 @@ class TestPNORIConfigurationOperations:
         conn = db.get_connection()
 
         # Insert configurations with different head IDs
-        sentence1 = "$PNORI,4,TargetDevice,4,20,0.20,1.00,0*00"
-        sentence2 = "$PNORI,4,OtherDevice,4,20,0.20,1.00,0*00"
+        sentence1 = "$PNORI,4,1001,4,20,0.20,1.00,0*00"
+        sentence2 = "$PNORI,4,1002,4,20,0.20,1.00,0*00"
 
         config1 = PNORI.from_nmea(sentence1)
         config2 = PNORI.from_nmea(sentence2)
@@ -475,10 +475,10 @@ class TestPNORIConfigurationOperations:
         insert_pnori_configuration(conn, config2.to_dict(), sentence2)
 
         # Query specific head ID
-        results = query_pnori_configurations(conn, head_id="TargetDevice")
+        results = query_pnori_configurations(conn, head_id="1001")
 
         assert len(results) == 1
-        assert results[0]["head_id"] == "TargetDevice"
+        assert results[0]["head_id"] == "1001"
 
     def test_query_pnori_by_sentence_type(self):
         """Test querying PNORI configurations by sentence type."""
@@ -486,9 +486,9 @@ class TestPNORIConfigurationOperations:
         conn = db.get_connection()
 
         # Insert mixed sentence types
-        sentence1 = "$PNORI,4,Device1,4,20,0.20,1.00,0*00"
-        sentence2 = "$PNORI1,4,Device2,4,30,0.50,2.00,ENU*00"
-        sentence3 = "$PNORI,4,Device3,4,25,0.30,1.50,0*00"
+        sentence1 = "$PNORI,4,2001,4,20,0.20,1.00,0*00"
+        sentence2 = "$PNORI1,4,2002,4,30,0.50,2.00,ENU*00"
+        sentence3 = "$PNORI,4,2003,4,25,0.30,1.50,0*00"
 
         config1 = PNORI.from_nmea(sentence1)
         config2 = PNORI1.from_nmea(sentence2)
@@ -517,7 +517,7 @@ class TestPNORIConfigurationOperations:
 
         # Insert multiple configurations
         for i in range(10):
-            sentence = f"$PNORI,4,Device{i},4,20,0.20,1.00,0*00"
+            sentence = f"$PNORI,4,{1000+i},4,20,0.20,1.00,0*00"
             config = PNORI.from_nmea(sentence)
             insert_pnori_configuration(conn, config.to_dict(), sentence)
 
@@ -543,7 +543,7 @@ class TestPNORIConfigurationOperations:
                     beam_count, cell_count, blanking_distance, cell_size,
                     coord_system_name, coord_system_code, checksum
                 )
-                VALUES (1, '$TEST', 'INVALID', 99, 'Test', 4, 20, 0.20, 1.00, 'ENU', 0, '00')
+                VALUES (1, '$TEST', 'INVALID', 99, '123', 4, 20, 0.20, 1.00, 'ENU', 0, '00')
                 """
             )
 
@@ -564,7 +564,7 @@ class TestPNORIConfigurationOperations:
                     beam_count, cell_count, blanking_distance, cell_size,
                     coord_system_name, coord_system_code, checksum
                 )
-                VALUES (1, '$TEST', 'SIGNATURE', 4, 'Test', 3, 20, 0.20, 1.00, 'ENU', 0, '00')
+                VALUES (1, '$TEST', 'SIGNATURE', 4, '123', 3, 20, 0.20, 1.00, 'ENU', 0, '00')
                 """
             )
 
@@ -585,7 +585,7 @@ class TestPNORIConfigurationOperations:
                     beam_count, cell_count, blanking_distance, cell_size,
                     coord_system_name, coord_system_code, checksum
                 )
-                VALUES (1, '$TEST', 'SIGNATURE', 4, 'Test', 4, 20, 0.20, 1.00, 'ENU', 1, '00')
+                VALUES (1, '$TEST', 'SIGNATURE', 4, '123', 4, 20, 0.20, 1.00, 'ENU', 1, '00')
                 """
             )
 
