@@ -1,11 +1,13 @@
 import json
+import logging
 import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, ClassVar, Dict, Optional
 
 CONFIG_DIR_NAME = ".adcp-recorder"
 CONFIG_FILE_NAME = "config.json"
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
@@ -21,6 +23,20 @@ class RecorderConfig:
     # Database settings
     db_path: Optional[str] = None  # If None, will default to output_dir/adcp.duckdb
 
+    # Fields persisted to disk
+    PERSISTED_FIELDS: ClassVar[tuple[str, ...]] = (
+        'serial_port', 'baudrate', 'timeout', 'output_dir', 'log_level', 'db_path'
+    )
+
+    ENV_PREFIX: ClassVar[str] = "ADCP_RECORDER_"
+    ENV_OVERRIDES: ClassVar[Dict[str, Any]] = {
+        'serial_port': str,
+        'baudrate': int,
+        'timeout': float,
+        'output_dir': str,
+        'log_level': str,
+        'db_path': str,
+    }
     @classmethod
     def get_default_config_dir(cls) -> Path:
         """Returns the default configuration directory path."""
@@ -46,11 +62,40 @@ class RecorderConfig:
             # This is a basic way to handle schema evolution/extra keys
             valid_keys = cls.__annotations__.keys()
             filtered_data = {k: v for k, v in data.items() if k in valid_keys}
-            return cls(**filtered_data)
+            config = cls(**filtered_data)
         except (json.JSONDecodeError, OSError) as e:
             # Fallback to default if corrupted, maybe log warning in future
             print(f"Warning: Could not load config, using defaults. Error: {e}")
-            return cls()
+            config = cls()
+
+        return cls._apply_env_overrides(config)
+
+    @classmethod
+    def _apply_env_overrides(cls, config: "RecorderConfig") -> "RecorderConfig":
+        overrides = cls.ENV_OVERRIDES or {}
+        prefix = cls.ENV_PREFIX
+
+        for attr, caster in overrides.items():
+            env_var = f"{prefix}{attr.upper()}"
+            raw_value = os.environ.get(env_var)
+            if raw_value is None:
+                continue
+
+            try:
+                value = caster(raw_value)
+            except (ValueError, TypeError) as exc:
+                LOGGER.warning("Ignoring %s=%r; cannot parse (%s)", env_var, raw_value, exc)
+                continue
+
+            setattr(config, attr, value)
+
+        return config
+
+    def _to_persisted_dict(self) -> Dict[str, Any]:
+        return {
+            field: getattr(self, field)
+            for field in self.PERSISTED_FIELDS
+        }
 
     def save(self) -> None:
         """Saves current configuration to file."""
@@ -61,7 +106,7 @@ class RecorderConfig:
             config_dir.mkdir(parents=True, exist_ok=True)
             
         with open(config_path, "w") as f:
-            json.dump(asdict(self), f, indent=4)
+            json.dump(self._to_persisted_dict(), f, indent=4)
 
     def update(self, **kwargs: Any) -> None:
         """Updates configuration with provided values."""
