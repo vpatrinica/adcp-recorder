@@ -106,13 +106,18 @@ class TestPNORI:
         """Test cell count validation."""
         # Too low
         sentence = "$PNORI,4,Test,4,0,0.20,1.00,0*00"
-        with pytest.raises(ValueError, match="Cell count must be 1-128"):
+        with pytest.raises(ValueError, match="Cell count must be 1-1000"):
             PNORI.from_nmea(sentence)
 
         # Too high
-        sentence = "$PNORI,4,Test,4,129,0.20,1.00,0*00"
-        with pytest.raises(ValueError, match="Cell count must be 1-128"):
+        sentence = "$PNORI,4,Test,4,1001,0.20,1.00,0*00"
+        with pytest.raises(ValueError, match="Cell count must be 1-1000"):
             PNORI.from_nmea(sentence)
+
+    def test_high_cell_count_allowed(self):
+        sentence = "$PNORI,4,Test,4,1000,0.20,1.00,0*00"
+        config = PNORI.from_nmea(sentence)
+        assert config.cell_count == 1000
 
     def test_blanking_distance_validation(self):
         """Test blanking distance validation."""
@@ -211,9 +216,14 @@ class TestPNORI1:
             PNORI1.from_nmea(sentence)
 
         # Cell count range
-        sentence = "$PNORI1,4,123,4,129,0.20,1.00,ENU*00"
-        with pytest.raises(ValueError, match="Cell count must be 1-128"):
+        sentence = "$PNORI1,4,123,4,1001,0.20,1.00,ENU*00"
+        with pytest.raises(ValueError, match="Cell count must be 1-1000"):
             PNORI1.from_nmea(sentence)
+
+    def test_high_cell_count_allowed(self):
+        sentence = "$PNORI1,4,123,4,1000,0.20,1.00,ENU*00"
+        config = PNORI1.from_nmea(sentence)
+        assert config.cell_count == 1000
 
     def test_to_dict_with_string_coords(self):
         """Test to_dict includes string coordinate system."""
