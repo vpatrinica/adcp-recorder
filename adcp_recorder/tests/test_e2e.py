@@ -113,6 +113,25 @@ def test_full_pipeline_e2e(temp_recorder_dir):
         res = conn.execute("SELECT error_type FROM parse_errors").fetchall()
         assert any("BINARY" in r[0] for r in res)
 
+        # --- File Export Verification (Phase 7) ---
+        # Verify that files were created for each message type and errors
+        from datetime import datetime
+        today_str = datetime.now().strftime("%Y%m%d")
+        
+        # Helper to check file existence and content
+        def verify_export_file(prefix, partial_content):
+            expected_filename = f"{prefix}_{today_str}.nmea"
+            file_path = temp_recorder_dir / expected_filename
+            assert file_path.exists(), f"Export file {expected_filename} not found"
+            content = file_path.read_text()
+            assert partial_content in content, f"Expected '{partial_content}' in {expected_filename}"
+
+        verify_export_file("PNORI", "$PNORI")
+        verify_export_file("PNORS", "$PNORS")
+        verify_export_file("PNORC", "$PNORC")
+        verify_export_file("ERRORS", "BINARY DATA")
+
+
 def test_reconnect_scenario(temp_recorder_dir):
     db_path = temp_recorder_dir / "test_reconnect.duckdb"
     config = RecorderConfig(
