@@ -11,6 +11,7 @@ import serial
 from adcp_recorder.config import RecorderConfig
 from adcp_recorder.core.recorder import AdcpRecorder
 from adcp_recorder.db import DatabaseManager
+from adcp_recorder.core.nmea import compute_checksum
 
 def get_memory_usage_mb():
     """Get current process memory usage in MB (Linux only fallback)."""
@@ -39,6 +40,7 @@ class BulkMockSerial:
             if self.delay > 0:
                 time.sleep(self.delay)
             return line
+        time.sleep(0.1)
         return b""
 
     def close(self):
@@ -53,7 +55,10 @@ def test_throughput_performance():
     ]
     for i in range(1, 49):
         # PNORC: 19 fields
-        sentences.append(f"$PNORC,102115,090715,{i % 20 + 1},0.1,0.2,0.3,0.4,180.0,C,80,80,80,80,100,100,100,100*33\r\n".encode())
+        # Added speed field (25.5) before direction (180.0)
+        raw_content = f"$PNORC,102115,090715,{i % 20 + 1},0.1,0.2,0.3,0.4,25.5,180.0,C,80,80,80,80,100,100,100,100"
+        cs = compute_checksum(raw_content)
+        sentences.append(f"{raw_content}*{cs}\r\n".encode())
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         db_path = Path(tmp_dir) / "perf.duckdb"
@@ -73,7 +78,7 @@ def test_throughput_performance():
             db = DatabaseManager(str(db_path))
             conn = db.get_connection()
             
-            max_wait = 120.0 # High timeout for slow disk I/O with individual commits
+            max_wait = 10.0
             processed = False
             count = 0
             while time.time() - start_time < max_wait:
@@ -84,7 +89,7 @@ def test_throughput_performance():
                         break
                 except Exception:
                     pass
-                time.sleep(1.0)
+                time.sleep(0.5)
             
             end_time = time.time()
             recorder.stop()
@@ -92,6 +97,14 @@ def test_throughput_performance():
             duration = end_time - start_time
             throughput = len(sentences) / duration
             
+            if not processed:
+                raw_count = conn.execute("SELECT count(*) FROM raw_lines").fetchone()[0]
+                error_count = conn.execute("SELECT count(*) FROM parse_errors").fetchone()[0]
+                errors = conn.execute("SELECT error_type, error_message FROM parse_errors LIMIT 5").fetchall()
+                print(f"\nTarget count not reached. raw_lines={raw_count}, parse_errors={error_count}")
+                for e in errors:
+                    print(f"Error: {e}")
+
             print(f"\nThroughput: {throughput:.2f} messages/sec (Duration: {duration:.2f}s, Count: {count})")
             
             assert processed, f"Timed out after {max_wait}s. Only {count} records found."
@@ -100,9 +113,13 @@ def test_throughput_performance():
 
 def test_memory_stability():
     """Monitor memory usage during a sustained run."""
-    # 500 messages
     # 500 messages (PNORC with 19 fields)
-    sentences = [f"$PNORC,102115,090715,1,0.1,0.2,0.3,0.4,180.0,C,80,80,80,80,100,100,100,100*33\r\n".encode() for _ in range(500)]
+    sentences = []
+    for _ in range(500):
+        # Added speed field (25.5) before direction (180.0)
+        raw_content = "$PNORC,102115,090715,1,0.1,0.2,0.3,0.4,25.5,180.0,C,80,80,80,80,100,100,100,100"
+        cs = compute_checksum(raw_content)
+        sentences.append(f"{raw_content}*{cs}\r\n".encode())
     
     with tempfile.TemporaryDirectory() as tmp_dir:
         db_path = Path(tmp_dir) / "mem_test.duckdb"

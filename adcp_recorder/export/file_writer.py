@@ -54,7 +54,7 @@ class FileWriter:
 
         if prefix not in self._files:
             filename = self._get_filename(prefix)
-            self._files[prefix] = open(filename, "a", encoding="ascii", buffering=1)
+            self._files[prefix] = open(filename, "a", encoding="utf-8", buffering=1)
             logger.debug(f"Opened log file: {filename}")
 
         return self._files[prefix]
