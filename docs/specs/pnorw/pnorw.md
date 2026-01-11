@@ -7,10 +7,10 @@
 ## Format
 
 ```
-$PNORW,MMDDYY,HHMMSS,SigWaveHeight,MaxWaveHeight,PeakPeriod,MeanDirection*CHECKSUM
+$PNORW,Date,Time,Basis,Method,Hm0,H3,H10,Hmax,Tm02,Tp,Tz,DirTp,SprTp,MainDir,UI,MeanPress,NoDetect,BadDetect,NSurfSpeed,NSurfDir,ErrorCode*CS
 ```
 
-**Field Count**: 7fields (including prefix)
+**Field Count**: 22 fields (including prefix)
 
 ## Field Definitions
 
@@ -19,24 +19,38 @@ $PNORW,MMDDYY,HHMMSS,SigWaveHeight,MaxWaveHeight,PeakPeriod,MeanDirection*CHECKS
 | 0 | Prefix | str | VARCHAR(10) | - | - | Always `$PNORW` |
 | 1 | Date | str | CHAR(6) | - | MMDDYY | Measurement date |
 | 2 | Time | str | CHAR(6) | - | HHMMSS | Measurement time |
-| 3 | Sig. Wave Height | float | DECIMAL(5,2) | meters | 0-30 | Significant wave height (H1/3) |
-| 4 | Max Wave Height | float | DECIMAL(5,2) | meters | 0-50 | Maximum wave height |
-| 5 | Peak Period | float | DECIMAL(5,1) | seconds | 0-30 | Peak wave period |
-| 6 | Mean Direction | float | DECIMAL(5,1) | degrees | 0-360 | Mean wave direction |
+| 3 | Spectrum Basis | int | TINYINT | - | 0-3 | Spectrum type |
+| 4 | Processing Method | int | TINYINT | - | 1-4 | Proc method |
+| 5 | Hm0 | float | DECIMAL(6,3) | m | 0-100 | Significant wave height |
+| 6 | H3 | float | DECIMAL(6,3) | m | 0-100 | Mean height of largest 1/3 |
+| 7 | H10 | float | DECIMAL(6,3) | m | 0-100 | Mean height of largest 1/10 |
+| 8 | Hmax | float | DECIMAL(6,3) | m | 0-100 | Max wave height |
+| 9 | Tm02 | float | DECIMAL(6,3) | s | 0-100 | Mean wave period |
+| 10 | Tp | float | DECIMAL(6,3) | s | 0-100 | Peak wave period |
+| 11 | Tz | float | DECIMAL(6,3) | s | 0-100 | Zero-crossing period |
+| 12 | DirTp | float | DECIMAL(6,1) | deg | 0-360 | Peak direction |
+| 13 | SprTp | float | DECIMAL(6,1) | deg | 0-360 | Directional spread |
+| 14 | MainDir | float | DECIMAL(6,1) | deg | 0-360 | Mean direction |
+| 15 | UI | float | DECIMAL(6,3) | - | - | Unidirectivity index |
+| 16 | Mean Pressure | float | DECIMAL(7,3) | dBar | - | Mean pressure |
+| 17 | Num No Detects | int | INTEGER | - | - | Count of no detects |
+| 18 | Num Bad Detects | int | INTEGER | - | - | Count of bad detects |
+| 19 | Near Surf Speed | float | DECIMAL(6,3) | m/s | - | Current speed near surface |
+| 20 | Near Surf Dir | float | DECIMAL(6,1) | deg | 0-360 | Current dir near surface |
+| 21 | Error Code | str | CHAR(4) | - | - | Wave error code |
 
 ## Example Sentence
 
 ```
-$PNORW,102115,090715,2.50,4.10,8.5,285.0*XX
+$PNORW,102115,090715,0,1,2.50,2.6,3.0,4.10,7.5,8.5,7.2,285.0,20.0,280.0,0.8,12.5,0,0,0.5,120.0,0000*XX
 ```
 
 **Parsed**:
-- Date: October 21, 2015
-- Time: 09:07:15
-- Significant Wave Height: 2.50 m
-- Max Wave Height: 4.10 m
-- Peak Period: 8.5 s
-- Mean Direction: 285.0° (from WNW)
+- Date: 10/21/15, Time: 09:07:15
+- Hm0: 2.50m, Hmax: 4.10m
+- Tp: 8.5s, Tm02: 7.5s
+- DirTp: 285.0°, MainDir: 280.0°
+- Mean Pressure: 12.5 dBar
 
 ## Related Documents
 
