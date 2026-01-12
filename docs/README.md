@@ -4,7 +4,28 @@
 
 Welcome to the ADCP Recorder documentation. This system provides a CLI/control plane and supervised service for recording NMEA-format telemetry from Nortek ADCP instruments into DuckDB.
 
+## 📚 User Guide
+
+**Start here for installation, configuration, and daily usage:**
+
+- [Installation Guide](user-guide/INSTALL.md) - Complete installation instructions for Linux and Windows
+- [Configuration Guide](user-guide/CONFIGURATION.md) - Detailed configuration options and environment variables
+- [Usage Guide](user-guide/USAGE.md) - CLI commands, workflows, and best practices
+- [Examples](user-guide/EXAMPLES.md) - Practical examples and common scenarios
+
+## 🚀 Deployment
+
+**Production deployment and service management:**
+
+- [Deployment Guide](deployment/DEPLOYMENT.md) - Complete deployment procedures for Linux and Windows
+  - Service installation and configuration
+  - Security considerations
+  - Monitoring and maintenance
+  - Backup and recovery
+  - Upgrade procedures
+
 ## Quick Navigation
+
 
 ### 📐 Architecture
 - [System Overview](architecture/overview.md) - High-level system design and components

@@ -1,17 +1,104 @@
+# ADCP Recorder Systemd Service Unit File
+#
+# Installation:
+#   1. Copy this file to /etc/systemd/system/adcp-recorder.service
+#   2. Edit the User, Group, and paths to match your installation
+#   3. Run: sudo systemctl daemon-reload
+#   4. Run: sudo systemctl enable adcp-recorder
+#   5. Run: sudo systemctl start adcp-recorder
+#
+# Customization:
+#   - Replace USER_NAME with the service user (e.g., adcp-recorder)
+#   - Replace GROUP_NAME with the service group (e.g., adcp-recorder)
+#   - Replace /path/to/venv with your virtual environment path
+#   - Replace /path/to/data with your data directory path
+#
+
 [Unit]
-Description=ADCP Recorder Service
+Description=ADCP Recorder Service - NMEA Telemetry Recorder for Nortek ADCP
 After=network.target
+Documentation=https://github.com/your-org/adcp-recorder
+# Uncomment to start after specific device is available
+# After=dev-ttyUSB0.device
+# Requires=dev-ttyUSB0.device
 
 [Service]
 Type=simple
-User=pi
-Group=pi
-WorkingDirectory=/home/pi
-Environment="PATH=/home/pi/.local/bin:/usr/local/bin:/usr/bin:/bin"
-ExecStart=/usr/bin/python3 -m adcp_recorder.service.supervisor
+
+# User and Group
+# IMPORTANT: Replace with your service user/group
+User=USER_NAME
+Group=GROUP_NAME
+
+# Working Directory
+# IMPORTANT: Replace with your installation directory
+WorkingDirectory=/var/lib/USER_NAME
+
+# Environment Variables
+# Set HOME for config file location
+Environment="HOME=/var/lib/USER_NAME"
+# IMPORTANT: Replace with your virtual environment path
+Environment="PATH=/path/to/venv/bin:/usr/local/bin:/usr/bin:/bin"
+
+# Optional: Override configuration via environment variables
+# Environment="ADCP_RECORDER_SERIAL_PORT=/dev/ttyUSB0"
+# Environment="ADCP_RECORDER_BAUDRATE=9600"
+# Environment="ADCP_RECORDER_OUTPUT_DIR=/path/to/data"
+# Environment="ADCP_RECORDER_LOG_LEVEL=INFO"
+
+# Service Execution
+# IMPORTANT: Replace with your Python path
+ExecStart=/path/to/venv/bin/python3 -m adcp_recorder.service.supervisor
+
+# Restart Policy
 Restart=always
 RestartSec=10
+StartLimitInterval=200
+StartLimitBurst=5
+
+# Graceful Shutdown
 KillSignal=SIGTERM
+TimeoutStopSec=30
+KillMode=mixed
+
+# Security Hardening
+# Prevent privilege escalation
+NoNewPrivileges=true
+
+# Use private /tmp
+PrivateTmp=true
+
+# Protect system directories
+ProtectSystem=strict
+ProtectHome=true
+
+# Allow write access to data directory
+# IMPORTANT: Replace with your data directory path
+ReadWritePaths=/path/to/data
+
+# Additional security options (uncomment as needed)
+# ProtectKernelTunables=true
+# ProtectKernelModules=true
+# ProtectControlGroups=true
+# RestrictRealtime=true
+# RestrictNamespaces=true
+# LockPersonality=true
+# MemoryDenyWriteExecute=true
+# RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+# Resource Limits (uncomment and adjust as needed)
+# LimitNOFILE=65536
+# MemoryMax=512M
+# CPUQuota=50%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=adcp-recorder
+
+# Log level (uncomment to override)
+# Environment="SYSTEMD_LOG_LEVEL=info"
 
 [Install]
 WantedBy=multi-user.target
+
