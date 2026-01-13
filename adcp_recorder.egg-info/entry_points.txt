@@ -1,2 +1,0 @@
-[console_scripts]
-adcp-recorder = adcp_recorder.cli.main:cli
