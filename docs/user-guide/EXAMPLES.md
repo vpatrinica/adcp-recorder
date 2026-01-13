@@ -769,7 +769,7 @@ Add to crontab:
 
 ```dockerfile
 # Dockerfile
-FROM python:3.9-slim
+FROM python:3.13-slim
 
 # Install dependencies
 RUN apt-get update && \

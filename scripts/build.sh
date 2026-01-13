@@ -39,8 +39,8 @@ echo ""
 echo -e "${YELLOW}[2/7] Checking Python version...${NC}"
 PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
 echo "Python version: $PYTHON_VERSION"
-python3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)" || {
-    echo -e "${RED}✗ Python 3.9+ required${NC}"
+python3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 13) else 1)" || {
+    echo -e "${RED}✗ Python 3.13+ required${NC}"
     exit 1
 }
 echo -e "${GREEN}✓ Python version OK${NC}"

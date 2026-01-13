@@ -30,7 +30,7 @@ Before deploying the ADCP Recorder, ensure the following requirements are met:
 
 ### Software Requirements
 
-- [ ] Python 3.9 or higher installed
+- [ ] Python 3.13 or higher installed
 - [ ] pip package manager available
 - [ ] Virtual environment support (recommended)
 - [ ] System service support (systemd for Linux, Windows Service for Windows)

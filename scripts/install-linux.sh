@@ -40,7 +40,7 @@ echo -e "${YELLOW}[1/10] Checking system requirements...${NC}"
 # Check Python version
 if ! command -v python3 &> /dev/null; then
     echo -e "${RED}✗ Python 3 not found${NC}"
-    echo "Please install Python 3.9+ first:"
+    echo "Please install Python 3.13+ first:"
     echo "  sudo apt-get install python3 python3-pip python3-venv  # Debian/Ubuntu"
     echo "  sudo dnf install python3 python3-pip  # RHEL/Fedora"
     exit 1
@@ -48,10 +48,18 @@ fi
 
 PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
 echo "Python version: $PYTHON_VERSION"
-python3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)" || {
-    echo -e "${RED}✗ Python 3.9+ required${NC}"
+
+# Check if Python 3.13+ is installed
+if python3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 13) else 1)" 2>/dev/null; then
+    echo -e "${GREEN}✓ Python 3.13+ is installed${NC}"
+else
+    echo -e "${RED}✗ Python 3.13+ required (found $PYTHON_VERSION)${NC}"
+    echo "Please upgrade Python to 3.13 or higher:"
+    echo "  sudo apt-get install python3.13 python3.13-venv  # Debian/Ubuntu"
+    echo "  sudo dnf install python3.13  # RHEL/Fedora"
+    echo "Or install from source: https://www.python.org/downloads/"
     exit 1
-}
+fi
 
 # Check systemd
 if ! command -v systemctl &> /dev/null; then

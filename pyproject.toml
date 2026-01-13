@@ -35,7 +35,7 @@ classifiers = [
     "Operating System :: Microsoft :: Windows",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.14", 
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Oceanography",
     "Topic :: System :: Monitoring",
