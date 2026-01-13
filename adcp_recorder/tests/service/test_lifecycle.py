@@ -8,7 +8,9 @@ from pathlib import Path
 import pytest
 
 
-@pytest.mark.skipif(os.name == "nt", reason="SIGTERM is not graceful on Windows via Popen.terminate()")
+@pytest.mark.skipif(
+    os.name == "nt", reason="SIGTERM is not graceful on Windows via Popen.terminate()"
+)
 def test_supervisor_lifecycle_with_signals(tmp_path):
     """
     Runs mock_runner.py as a subprocess.
