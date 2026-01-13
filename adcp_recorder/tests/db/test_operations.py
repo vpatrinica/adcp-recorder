@@ -321,7 +321,7 @@ class TestPerformance:
                 "checksum_valid": True,
                 "error_message": None,
             }
-            for i in range(5000)
+            for i in range(20000)
         ]
 
         # Batch insert
