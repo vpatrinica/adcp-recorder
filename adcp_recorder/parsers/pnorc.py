@@ -9,7 +9,6 @@ Implements parsers for:
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from .utils import (
     parse_tagged_field,
@@ -69,7 +68,7 @@ class PNORC:
     corr2: int
     corr3: int
     corr4: int
-    checksum: Optional[str] = field(default=None, repr=False)
+    checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
         validate_date_mm_dd_yy(self.date)
@@ -170,7 +169,7 @@ class PNORC1:
     corr2: int
     corr3: int
     corr4: int
-    checksum: Optional[str] = field(default=None, repr=False)
+    checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
         validate_date_mm_dd_yy(self.date)
@@ -266,7 +265,7 @@ class PNORC2:
     corr2: int
     corr3: int
     corr4: int
-    checksum: Optional[str] = field(default=None, repr=False)
+    checksum: str | None = field(default=None, repr=False)
 
     TAG_GRP_VEL = {
         "VE": 1,
@@ -392,7 +391,7 @@ class PNORC3:
     direction: float
     avg_amplitude: int
     avg_correlation: int
-    checksum: Optional[str] = field(default=None, repr=False)
+    checksum: str | None = field(default=None, repr=False)
 
     TAG_IDS = {
         "CP": "distance",
@@ -461,7 +460,7 @@ class PNORC4:
     direction: float
     avg_correlation: int
     avg_amplitude: int
-    checksum: Optional[str] = field(default=None, repr=False)
+    checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
         _validate_distance(self.distance)

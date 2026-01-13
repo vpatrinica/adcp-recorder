@@ -1,7 +1,6 @@
 """PNORB wave band parameters message parser (DF=501)."""
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from .utils import (
     parse_optional_float,
@@ -24,14 +23,14 @@ class PNORB:
     processing_method: int
     freq_low: float
     freq_high: float
-    hm0: Optional[float]
-    tm02: Optional[float]
-    tp: Optional[float]
-    dir_tp: Optional[float]
-    spr_tp: Optional[float]
-    main_dir: Optional[float]
+    hm0: float | None
+    tm02: float | None
+    tp: float | None
+    dir_tp: float | None
+    spr_tp: float | None
+    main_dir: float | None
     wave_error_code: str  # 4 hex digits
-    checksum: Optional[str] = field(default=None, repr=False)
+    checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
         validate_date_mm_dd_yy(self.date)

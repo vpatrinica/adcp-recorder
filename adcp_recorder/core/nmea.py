@@ -3,8 +3,6 @@
 Implements NMEA 0183 sentence parsing, checksum validation, and binary data detection.
 """
 
-from typing import Optional
-
 
 def compute_checksum(sentence: str) -> str:
     """Compute NMEA checksum (XOR of characters between $ and *).
@@ -86,7 +84,7 @@ def extract_prefix(sentence: str) -> str:
     return prefix
 
 
-def split_sentence(sentence: str) -> tuple[list[str], Optional[str]]:
+def split_sentence(sentence: str) -> tuple[list[str], str | None]:
     """Split NMEA sentence into fields and checksum.
 
     Args:

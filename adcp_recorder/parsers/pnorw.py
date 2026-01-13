@@ -1,7 +1,6 @@
 """PNORW wave bulk parameters message parser (DF=501)."""
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from .utils import (
     parse_optional_float,
@@ -23,24 +22,24 @@ class PNORW:
     time: str
     spectrum_basis: int
     processing_method: int
-    hm0: Optional[float]
-    h3: Optional[float]
-    h10: Optional[float]
-    hmax: Optional[float]
-    tm02: Optional[float]
-    tp: Optional[float]
-    tz: Optional[float]
-    dir_tp: Optional[float]
-    spr_tp: Optional[float]
-    main_dir: Optional[float]
-    uni_index: Optional[float]
-    mean_pressure: Optional[float]
+    hm0: float | None
+    h3: float | None
+    h10: float | None
+    hmax: float | None
+    tm02: float | None
+    tp: float | None
+    tz: float | None
+    dir_tp: float | None
+    spr_tp: float | None
+    main_dir: float | None
+    uni_index: float | None
+    mean_pressure: float | None
     num_no_detects: int
     num_bad_detects: int
-    near_surface_speed: Optional[float]
-    near_surface_dir: Optional[float]
+    near_surface_speed: float | None
+    near_surface_dir: float | None
     wave_error_code: str  # 4 hex digits
-    checksum: Optional[str] = field(default=None, repr=False)
+    checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
         validate_date_mm_dd_yy(self.date)

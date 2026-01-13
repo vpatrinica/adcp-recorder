@@ -8,7 +8,6 @@ Provides functionality for:
 
 import time
 from dataclasses import dataclass
-from typing import Optional
 
 import serial
 import serial.tools.list_ports
@@ -98,7 +97,7 @@ class SerialConnectionManager:
         self._bytesize = bytesize
         self._parity = parity
         self._stopbits = stopbits
-        self._serial: Optional[serial.Serial] = None
+        self._serial: serial.Serial | None = None
 
     @property
     def port(self) -> str:
@@ -194,7 +193,7 @@ class SerialConnectionManager:
 
         return False
 
-    def read_line(self, timeout: Optional[float] = None) -> Optional[bytes]:
+    def read_line(self, timeout: float | None = None) -> bytes | None:
         """Read a single line from the serial port.
 
         Args:

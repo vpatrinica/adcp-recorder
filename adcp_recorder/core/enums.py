@@ -1,7 +1,6 @@
 """Shared enumerations for NMEA message types."""
 
 from enum import Enum, IntEnum
-from typing import Union
 
 
 class InstrumentType(IntEnum):
@@ -68,7 +67,7 @@ class CoordinateSystem(Enum):
     BEAM = "BEAM"
 
     @classmethod
-    def from_code(cls, code: Union[int, str]) -> "CoordinateSystem":
+    def from_code(cls, code: int | str) -> "CoordinateSystem":
         """Create coordinate system from code.
 
         Args:
