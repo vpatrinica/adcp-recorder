@@ -4,6 +4,7 @@ This writer creates a dedicated `errors_binary` folder under the provided
 base path and writes binary data into timestamped files with a sequential
 identifier when multiple blobs start in the same second.
 """
+
 import os
 from datetime import datetime, timezone
 from pathlib import Path

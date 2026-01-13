@@ -1,14 +1,14 @@
-"""Unit tests for parser utility functions.
-"""
+"""Unit tests for parser utility functions."""
 
 import pytest
+
 from adcp_recorder.parsers.utils import (
+    parse_optional_float,
     validate_date_mm_dd_yy,
     validate_date_yy_mm_dd,
-    validate_time_string,
     validate_hex_string,
     validate_range,
-    parse_optional_float
+    validate_time_string,
 )
 
 

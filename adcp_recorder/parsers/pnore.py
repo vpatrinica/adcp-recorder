@@ -1,13 +1,13 @@
 """PNORE wave energy density spectrum message parser (DF=501)."""
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Optional
 
 from .utils import (
-    validate_date_mm_dd_yy,
-    validate_time_string,
-    validate_range,
     parse_optional_float,
+    validate_date_mm_dd_yy,
+    validate_range,
+    validate_time_string,
 )
 
 
@@ -16,13 +16,14 @@ class PNORE:
     """PNORE wave energy density spectrum message (DF=501).
     Format: $PNORE,Date,Time,Basis,Start,Step,Num,E1,E2,...,EN*CS
     """
+
     date: str
     time: str
     spectrum_basis: int
     start_frequency: float
     step_frequency: float
     num_frequencies: int
-    energy_densities: List[Optional[float]]
+    energy_densities: list[Optional[float]]
     checksum: Optional[str] = field(default=None, repr=False)
 
     def __post_init__(self):
@@ -33,7 +34,7 @@ class PNORE:
         validate_range(self.start_frequency, "Start frequency", 0.0, 10.0)
         validate_range(self.step_frequency, "Step frequency", 0.0, 10.0)
         validate_range(self.num_frequencies, "Number of frequencies", 1, 99)
-        
+
         if len(self.energy_densities) != self.num_frequencies:
             raise ValueError(
                 f"Missing energy density values: expected {self.num_frequencies}, "
@@ -47,19 +48,21 @@ class PNORE:
         if "*" in sentence:
             data_part, checksum = sentence.rsplit("*", 1)
             checksum = checksum.strip().upper()
-        
+
         fields = [f.strip() for f in data_part.split(",")]
         if len(fields) < 8:
             raise ValueError(f"Expected at least 8 fields for PNORE, got {len(fields)}")
         if fields[0] != "$PNORE":
             raise ValueError(f"Invalid prefix: {fields[0]}")
-            
+
         num_freq = int(fields[6])
         if len(fields) < 7 + num_freq:
-            raise ValueError(f"Missing energy density values: expected {num_freq}, got {len(fields) - 7}")
-            
+            raise ValueError(
+                f"Missing energy density values: expected {num_freq}, got {len(fields) - 7}"
+            )
+
         energies = [parse_optional_float(fields[i]) for i in range(7, 7 + num_freq)]
-        
+
         return cls(
             date=fields[1],
             time=fields[2],
@@ -68,10 +71,10 @@ class PNORE:
             step_frequency=float(fields[5]),
             num_frequencies=num_freq,
             energy_densities=energies,
-            checksum=checksum
+            checksum=checksum,
         )
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "sentence_type": "PNORE",
             "date": self.date,
@@ -81,5 +84,5 @@ class PNORE:
             "step_frequency": self.step_frequency,
             "num_frequencies": self.num_frequencies,
             "energy_densities": self.energy_densities,
-            "checksum": self.checksum
+            "checksum": self.checksum,
         }

@@ -3,9 +3,10 @@
 Provides database connection management, schema initialization, and thread-safe access.
 """
 
-import duckdb
 from pathlib import Path
 from threading import local
+
+import duckdb
 
 from .schema import ALL_SCHEMA_SQL
 
@@ -22,17 +23,18 @@ class DatabaseManager:
         >>> conn.execute("SELECT COUNT(*) FROM raw_lines")
     """
 
-    def __init__(
-        self, db_path: str = "./data/adcp_recorder.db", create_if_missing: bool = True
-    ):
+    def __init__(self, db_path: str = "./data/adcp_recorder.db", create_if_missing: bool = True):
         """Initialize database manager.
 
         Args:
-            db_path: Path to DuckDB database file, or ':memory:' for in-memory database
-            create_if_missing: If True, create database file and parent directories if they don't exist
+            db_path: Path to DuckDB database file, or ':memory:'
+                     for in-memory database
+            create_if_missing: If True, create database file and parent
+                               directories if they don't exist
 
         Raises:
-            ValueError: If db_path is invalid or parent directory doesn't exist and create_if_missing is False
+            ValueError: If db_path is invalid or parent directory doesn't exist
+                        and create_if_missing is False
         """
         self.db_path = db_path
         self._thread_local = local()

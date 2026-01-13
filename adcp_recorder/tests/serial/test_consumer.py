@@ -152,9 +152,7 @@ class TestSerialConsumer:
 
         # Check database for parsed configuration
         conn = db.get_connection()
-        result = conn.execute(
-            "SELECT head_id, instrument_type_name FROM pnori"
-        ).fetchone()
+        result = conn.execute("SELECT head_id, instrument_type_name FROM pnori").fetchone()
 
         assert result is not None
         assert result[0] == "TestDevice"
@@ -179,9 +177,7 @@ class TestSerialConsumer:
 
         # Check raw_lines for PENDING status
         conn = db.get_connection()
-        result = conn.execute(
-            "SELECT parse_status, record_type FROM raw_lines"
-        ).fetchone()
+        result = conn.execute("SELECT parse_status, record_type FROM raw_lines").fetchone()
 
         assert result is not None
         assert result[0] == "PENDING"
@@ -206,9 +202,7 @@ class TestSerialConsumer:
 
         # Check parse_errors table
         conn = db.get_connection()
-        result = conn.execute(
-            "SELECT error_type, attempted_prefix FROM parse_errors"
-        ).fetchone()
+        result = conn.execute("SELECT error_type, attempted_prefix FROM parse_errors").fetchone()
 
         assert result is not None
         assert result[0] == "PARSE_ERROR"
@@ -232,9 +226,7 @@ class TestSerialConsumer:
 
         # Check parse_errors for binary data
         conn = db.get_connection()
-        result = conn.execute(
-            "SELECT error_type FROM parse_errors"
-        ).fetchone()
+        result = conn.execute("SELECT error_type FROM parse_errors").fetchone()
 
         assert result is not None
         assert result[0] == "BINARY_DATA"
@@ -303,14 +295,22 @@ class TestSerialConsumer:
     def test_consume_all_phase2_message_families(self, db_path):
         """Test consuming and storing different message families."""
         from adcp_recorder.parsers import (
-            PNORI, PNORS, PNORC, PNORH4, PNORW,
-            PNORB, PNORE, PNORF, PNORWD, PNORA
+            PNORA,
+            PNORB,
+            PNORC,
+            PNORE,
+            PNORF,
+            PNORH4,
+            PNORI,
+            PNORS,
+            PNORW,
+            PNORWD,
         )
-        
+
         queue = Queue(maxsize=100)
         db = DatabaseManager(db_path)
         router = MessageRouter()
-        
+
         # Register all families
         router.register_parser("PNORI", PNORI)
         router.register_parser("PNORS", PNORS)
@@ -322,15 +322,17 @@ class TestSerialConsumer:
         router.register_parser("PNORF", PNORF)
         router.register_parser("PNORWD", PNORWD)
         router.register_parser("PNORA", PNORA)
-        
+
         consumer = SerialConsumer(queue, db, router)
-        
+
         # PNORI - Configuration (8 fields)
         queue.put(b"$PNORI,4,1001,4,20,0.20,1.00,0*2E")
         # PNORS - Sensor (14 fields)
         queue.put(b"$PNORS,102115,090715,0,00000000,14.4,1523.0,275.9,15.7,2.3,0.0,22.45,0,0*1F")
         # PNORC - Velocity (19 fields)
-        queue.put(b"$PNORC,102115,090715,1,0.5,0.1,0.2,0.3,0.4,180.0,C,80,80,80,80,100,100,100,100*41")
+        queue.put(
+            b"$PNORC,102115,090715,1,0.5,0.1,0.2,0.3,0.4,180.0,C,80,80,80,80,100,100,100,100*41"
+        )
         # PNORH4 - Header (5 fields: Date,Time,EC,SC)
         queue.put(b"$PNORH4,211021,090715,0,00000000*00")
         # PNORW - Wave (22 fields)
@@ -345,21 +347,25 @@ class TestSerialConsumer:
         queue.put(b"$PNORWD,MD,102115,090715,1,0.02,0.01,2,45.0,90.0*42")
         # PNORA - Altitude (9 fields, Date is YYMMDD)
         queue.put(b"$PNORA,151021,090715,1,15.50,1,00,0.0,10.0*55")
-        
+
         consumer.start()
         time.sleep(2.0)  # Wait longer
         consumer.stop()
-        
+
         # Verify all tables have data
         conn = db.get_connection()
-        
+
         # Check raw_lines first (now 10 messages total)
         raw_count = conn.execute("SELECT count(*) FROM raw_lines").fetchone()[0]
         if raw_count < 10:
             # If failed, let's see why
-            raw_lines = conn.execute("SELECT sentence_type, parse_status, error_message FROM raw_lines").fetchall()
+            raw_lines = conn.execute(
+                "SELECT sentence_type, parse_status, error_message FROM raw_lines"
+            ).fetchall()
             print(f"Raw lines: {raw_lines}")
-            parse_errors = conn.execute("SELECT error_type, error_message FROM parse_errors").fetchall()
+            parse_errors = conn.execute(
+                "SELECT error_type, error_message FROM parse_errors"
+            ).fetchall()
             print(f"Parse errors: {parse_errors}")
 
         assert raw_count == 10
@@ -412,21 +418,21 @@ class TestSerialConsumer:
         args = mock_file_writer.write.call_args[0]
         assert args[0] == "ERRORS"
         assert "\x00\x01\x02" in args[1]
-    
+
     def test_consume_writes_unknown_to_file(self, db_path):
         """Test that consumer writes unknown messages to file writer."""
         queue = Queue(maxsize=100)
         db = DatabaseManager(db_path)
         router = MessageRouter()
         mock_file_writer = Mock()
-        
+
         consumer = SerialConsumer(queue, db, router, file_writer=mock_file_writer)
-        
+
         sentence = "$UNKNOWN,1,2*00"
         queue.put(sentence.encode("ascii"))
-        
+
         consumer.start()
         time.sleep(0.5)
         consumer.stop()
-        
+
         mock_file_writer.write.assert_called_with("UNKNOWN", sentence)

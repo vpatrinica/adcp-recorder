@@ -37,6 +37,7 @@ class TestIntegration:
         ]
         # Prevent StopIteration by feeding empty bytes after sentences exhausted
         import itertools
+
         manager.read_line.side_effect = itertools.chain(sentences, itertools.cycle([b""]))
 
         queue = Queue(maxsize=100)
@@ -67,9 +68,7 @@ class TestIntegration:
 
         # Verify database
         conn = db.get_connection()
-        configs = conn.execute(
-            "SELECT head_id FROM pnori ORDER BY head_id"
-        ).fetchall()
+        configs = conn.execute("SELECT head_id FROM pnori ORDER BY head_id").fetchall()
 
         assert len(configs) >= 3
         devices = sorted([c[0] for c in configs])
@@ -89,6 +88,7 @@ class TestIntegration:
             None,
         ]
         import itertools
+
         manager.read_line.side_effect = itertools.chain(sentences, itertools.cycle([b""]))
 
         queue = Queue(maxsize=100)
@@ -112,9 +112,7 @@ class TestIntegration:
 
         # Verify error logging
         conn = db.get_connection()
-        errors = conn.execute(
-            "SELECT error_type FROM parse_errors"
-        ).fetchall()
+        errors = conn.execute("SELECT error_type FROM parse_errors").fetchall()
 
         assert len(errors) >= 1
         assert errors[0][0] == "BINARY_DATA"
@@ -131,6 +129,7 @@ class TestIntegration:
             None,
         ]
         import itertools
+
         manager.read_line.side_effect = itertools.chain(sentences, itertools.cycle([b""]))
 
         queue = Queue(maxsize=100)
@@ -155,9 +154,7 @@ class TestIntegration:
 
         # Verify raw_lines
         conn = db.get_connection()
-        raw = conn.execute(
-            "SELECT parse_status, record_type FROM raw_lines"
-        ).fetchone()
+        raw = conn.execute("SELECT parse_status, record_type FROM raw_lines").fetchone()
 
         assert raw is not None
         assert raw[0] == "PENDING"
@@ -175,6 +172,7 @@ class TestIntegration:
             None,
         ]
         import itertools
+
         manager.read_line.side_effect = itertools.chain(sentences, itertools.cycle([b""]))
 
         queue = Queue(maxsize=100)
@@ -199,9 +197,7 @@ class TestIntegration:
 
         # Verify error logging
         conn = db.get_connection()
-        errors = conn.execute(
-            "SELECT error_type, attempted_prefix FROM parse_errors"
-        ).fetchone()
+        errors = conn.execute("SELECT error_type, attempted_prefix FROM parse_errors").fetchone()
 
         assert errors is not None
         assert errors[0] == "PARSE_ERROR"

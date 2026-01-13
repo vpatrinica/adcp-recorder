@@ -9,13 +9,13 @@ Implements parsers for:
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Set
+from typing import Optional
 
 from .utils import (
-    validate_date_mm_dd_yy,
-    validate_time_string,
-    validate_range,
     parse_tagged_field,
+    validate_date_mm_dd_yy,
+    validate_range,
+    validate_time_string,
 )
 
 
@@ -47,8 +47,10 @@ def _validate_distance(value: float) -> None:
 @dataclass(frozen=True)
 class PNORC:
     """PNORC base current velocity message (DF=100).
-    Format: $PNORC,MMDDYY,HHMMSS,Cell,Vel1,Vel2,Vel3,Vel4,Speed,Dir,AmpUnit,Amp1,Amp2,Amp3,Amp4,Corr1,Corr2,Corr3,Corr4*CS
+    Format: $PNORC,MMDDYY,HHMMSS,Cell,Vel1,Vel2,Vel3,Vel4,Speed,Dir,
+            AmpUnit,Amp1,Amp2,Amp3,Amp4,Corr1,Corr2,Corr3,Corr4*CS
     """
+
     date: str
     time: str
     cell_index: int
@@ -91,13 +93,13 @@ class PNORC:
         if "*" in sentence:
             data_part, checksum = sentence.rsplit("*", 1)
             checksum = checksum.strip().upper()
-        
+
         fields = [f.strip() for f in data_part.split(",")]
         if len(fields) != 19:
             raise ValueError(f"Expected 19 fields for PNORC, got {len(fields)}")
         if fields[0] != "$PNORC":
             raise ValueError(f"Invalid prefix: {fields[0]}")
-            
+
         return cls(
             date=fields[1],
             time=fields[2],
@@ -117,22 +119,31 @@ class PNORC:
             corr2=int(fields[16]),
             corr3=int(fields[17]),
             corr4=int(fields[18]),
-            checksum=checksum
+            checksum=checksum,
         )
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "sentence_type": "PNORC",
             "date": self.date,
             "time": self.time,
             "cell_index": self.cell_index,
-            "vel1": self.vel1, "vel2": self.vel2, "vel3": self.vel3, "vel4": self.vel4,
+            "vel1": self.vel1,
+            "vel2": self.vel2,
+            "vel3": self.vel3,
+            "vel4": self.vel4,
             "speed": self.speed,
             "direction": self.direction,
             "amp_unit": self.amp_unit,
-            "amp1": self.amp1, "amp2": self.amp2, "amp3": self.amp3, "amp4": self.amp4,
-            "corr1": self.corr1, "corr2": self.corr2, "corr3": self.corr3, "corr4": self.corr4,
-            "checksum": self.checksum
+            "amp1": self.amp1,
+            "amp2": self.amp2,
+            "amp3": self.amp3,
+            "amp4": self.amp4,
+            "corr1": self.corr1,
+            "corr2": self.corr2,
+            "corr3": self.corr3,
+            "corr4": self.corr4,
+            "checksum": self.checksum,
         }
 
 
@@ -142,6 +153,7 @@ class PNORC1:
     Same fields as DF=100 but amplitudes are dB.
     Includes cell distance.
     """
+
     date: str
     time: str
     cell_index: int
@@ -179,13 +191,13 @@ class PNORC1:
         if "*" in sentence:
             data_part, checksum = sentence.rsplit("*", 1)
             checksum = checksum.strip().upper()
-        
+
         fields = [f.strip() for f in data_part.split(",")]
         if len(fields) != 17:
             raise ValueError(f"Expected 17 fields for PNORC1, got {len(fields)}")
         if fields[0] != "$PNORC1":
             raise ValueError(f"Invalid prefix: {fields[0]}")
-            
+
         return cls(
             date=fields[1],
             time=fields[2],
@@ -203,29 +215,41 @@ class PNORC1:
             corr2=int(fields[14]),
             corr3=int(fields[15]),
             corr4=int(fields[16]),
-            checksum=checksum
+            checksum=checksum,
         )
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "sentence_type": "PNORC1",
             "date": self.date,
             "time": self.time,
             "cell_index": self.cell_index,
             "distance": self.distance,
-            "vel1": self.vel1, "vel2": self.vel2, "vel3": self.vel3, "vel4": self.vel4,
-            "amp1": self.amp1, "amp2": self.amp2, "amp3": self.amp3, "amp4": self.amp4,
-            "corr1": self.corr1, "corr2": self.corr2, "corr3": self.corr3, "corr4": self.corr4,
-            "checksum": self.checksum
+            "vel1": self.vel1,
+            "vel2": self.vel2,
+            "vel3": self.vel3,
+            "vel4": self.vel4,
+            "amp1": self.amp1,
+            "amp2": self.amp2,
+            "amp3": self.amp3,
+            "amp4": self.amp4,
+            "corr1": self.corr1,
+            "corr2": self.corr2,
+            "corr3": self.corr3,
+            "corr4": self.corr4,
+            "checksum": self.checksum,
         }
 
 
 @dataclass(frozen=True)
 class PNORC2:
     """PNORC2 tagged current velocity message (DF=102).
-    Format: $PNORC2,DATE=MMDDYY,TIME=HHMMSS,CN=Cell,CP=Dist,VE=Vel1,VN=Vel2,VU=Vel3,VU2=Vel4,A1=Amp1,A2=Amp2,A3=Amp3,A4=Amp4,C1=Corr1,C2=Corr2,C3=Corr3,C4=Corr4*CS
+    Format: $PNORC2,DATE=MMDDYY,TIME=HHMMSS,CN=Cell,CP=Dist,VE=Vel1,
+            VN=Vel2,VU=Vel3,VU2=Vel4,A1=Amp1,A2=Amp2,A3=Amp3,A4=Amp4,
+            C1=Corr1,C2=Corr2,C3=Corr3,C4=Corr4*CS
     Supports flexible velocity tags (VE/VN/VU/VU2, VX/VY/VZ/VZ2, V1/V2/V3/V4).
     """
+
     date: str
     time: str
     cell_index: int
@@ -245,9 +269,18 @@ class PNORC2:
     checksum: Optional[str] = field(default=None, repr=False)
 
     TAG_GRP_VEL = {
-        "VE": 1, "VN": 2, "VU": 3, "VU2": 4,
-        "VX": 1, "VY": 2, "VZ": 3, "VZ2": 4,
-        "V1": 1, "V2": 2, "V3": 3, "V4": 4
+        "VE": 1,
+        "VN": 2,
+        "VU": 3,
+        "VU2": 4,
+        "VX": 1,
+        "VY": 2,
+        "VZ": 3,
+        "VZ2": 4,
+        "V1": 1,
+        "V2": 2,
+        "V3": 3,
+        "V4": 4,
     }
     TAG_GRP_AMP = {"A1": 1, "A2": 2, "A3": 3, "A4": 4}
     TAG_GRP_CORR = {"C1": 1, "C2": 2, "C3": 3, "C4": 4}
@@ -271,11 +304,11 @@ class PNORC2:
         if "*" in sentence:
             data_part, checksum = sentence.rsplit("*", 1)
             checksum = checksum.strip().upper()
-        
+
         fields = [f.strip() for f in data_part.split(",")]
         if fields[0] != "$PNORC2":
             raise ValueError(f"Invalid prefix: {fields[0]}")
-            
+
         data = {}
         seen_tags = set()
         for field_str in fields[1:]:
@@ -283,37 +316,68 @@ class PNORC2:
             if tag in seen_tags:
                 raise ValueError(f"Duplicate tag: {tag}")
             seen_tags.add(tag)
-            
-            if tag == "DATE": data["date"] = val
-            elif tag == "TIME": data["time"] = val
-            elif tag == "CN": data["cell_index"] = int(val)
-            elif tag == "CP": data["distance"] = float(val)
-            elif tag in cls.TAG_GRP_VEL: data[f"vel{cls.TAG_GRP_VEL[tag]}"] = float(val)
-            elif tag in cls.TAG_GRP_AMP: data[f"amp{cls.TAG_GRP_AMP[tag]}"] = float(val)
-            elif tag in cls.TAG_GRP_CORR: data[f"corr{cls.TAG_GRP_CORR[tag]}"] = int(val)
-            else: raise ValueError(f"Unknown tag in PNORC2: {tag}")
-            
-        required = ["date", "time", "cell_index", "distance", 
-                    "vel1", "vel2", "vel3", "vel4",
-                    "amp1", "amp2", "amp3", "amp4",
-                    "corr1", "corr2", "corr3", "corr4"]
+
+            if tag == "DATE":
+                data["date"] = val
+            elif tag == "TIME":
+                data["time"] = val
+            elif tag == "CN":
+                data["cell_index"] = int(val)
+            elif tag == "CP":
+                data["distance"] = float(val)
+            elif tag in cls.TAG_GRP_VEL:
+                data[f"vel{cls.TAG_GRP_VEL[tag]}"] = float(val)
+            elif tag in cls.TAG_GRP_AMP:
+                data[f"amp{cls.TAG_GRP_AMP[tag]}"] = float(val)
+            elif tag in cls.TAG_GRP_CORR:
+                data[f"corr{cls.TAG_GRP_CORR[tag]}"] = int(val)
+            else:
+                raise ValueError(f"Unknown tag in PNORC2: {tag}")
+
+        required = [
+            "date",
+            "time",
+            "cell_index",
+            "distance",
+            "vel1",
+            "vel2",
+            "vel3",
+            "vel4",
+            "amp1",
+            "amp2",
+            "amp3",
+            "amp4",
+            "corr1",
+            "corr2",
+            "corr3",
+            "corr4",
+        ]
         if not all(k in data for k in required):
-             missing = set(required) - set(data.keys())
-             raise ValueError(f"Missing required tags in PNORC2: {missing}")
+            missing = set(required) - set(data.keys())
+            raise ValueError(f"Missing required tags in PNORC2: {missing}")
 
         return cls(**data, checksum=checksum)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "sentence_type": "PNORC2",
             "date": self.date,
             "time": self.time,
             "cell_index": self.cell_index,
             "distance": self.distance,
-            "vel1": self.vel1, "vel2": self.vel2, "vel3": self.vel3, "vel4": self.vel4,
-            "amp1": self.amp1, "amp2": self.amp2, "amp3": self.amp3, "amp4": self.amp4,
-            "corr1": self.corr1, "corr2": self.corr2, "corr3": self.corr3, "corr4": self.corr4,
-            "checksum": self.checksum
+            "vel1": self.vel1,
+            "vel2": self.vel2,
+            "vel3": self.vel3,
+            "vel4": self.vel4,
+            "amp1": self.amp1,
+            "amp2": self.amp2,
+            "amp3": self.amp3,
+            "amp4": self.amp4,
+            "corr1": self.corr1,
+            "corr2": self.corr2,
+            "corr3": self.corr3,
+            "corr4": self.corr4,
+            "checksum": self.checksum,
         }
 
 
@@ -322,6 +386,7 @@ class PNORC3:
     """PNORC3 tagged averaged current (DF=103).
     Format: $PNORC3,CP=Dist,SP=Speed,DIR=Dir,AA=AvgAmp,AC=AvgCorr*CS
     """
+
     distance: float
     speed: float
     direction: float
@@ -330,8 +395,11 @@ class PNORC3:
     checksum: Optional[str] = field(default=None, repr=False)
 
     TAG_IDS = {
-        "CP": "distance", "SP": "speed", "DIR": "direction",
-        "AA": "avg_amplitude", "AC": "avg_correlation"
+        "CP": "distance",
+        "SP": "speed",
+        "DIR": "direction",
+        "AA": "avg_amplitude",
+        "AC": "avg_correlation",
     }
 
     def __post_init__(self):
@@ -348,11 +416,11 @@ class PNORC3:
         if "*" in sentence:
             data_part, checksum = sentence.rsplit("*", 1)
             checksum = checksum.strip().upper()
-        
+
         fields = [f.strip() for f in data_part.split(",")]
         if fields[0] != "$PNORC3":
             raise ValueError(f"Invalid prefix: {fields[0]}")
-            
+
         data = {}
         for field_str in fields[1:]:
             tag, val = parse_tagged_field(field_str)
@@ -363,14 +431,14 @@ class PNORC3:
                 data[field_name] = int(val)
             else:
                 data[field_name] = float(val)
-            
+
         if not all(k in data for k in cls.TAG_IDS.values()):
-             missing = set(cls.TAG_IDS.values()) - set(data.keys())
-             raise ValueError(f"Missing required tags in PNORC3: {missing}")
+            missing = set(cls.TAG_IDS.values()) - set(data.keys())
+            raise ValueError(f"Missing required tags in PNORC3: {missing}")
 
         return cls(**data, checksum=checksum)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "sentence_type": "PNORC3",
             "distance": self.distance,
@@ -378,7 +446,7 @@ class PNORC3:
             "direction": self.direction,
             "avg_amplitude": self.avg_amplitude,
             "avg_correlation": self.avg_correlation,
-            "checksum": self.checksum
+            "checksum": self.checksum,
         }
 
 
@@ -387,6 +455,7 @@ class PNORC4:
     """PNORC4 positional averaged current (DF=104).
     Format: $PNORC4,Dist,Speed,Dir,AC,AA*CS
     """
+
     distance: float
     speed: float
     direction: float
@@ -408,23 +477,23 @@ class PNORC4:
         if "*" in sentence:
             data_part, checksum = sentence.rsplit("*", 1)
             checksum = checksum.strip().upper()
-        
+
         fields = [f.strip() for f in data_part.split(",")]
         if len(fields) != 6:
             raise ValueError(f"Expected 6 fields for PNORC4, got {len(fields)}")
         if fields[0] != "$PNORC4":
             raise ValueError(f"Invalid prefix: {fields[0]}")
-            
+
         return cls(
             distance=float(fields[1]),
             speed=float(fields[2]),
             direction=float(fields[3]),
             avg_correlation=int(fields[4]),
             avg_amplitude=int(fields[5]),
-            checksum=checksum
+            checksum=checksum,
         )
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "sentence_type": "PNORC4",
             "distance": self.distance,
@@ -432,5 +501,5 @@ class PNORC4:
             "direction": self.direction,
             "avg_amplitude": self.avg_amplitude,
             "avg_correlation": self.avg_correlation,
-            "checksum": self.checksum
+            "checksum": self.checksum,
         }

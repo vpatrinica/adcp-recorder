@@ -2,3 +2,5 @@ __pycache__
 __pycache__/
 *.pyc
 
+errors_binary
+errors_binary/

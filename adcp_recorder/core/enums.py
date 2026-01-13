@@ -94,9 +94,7 @@ class CoordinateSystem(Enum):
             try:
                 return cls(code_upper)
             except ValueError:
-                raise ValueError(
-                    f"Invalid coordinate system: {code}. Valid values: ENU, XYZ, BEAM"
-                )
+                raise ValueError(f"Invalid coordinate system: {code}. Valid values: ENU, XYZ, BEAM")
 
     def to_numeric_code(self) -> int:
         """Convert to numeric code for backward compatibility.

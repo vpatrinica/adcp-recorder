@@ -1,6 +1,7 @@
 """Tests for PNORWD wave directional spectra parser."""
 
 import pytest
+
 from adcp_recorder.parsers.pnorwd import PNORWD
 
 
@@ -14,9 +15,9 @@ class TestPNORWDParser:
             "$PNORWD,MD,120720,093150,1,0.02,0.01,10,"
             "326.5,335.8,11.6,8.2,147.6,107.1,74.8,55.4,55.0,50.8*00"
         )
-        
+
         pnorwd = PNORWD.from_nmea(sentence)
-        
+
         assert pnorwd.direction_type == "MD"
         assert pnorwd.date == "120720"
         assert pnorwd.time == "093150"
@@ -26,7 +27,7 @@ class TestPNORWDParser:
         assert pnorwd.num_frequencies == 10
         assert len(pnorwd.values) == 10
         assert pnorwd.checksum == "00"
-        
+
         # Verify direction values
         assert pnorwd.values[0] == pytest.approx(326.5)
         assert pnorwd.values[1] == pytest.approx(335.8)
@@ -34,13 +35,10 @@ class TestPNORWDParser:
 
     def test_parse_directional_spread(self):
         """Test parsing directional spread (DS) spectrum."""
-        sentence = (
-            "$PNORWD,DS,120720,093150,1,0.02,0.01,5,"
-            "45.2,38.7,52.1,41.3,39.8*00"
-        )
-        
+        sentence = "$PNORWD,DS,120720,093150,1,0.02,0.01,5,45.2,38.7,52.1,41.3,39.8*00"
+
         pnorwd = PNORWD.from_nmea(sentence)
-        
+
         assert pnorwd.direction_type == "DS"
         assert len(pnorwd.values) == 5
 
@@ -82,7 +80,7 @@ class TestPNORWDParser:
         sentence = "$PNORWD,DS,120720,093150,3,0.03,0.01,4,30.5,45.2,60.8,75.1*00"
         pnorwd = PNORWD.from_nmea(sentence)
         data = pnorwd.to_dict()
-        
+
         assert data["sentence_type"] == "PNORWD"
         assert data["direction_type"] == "DS"
         assert data["date"] == "120720"
@@ -129,7 +127,7 @@ class TestPNORWDParser:
         sentence = "$PNORWD,MD,120720,093150,1,15.0,0.02,2,45.0,90.0*00"
         with pytest.raises(ValueError, match="Start frequency"):
             PNORWD.from_nmea(sentence)
-        
+
         # Step frequency negative
         sentence = "$PNORWD,MD,120720,093150,1,0.05,-0.02,2,45.0,90.0*00"
         with pytest.raises(ValueError, match="Step frequency"):

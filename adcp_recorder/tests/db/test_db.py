@@ -31,8 +31,8 @@ class TestDatabaseManager:
         # Query table schema
         result = conn.execute(
             """
-            SELECT column_name, data_type 
-            FROM information_schema.columns 
+            SELECT column_name, data_type
+            FROM information_schema.columns
             WHERE table_name = 'raw_lines'
             ORDER BY ordinal_position
             """
@@ -56,8 +56,8 @@ class TestDatabaseManager:
         # Query table schema
         result = conn.execute(
             """
-            SELECT column_name 
-            FROM information_schema.columns 
+            SELECT column_name
+            FROM information_schema.columns
             WHERE table_name = 'parse_errors'
             ORDER BY ordinal_position
             """
@@ -83,7 +83,7 @@ class TestDatabaseManager:
         # DuckDB uses duckdb_indexes() function
         result = conn.execute(
             """
-            SELECT index_name 
+            SELECT index_name
             FROM duckdb_indexes()
             WHERE table_name IN ('raw_lines', 'parse_errors')
             """

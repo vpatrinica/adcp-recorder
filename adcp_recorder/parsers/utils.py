@@ -1,5 +1,4 @@
-"""Common utilities and validation for NMEA parsers.
-"""
+"""Common utilities and validation for NMEA parsers."""
 
 import re
 from datetime import datetime
@@ -60,7 +59,10 @@ def parse_tagged_field(field_str: str) -> tuple[str, str]:
     return tag.strip().upper(), value.strip()
 
 
-def parse_optional_float(value_str: str, invalid_values: tuple = ("-9.00", "-99.99", "-9.000", "-9.0000")) -> Optional[float]:
+def parse_optional_float(
+    value_str: str,
+    invalid_values: tuple = ("-9.00", "-99.99", "-9.000", "-9.0000"),
+) -> Optional[float]:
     """Parse float from string, returning None for invalid indicators or empty fields."""
     if not value_str or value_str in invalid_values:
         return None

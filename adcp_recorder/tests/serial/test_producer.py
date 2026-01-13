@@ -1,11 +1,9 @@
 """Tests for serial producer."""
 
-import time
 import itertools
+import time
 from queue import Queue
-from unittest.mock import Mock, patch
-
-import pytest
+from unittest.mock import Mock
 
 from adcp_recorder.serial import SerialConnectionManager, SerialProducer
 
@@ -76,7 +74,9 @@ class TestSerialProducer:
         manager = Mock(spec=SerialConnectionManager)
         # Use simple return_value with side_effect for the first few calls if possible,
         # or just make the iterable infinite
-        manager.is_connected.side_effect = itertools.chain([False, True, True], itertools.repeat(True))
+        manager.is_connected.side_effect = itertools.chain(
+            [False, True, True], itertools.repeat(True)
+        )
         manager.reconnect.return_value = True
         manager.read_line.return_value = b"$PNORI,4,Test*00\r\n"
 
@@ -226,7 +226,7 @@ class TestSerialProducer:
         manager = Mock(spec=SerialConnectionManager)
         queue = Queue(maxsize=100)
         producer = SerialProducer(manager, queue)
-        
+
         # Stop without starting
         producer.stop()
         assert not producer.is_running
@@ -236,49 +236,54 @@ class TestSerialProducer:
         manager = Mock(spec=SerialConnectionManager)
         manager.is_connected.return_value = False
         manager.reconnect.return_value = False
-        
+
         queue = Queue(maxsize=100)
         producer = SerialProducer(manager, queue)
-        
+
         producer.start()
         time.sleep(0.2)
         producer.stop()
-        
+
         assert manager.reconnect.called
 
     def test_push_to_queue_handles_exception(self):
         """Test that push_to_queue handles exceptions during fallback."""
         manager = Mock(spec=SerialConnectionManager)
-        
+
         # Mock queue that raises on put_nowait even if room is supposedly made
         queue = Mock(spec=Queue)
         from queue import Full
+
         queue.put_nowait.side_effect = Full()
-        
+
         producer = SerialProducer(manager, queue)
-        
+
         # Should not raise exception
         producer._push_to_queue(b"some data")
-        
+
         assert queue.get_nowait.called
 
     def test_read_loop_unidecode_error_explicit(self):
         """Test UnicodeDecodeError explicitly."""
         manager = Mock(spec=SerialConnectionManager)
         manager.is_connected.return_value = True
-        
+
         # High-bit bytes that are invalid ASCII
         invalid_data = bytes([0xFF, 0xFE, 0xFD])
         lines_iter = itertools.chain([invalid_data], itertools.cycle([b""]))
         manager.read_line.side_effect = lambda timeout=None: next(lines_iter)
-        
+
         queue = Queue(maxsize=100)
         producer = SerialProducer(manager, queue)
-        
+
         producer.start()
         time.sleep(0.2)
         producer.stop()
-        
-        # Should have pushed high-bit bytes
+
+        # Should have pushed binary chunk
         assert queue.qsize() >= 1
-        assert queue.get() == invalid_data
+        item = queue.get()
+        from adcp_recorder.serial.binary_chunk import BinaryChunk
+
+        assert isinstance(item, BinaryChunk)
+        assert item.data == invalid_data

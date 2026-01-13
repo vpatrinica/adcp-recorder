@@ -1,7 +1,7 @@
-"""Unit tests for PNORA parser.
-"""
+"""Unit tests for PNORA parser."""
 
 import pytest
+
 from adcp_recorder.parsers.pnora import PNORA
 
 
@@ -23,15 +23,21 @@ class TestPNORA:
         # Invalid pressure
         with pytest.raises(ValueError, match="Pressure out of range"):
             PNORA.from_nmea("$PNORA,250101,120000,20000.1,15.50,95,01,1.5,2.3")
-        
+
         # Invalid distance
         with pytest.raises(ValueError, match="Distance out of range"):
             PNORA.from_nmea("$PNORA,250101,120000,10.5,1001.0,95,01,1.5,2.3")
-        
+
     def test_pnora_to_dict(self):
         msg = PNORA(
-            date="250101", time="120000", pressure=10.5, distance=15.5,
-            quality=95, status="01", pitch=1.5, roll=2.3
+            date="250101",
+            time="120000",
+            pressure=10.5,
+            distance=15.5,
+            quality=95,
+            status="01",
+            pitch=1.5,
+            roll=2.3,
         )
         d = msg.to_dict()
         assert d["sentence_type"] == "PNORA"
@@ -54,4 +60,3 @@ class TestPNORA:
     def test_pnora_invalid_field_count(self):
         with pytest.raises(ValueError, match="Expected 9 fields"):
             PNORA.from_nmea("$PNORA,1,2,3,4,5*00")
-

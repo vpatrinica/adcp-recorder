@@ -4,12 +4,15 @@ Verifies that invalid messages for each documented type result in a PRESERVED er
 in the database, rather than being discarded or crashing the consumer.
 """
 
-import pytest
 import time
 from queue import Queue
+
+import pytest
+
 from adcp_recorder.db.db import DatabaseManager
-from adcp_recorder.serial.consumer import SerialConsumer, MessageRouter
 from adcp_recorder.db.operations import query_parse_errors
+from adcp_recorder.serial.consumer import MessageRouter, SerialConsumer
+
 
 @pytest.fixture
 def db_conn(tmp_path):
@@ -19,23 +22,24 @@ def db_conn(tmp_path):
     db_manager.initialize_schema()
     yield db_manager
 
+
 @pytest.fixture
 def consumer_stack(db_conn):
     """Setup queue, router, consumer with registered parsers."""
-    from adcp_recorder.parsers.pnori import PNORI
-    from adcp_recorder.parsers.pnors import PNORS
-    from adcp_recorder.parsers.pnorc import PNORC
-    from adcp_recorder.parsers.pnorh import PNORH3
-    from adcp_recorder.parsers.pnorw import PNORW
+    from adcp_recorder.parsers.pnora import PNORA
     from adcp_recorder.parsers.pnorb import PNORB
+    from adcp_recorder.parsers.pnorc import PNORC
     from adcp_recorder.parsers.pnore import PNORE
     from adcp_recorder.parsers.pnorf import PNORF
+    from adcp_recorder.parsers.pnorh import PNORH3
+    from adcp_recorder.parsers.pnori import PNORI
+    from adcp_recorder.parsers.pnors import PNORS
+    from adcp_recorder.parsers.pnorw import PNORW
     from adcp_recorder.parsers.pnorwd import PNORWD
-    from adcp_recorder.parsers.pnora import PNORA
 
     queue = Queue()
     router = MessageRouter()
-    
+
     # Register all parsers so strict consumer logic finds them
     router.register_parser("PNORI", PNORI)
     router.register_parser("PNORS", PNORS)
@@ -55,21 +59,26 @@ def consumer_stack(db_conn):
 
 
 class TestConsumerParseErrors:
-    
     def _verify_error_captured(self, queue, db_manager, prefix, bad_sentence):
         """Helper to inject bad message and verify error capture."""
-        queue.put(bad_sentence.encode('utf-8'))
-        
+        queue.put(bad_sentence.encode("utf-8"))
+
         # Poll for result
-        for _ in range(20): # 20 * 0.1 = 2 seconds max
+        for _ in range(20):  # 20 * 0.1 = 2 seconds max
             time.sleep(0.1)
             conn = db_manager.get_connection()
             errors = query_parse_errors(conn, limit=10)
-            found = [e for e in errors if e["attempted_prefix"] == prefix and e["raw_sentence"] == bad_sentence]
+            found = [
+                e
+                for e in errors
+                if e["attempted_prefix"] == prefix and e["raw_sentence"] == bad_sentence
+            ]
             if found:
                 break
-        
-        assert len(found) == 1, f"Expected 1 error for {prefix}, found {len(found)}. Errors: {errors}"
+
+        assert len(found) == 1, (
+            f"Expected 1 error for {prefix}, found {len(found)}. Errors: {errors}"
+        )
         assert found[0]["error_type"] is not None
 
     def test_pnori_parse_error(self, consumer_stack):
@@ -100,7 +109,8 @@ class TestConsumerParseErrors:
     def test_pnorb_parse_error(self, consumer_stack):
         q, _, db = consumer_stack
         # PNORB: Invalid field count
-        self._verify_error_captured(q, db, "PNORB", "$PNORB,1,2,3,4,5,6,7,8,9,10,11,12*XX")  # Missing 2 fields
+        sentence = "$PNORB,1,2,3,4,5,6,7,8,9,10,11,12*XX"
+        self._verify_error_captured(q, db, "PNORB", sentence)
 
     def test_pnore_parse_error(self, consumer_stack):
         q, _, db = consumer_stack
@@ -124,11 +134,11 @@ class TestConsumerParseErrors:
 
     def test_checksum_failure_generic(self, consumer_stack):
         q, _, db = consumer_stack
-        # Valid format but bad checksum, routed to PNORI logic first? 
+        # Valid format but bad checksum, routed to PNORI logic first?
         # No, Consumer validates checksum BEFORE routing if it can split?
         # Actually Consumer calls `parser.from_nmea`.
         # core/nmea.py `from_nmea` does checksum validation.
         # So it should be caught as ValueError("Checksum mismatch...")
-        
-        fake_sentence = "$PNORI,4,S,4,20,0,1,0*FF" # FF is likely wrong
+
+        fake_sentence = "$PNORI,4,S,4,20,0,1,0*FF"  # FF is likely wrong
         self._verify_error_captured(q, db, "PNORI", fake_sentence)

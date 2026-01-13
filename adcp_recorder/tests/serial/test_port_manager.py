@@ -1,9 +1,7 @@
 """Tests for serial port management."""
 
-import time
 from unittest.mock import MagicMock, Mock, patch
 
-import pytest
 import serial
 
 from adcp_recorder.serial import (

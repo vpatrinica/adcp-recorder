@@ -1,6 +1,7 @@
 """Tests for PNORE wave energy density spectrum parser."""
 
 import pytest
+
 from adcp_recorder.parsers.pnore import PNORE
 
 
@@ -14,9 +15,9 @@ class TestPNOREParser:
             "$PNORE,120720,093150,1,0.02,0.01,10,"
             "0.000,0.003,0.012,0.046,0.039,0.041,0.039,0.036,0.039,0.041*00"
         )
-        
+
         pnore = PNORE.from_nmea(sentence)
-        
+
         assert pnore.date == "120720"
         assert pnore.time == "093150"
         assert pnore.spectrum_basis == 1  # Velocity-based
@@ -25,7 +26,7 @@ class TestPNOREParser:
         assert pnore.num_frequencies == 10
         assert len(pnore.energy_densities) == 10
         assert pnore.checksum == "00"
-        
+
         # Verify energy values
         assert pnore.energy_densities[0] == pytest.approx(0.000)
         assert pnore.energy_densities[1] == pytest.approx(0.003)
@@ -56,7 +57,7 @@ class TestPNOREParser:
         sentence = "$PNORE,120720,093150,3,0.03,0.01,4,1.1,2.2,3.3,4.4*00"
         pnore = PNORE.from_nmea(sentence)
         data = pnore.to_dict()
-        
+
         assert data["sentence_type"] == "PNORE"
         assert data["date"] == "120720"
         assert data["time"] == "093150"
@@ -100,7 +101,7 @@ class TestPNOREParser:
         sentence = "$PNORE,120720,093150,1,15.0,0.02,2,1.0,2.0*00"
         with pytest.raises(ValueError, match="Start frequency"):
             PNORE.from_nmea(sentence)
-        
+
         # Step frequency negative
         sentence = "$PNORE,120720,093150,1,0.05,-0.02,2,1.0,2.0*00"
         with pytest.raises(ValueError, match="Step frequency"):

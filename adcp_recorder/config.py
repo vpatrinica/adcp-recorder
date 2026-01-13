@@ -1,9 +1,9 @@
 import json
 import logging
 import os
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, ClassVar, Dict, Optional
+from typing import Any, ClassVar, Optional
 
 CONFIG_DIR_NAME = ".adcp-recorder"
 CONFIG_FILE_NAME = "config.json"
@@ -13,30 +13,36 @@ LOGGER = logging.getLogger(__name__)
 @dataclass
 class RecorderConfig:
     """Configuration for the ADCP Recorder."""
-    
+
     serial_port: str = "/dev/ttyUSB0"
     baudrate: int = 9600
     timeout: float = 1.0
     output_dir: str = str(Path.home() / "adcp_data")
     log_level: str = "INFO"
-    
+
     # Database settings
     db_path: Optional[str] = None  # If None, will default to output_dir/adcp.duckdb
 
     # Fields persisted to disk
     PERSISTED_FIELDS: ClassVar[tuple[str, ...]] = (
-        'serial_port', 'baudrate', 'timeout', 'output_dir', 'log_level', 'db_path'
+        "serial_port",
+        "baudrate",
+        "timeout",
+        "output_dir",
+        "log_level",
+        "db_path",
     )
 
     ENV_PREFIX: ClassVar[str] = "ADCP_RECORDER_"
-    ENV_OVERRIDES: ClassVar[Dict[str, Any]] = {
-        'serial_port': str,
-        'baudrate': int,
-        'timeout': float,
-        'output_dir': str,
-        'log_level': str,
-        'db_path': str,
+    ENV_OVERRIDES: ClassVar[dict[str, Any]] = {
+        "serial_port": str,
+        "baudrate": int,
+        "timeout": float,
+        "output_dir": str,
+        "log_level": str,
+        "db_path": str,
     }
+
     @classmethod
     def get_default_config_dir(cls) -> Path:
         """Returns the default configuration directory path."""
@@ -51,12 +57,12 @@ class RecorderConfig:
     def load(cls) -> "RecorderConfig":
         """Loads configuration from file or returns defaults if not found."""
         config_path = cls.get_config_path()
-        
+
         if not config_path.exists():
             return cls()
 
         try:
-            with open(config_path, "r") as f:
+            with open(config_path) as f:
                 data = json.load(f)
             # Filter out keys that might not be in the dataclass anymore
             # This is a basic way to handle schema evolution/extra keys
@@ -91,20 +97,17 @@ class RecorderConfig:
 
         return config
 
-    def _to_persisted_dict(self) -> Dict[str, Any]:
-        return {
-            field: getattr(self, field)
-            for field in self.PERSISTED_FIELDS
-        }
+    def _to_persisted_dict(self) -> dict[str, Any]:
+        return {field: getattr(self, field) for field in self.PERSISTED_FIELDS}
 
     def save(self) -> None:
         """Saves current configuration to file."""
         config_path = self.get_config_path()
         config_dir = config_path.parent
-        
+
         if not config_dir.exists():
             config_dir.mkdir(parents=True, exist_ok=True)
-            
+
         with open(config_path, "w") as f:
             json.dump(self._to_persisted_dict(), f, indent=4)
 

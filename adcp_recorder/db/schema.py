@@ -60,21 +60,21 @@ CREATE TABLE IF NOT EXISTS pnori (\n    config_id BIGINT PRIMARY KEY,
     received_at TIMESTAMP DEFAULT current_timestamp,
     original_sentence TEXT NOT NULL,
     instrument_type_name VARCHAR(20) NOT NULL,
-    instrument_type_code TINYINT NOT NULL 
+    instrument_type_code TINYINT NOT NULL
         CHECK (instrument_type_code IN (0, 2, 4)),
-    head_id VARCHAR(30) NOT NULL 
+    head_id VARCHAR(30) NOT NULL
         CHECK (length(head_id) BETWEEN 1 AND 30),
-    beam_count TINYINT NOT NULL 
+    beam_count TINYINT NOT NULL
         CHECK (beam_count > 0 AND beam_count <= 4),
-    cell_count SMALLINT NOT NULL 
+    cell_count SMALLINT NOT NULL
         CHECK (cell_count > 0 AND cell_count <= 128),
-    blanking_distance DECIMAL(5,2) NOT NULL 
+    blanking_distance DECIMAL(5,2) NOT NULL
         CHECK (blanking_distance > 0 AND blanking_distance <= 100),
-    cell_size DECIMAL(5,2) NOT NULL 
+    cell_size DECIMAL(5,2) NOT NULL
         CHECK (cell_size > 0 AND cell_size <= 100),
-    coord_system_name VARCHAR(10) NOT NULL 
+    coord_system_name VARCHAR(10) NOT NULL
         CHECK (coord_system_name IN ('ENU', 'XYZ', 'BEAM')),
-    coord_system_code TINYINT NOT NULL 
+    coord_system_code TINYINT NOT NULL
         CHECK (coord_system_code IN (0, 1, 2)),
     checksum CHAR(2),
     CONSTRAINT valid_signature_config CHECK (
@@ -99,21 +99,21 @@ CREATE TABLE IF NOT EXISTS pnori1 (
     received_at TIMESTAMP DEFAULT current_timestamp,
     original_sentence TEXT NOT NULL,
     instrument_type_name VARCHAR(20) NOT NULL,
-    instrument_type_code TINYINT NOT NULL 
+    instrument_type_code TINYINT NOT NULL
         CHECK (instrument_type_code IN (0, 2, 4)),
-    head_id VARCHAR(30) NOT NULL 
+    head_id VARCHAR(30) NOT NULL
         CHECK (length(head_id) BETWEEN 1 AND 30),
-    beam_count TINYINT NOT NULL 
+    beam_count TINYINT NOT NULL
         CHECK (beam_count > 0 AND beam_count <= 4),
-    cell_count SMALLINT NOT NULL 
+    cell_count SMALLINT NOT NULL
         CHECK (cell_count > 0 AND cell_count <= 128),
-    blanking_distance DECIMAL(5,2) NOT NULL 
+    blanking_distance DECIMAL(5,2) NOT NULL
         CHECK (blanking_distance > 0 AND blanking_distance <= 100),
-    cell_size DECIMAL(5,2) NOT NULL 
+    cell_size DECIMAL(5,2) NOT NULL
         CHECK (cell_size > 0 AND cell_size <= 100),
-    coord_system_name VARCHAR(10) NOT NULL 
+    coord_system_name VARCHAR(10) NOT NULL
         CHECK (coord_system_name IN ('ENU', 'XYZ', 'BEAM')),
-    coord_system_code TINYINT NOT NULL 
+    coord_system_code TINYINT NOT NULL
         CHECK (coord_system_code IN (0, 1, 2)),
     checksum CHAR(2),
     CONSTRAINT valid_signature_config_1 CHECK (
@@ -143,21 +143,21 @@ CREATE TABLE IF NOT EXISTS pnori2 (
     received_at TIMESTAMP DEFAULT current_timestamp,
     original_sentence TEXT NOT NULL,
     instrument_type_name VARCHAR(20) NOT NULL,
-    instrument_type_code TINYINT NOT NULL 
+    instrument_type_code TINYINT NOT NULL
         CHECK (instrument_type_code IN (0, 2, 4)),
-    head_id VARCHAR(30) NOT NULL 
+    head_id VARCHAR(30) NOT NULL
         CHECK (length(head_id) BETWEEN 1 AND 30),
-    beam_count TINYINT NOT NULL 
+    beam_count TINYINT NOT NULL
         CHECK (beam_count > 0 AND beam_count <= 4),
-    cell_count SMALLINT NOT NULL 
+    cell_count SMALLINT NOT NULL
         CHECK (cell_count > 0 AND cell_count <= 128),
-    blanking_distance DECIMAL(5,2) NOT NULL 
+    blanking_distance DECIMAL(5,2) NOT NULL
         CHECK (blanking_distance > 0 AND blanking_distance <= 100),
-    cell_size DECIMAL(5,2) NOT NULL 
+    cell_size DECIMAL(5,2) NOT NULL
         CHECK (cell_size > 0 AND cell_size <= 100),
-    coord_system_name VARCHAR(10) NOT NULL 
+    coord_system_name VARCHAR(10) NOT NULL
         CHECK (coord_system_name IN ('ENU', 'XYZ', 'BEAM')),
-    coord_system_code TINYINT NOT NULL 
+    coord_system_code TINYINT NOT NULL
         CHECK (coord_system_code IN (0, 1, 2)),
     checksum CHAR(2),
     CONSTRAINT valid_signature_config_2 CHECK (
@@ -212,7 +212,8 @@ CREATE TABLE IF NOT EXISTS pnors_df100 (
 """
 PNORS_DF100_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnors_df100_seq START 1;"
 PNORS_DF100_INDEXES_SQL = [
-    "CREATE INDEX IF NOT EXISTS idx_pnors_df100_date_time ON pnors_df100(measurement_date, measurement_time);",
+    "CREATE INDEX IF NOT EXISTS idx_pnors_df100_date_time "
+    "ON pnors_df100(measurement_date, measurement_time);",
 ]
 
 # PNORS1 DF=101
@@ -241,7 +242,8 @@ CREATE TABLE IF NOT EXISTS pnors_df101 (
 """
 PNORS_DF101_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnors_df101_seq START 1;"
 PNORS_DF101_INDEXES_SQL = [
-    "CREATE INDEX IF NOT EXISTS idx_pnors_df101_date_time ON pnors_df101(measurement_date, measurement_time);",
+    "CREATE INDEX IF NOT EXISTS idx_pnors_df101_date_time "
+    "ON pnors_df101(measurement_date, measurement_time);",
 ]
 
 # PNORS2 DF=102 (same fields as DF101, just tagged format)
@@ -270,7 +272,8 @@ CREATE TABLE IF NOT EXISTS pnors_df102 (
 """
 PNORS_DF102_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnors_df102_seq START 1;"
 PNORS_DF102_INDEXES_SQL = [
-    "CREATE INDEX IF NOT EXISTS idx_pnors_df102_date_time ON pnors_df102(measurement_date, measurement_time);",
+    "CREATE INDEX IF NOT EXISTS idx_pnors_df102_date_time "
+    "ON pnors_df102(measurement_date, measurement_time);",
 ]
 
 # PNORS3 DF=103
@@ -292,7 +295,8 @@ CREATE TABLE IF NOT EXISTS pnors_df103 (
 """
 PNORS_DF103_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnors_df103_seq START 1;"
 PNORS_DF103_INDEXES_SQL = [
-    "CREATE INDEX IF NOT EXISTS idx_pnors_df103_date_time ON pnors_df103(measurement_date, measurement_time);",
+    "CREATE INDEX IF NOT EXISTS idx_pnors_df103_date_time "
+    "ON pnors_df103(measurement_date, measurement_time);",
 ]
 
 # PNORS4 DF=104
@@ -315,7 +319,8 @@ CREATE TABLE IF NOT EXISTS pnors_df104 (
 """
 PNORS_DF104_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnors_df104_seq START 1;"
 PNORS_DF104_INDEXES_SQL = [
-    "CREATE INDEX IF NOT EXISTS idx_pnors_df104_date_time ON pnors_df104(measurement_date, measurement_time);",
+    "CREATE INDEX IF NOT EXISTS idx_pnors_df104_date_time "
+    "ON pnors_df104(measurement_date, measurement_time);",
 ]
 
 # ============================================================================
@@ -351,7 +356,8 @@ CREATE TABLE IF NOT EXISTS pnorc_df100 (
 """
 PNORC_DF100_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnorc_df100_seq START 1;"
 PNORC_DF100_INDEXES_SQL = [
-    "CREATE INDEX IF NOT EXISTS idx_pnorc_df100_date_time ON pnorc_df100(measurement_date, measurement_time);",
+    "CREATE INDEX IF NOT EXISTS idx_pnorc_df100_date_time "
+    "ON pnorc_df100(measurement_date, measurement_time);",
     "CREATE INDEX IF NOT EXISTS idx_pnorc_df100_cell ON pnorc_df100(cell_index);",
 ]
 
@@ -382,7 +388,8 @@ CREATE TABLE IF NOT EXISTS pnorc_df101 (
 """
 PNORC_DF101_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnorc_df101_seq START 1;"
 PNORC_DF101_INDEXES_SQL = [
-    "CREATE INDEX IF NOT EXISTS idx_pnorc_df101_date_time ON pnorc_df101(measurement_date, measurement_time);",
+    "CREATE INDEX IF NOT EXISTS idx_pnorc_df101_date_time "
+    "ON pnorc_df101(measurement_date, measurement_time);",
     "CREATE INDEX IF NOT EXISTS idx_pnorc_df101_cell ON pnorc_df101(cell_index);",
 ]
 
@@ -413,7 +420,8 @@ CREATE TABLE IF NOT EXISTS pnorc_df102 (
 """
 PNORC_DF102_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnorc_df102_seq START 1;"
 PNORC_DF102_INDEXES_SQL = [
-    "CREATE INDEX IF NOT EXISTS idx_pnorc_df102_date_time ON pnorc_df102(measurement_date, measurement_time);",
+    "CREATE INDEX IF NOT EXISTS idx_pnorc_df102_date_time "
+    "ON pnorc_df102(measurement_date, measurement_time);",
     "CREATE INDEX IF NOT EXISTS idx_pnorc_df102_cell ON pnorc_df102(cell_index);",
 ]
 
@@ -436,7 +444,8 @@ CREATE TABLE IF NOT EXISTS pnorc_df103 (
 """
 PNORC_DF103_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnorc_df103_seq START 1;"
 PNORC_DF103_INDEXES_SQL = [
-    "CREATE INDEX IF NOT EXISTS idx_pnorc_df103_date_time ON pnorc_df103(measurement_date, measurement_time);",
+    "CREATE INDEX IF NOT EXISTS idx_pnorc_df103_date_time "
+    "ON pnorc_df103(measurement_date, measurement_time);",
     "CREATE INDEX IF NOT EXISTS idx_pnorc_df103_cell ON pnorc_df103(cell_index);",
 ]
 
@@ -459,7 +468,8 @@ CREATE TABLE IF NOT EXISTS pnorc_df104 (
 """
 PNORC_DF104_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnorc_df104_seq START 1;"
 PNORC_DF104_INDEXES_SQL = [
-    "CREATE INDEX IF NOT EXISTS idx_pnorc_df104_date_time ON pnorc_df104(measurement_date, measurement_time);",
+    "CREATE INDEX IF NOT EXISTS idx_pnorc_df104_date_time "
+    "ON pnorc_df104(measurement_date, measurement_time);",
     "CREATE INDEX IF NOT EXISTS idx_pnorc_df104_cell ON pnorc_df104(cell_index);",
 ]
 
@@ -482,7 +492,8 @@ CREATE TABLE IF NOT EXISTS pnorh_df103 (
 """
 PNORH_DF103_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnorh_df103_seq START 1;"
 PNORH_DF103_INDEXES_SQL = [
-    "CREATE INDEX IF NOT EXISTS idx_pnorh_df103_date_time ON pnorh_df103(measurement_date, measurement_time);",
+    "CREATE INDEX IF NOT EXISTS idx_pnorh_df103_date_time "
+    "ON pnorh_df103(measurement_date, measurement_time);",
 ]
 
 # PNORH4 DF=104
@@ -500,7 +511,8 @@ CREATE TABLE IF NOT EXISTS pnorh_df104 (
 """
 PNORH_DF104_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnorh_df104_seq START 1;"
 PNORH_DF104_INDEXES_SQL = [
-    "CREATE INDEX IF NOT EXISTS idx_pnorh_df104_date_time ON pnorh_df104(measurement_date, measurement_time);",
+    "CREATE INDEX IF NOT EXISTS idx_pnorh_df104_date_time "
+    "ON pnorh_df104(measurement_date, measurement_time);",
 ]
 
 # ============================================================================
@@ -526,7 +538,8 @@ CREATE TABLE IF NOT EXISTS echo_data (
 """
 ECHO_DATA_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS echo_data_seq START 1;"
 ECHO_DATA_INDEXES_SQL = [
-    "CREATE INDEX IF NOT EXISTS idx_echo_date_time ON echo_data(measurement_date, measurement_time);",
+    "CREATE INDEX IF NOT EXISTS idx_echo_date_time "
+    "ON echo_data(measurement_date, measurement_time);",
 ]
 
 # Wave Data (PNORW)
@@ -562,7 +575,8 @@ CREATE TABLE IF NOT EXISTS pnorw_data (
 """
 PNORW_DATA_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnorw_data_seq START 1;"
 PNORW_DATA_INDEXES_SQL = [
-    "CREATE INDEX IF NOT EXISTS idx_pnorw_date_time ON pnorw_data(measurement_date, measurement_time);",
+    "CREATE INDEX IF NOT EXISTS idx_pnorw_date_time "
+    "ON pnorw_data(measurement_date, measurement_time);",
 ]
 
 # Wave Band Parameters (PNORB) - DF=501
@@ -590,7 +604,8 @@ CREATE TABLE IF NOT EXISTS pnorb_data (
 """
 PNORB_DATA_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnorb_data_seq START 1;"
 PNORB_DATA_INDEXES_SQL = [
-    "CREATE INDEX IF NOT EXISTS idx_pnorb_date_time ON pnorb_data(measurement_date, measurement_time);",
+    "CREATE INDEX IF NOT EXISTS idx_pnorb_date_time "
+    "ON pnorb_data(measurement_date, measurement_time);",
 ]
 
 # Frequency Data (PNORF) - Fourier Coefficient Spectra
@@ -613,7 +628,8 @@ CREATE TABLE IF NOT EXISTS pnorf_data (
 """
 PNORF_DATA_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnorf_data_seq START 1;"
 PNORF_DATA_INDEXES_SQL = [
-    "CREATE INDEX IF NOT EXISTS idx_pnorf_date_time ON pnorf_data(measurement_date, measurement_time);",
+    "CREATE INDEX IF NOT EXISTS idx_pnorf_date_time "
+    "ON pnorf_data(measurement_date, measurement_time);",
     "CREATE INDEX IF NOT EXISTS idx_pnorf_coeff_flag ON pnorf_data(coefficient_flag);",
 ]
 
@@ -637,7 +653,8 @@ CREATE TABLE IF NOT EXISTS pnorwd_data (
 """
 PNORWD_DATA_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnorwd_data_seq START 1;"
 PNORWD_DATA_INDEXES_SQL = [
-    "CREATE INDEX IF NOT EXISTS idx_pnorwd_date_time ON pnorwd_data(measurement_date, measurement_time);",
+    "CREATE INDEX IF NOT EXISTS idx_pnorwd_date_time "
+    "ON pnorwd_data(measurement_date, measurement_time);",
     "CREATE INDEX IF NOT EXISTS idx_pnorwd_dir_type ON pnorwd_data(direction_type);",
 ]
 
@@ -661,7 +678,8 @@ CREATE TABLE IF NOT EXISTS pnora_data (
 """
 PNORA_DATA_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnora_data_seq START 1;"
 PNORA_DATA_INDEXES_SQL = [
-    "CREATE INDEX IF NOT EXISTS idx_pnora_date_time ON pnora_data(measurement_date, measurement_time);",
+    "CREATE INDEX IF NOT EXISTS idx_pnora_date_time "
+    "ON pnora_data(measurement_date, measurement_time);",
 ]
 
 # ============================================================================
@@ -675,7 +693,6 @@ ALL_SCHEMA_SQL = [
     PARSE_ERRORS_SEQUENCE_SQL,
     PARSE_ERRORS_TABLE_SQL,
     *PARSE_ERRORS_INDEXES_SQL,
-    
     # Configuration - PNORI family (3 tables)
     PNORI_SEQUENCE_SQL,
     PNORI_TABLE_SQL,
@@ -686,7 +703,6 @@ ALL_SCHEMA_SQL = [
     PNORI2_SEQUENCE_SQL,
     PNORI2_TABLE_SQL,
     *PNORI2_INDEXES_SQL,
-    
     # PNORS family (5 tables)
     PNORS_DF100_SEQUENCE_SQL,
     PNORS_DF100_TABLE_SQL,
@@ -703,7 +719,6 @@ ALL_SCHEMA_SQL = [
     PNORS_DF104_SEQUENCE_SQL,
     PNORS_DF104_TABLE_SQL,
     *PNORS_DF104_INDEXES_SQL,
-    
     # PNORC family (5 tables)
     PNORC_DF100_SEQUENCE_SQL,
     PNORC_DF100_TABLE_SQL,
@@ -720,7 +735,6 @@ ALL_SCHEMA_SQL = [
     PNORC_DF104_SEQUENCE_SQL,
     PNORC_DF104_TABLE_SQL,
     *PNORC_DF104_INDEXES_SQL,
-    
     # PNORH family (2 tables)
     PNORH_DF103_SEQUENCE_SQL,
     PNORH_DF103_TABLE_SQL,
@@ -728,7 +742,6 @@ ALL_SCHEMA_SQL = [
     PNORH_DF104_SEQUENCE_SQL,
     PNORH_DF104_TABLE_SQL,
     *PNORH_DF104_INDEXES_SQL,
-    
     # Wave data tables
     ECHO_DATA_SEQUENCE_SQL,
     ECHO_DATA_TABLE_SQL,

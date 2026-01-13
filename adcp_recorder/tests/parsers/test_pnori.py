@@ -1,8 +1,9 @@
 """Tests for PNORI family parsers."""
 
+import pytest
+
 from adcp_recorder.core.enums import CoordinateSystem, InstrumentType
 from adcp_recorder.parsers import PNORI, PNORI1, PNORI2, PNORITag
-import pytest
 
 
 class TestPNORI:
