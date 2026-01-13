@@ -179,62 +179,64 @@ class SerialConsumer:
         logger.info("Consumer loop starting")
         conn = self._db_manager.get_connection()
 
-        while self._running:
-            try:
-                # Pull from queue with timeout
-                item = self._queue.get(timeout=1.0)
-            except Empty:
-                # Queue empty - continue
-                continue
-            # Binary chunk streaming handling
-            try:
-                if isinstance(item, BinaryChunk):
-                    # Start of blob
-                    if item.start:
-                        # record parse error/marker once at blob start
-                        insert_parse_error(
-                            conn,
-                            "<BINARY_BLOB>",
-                            error_type="BINARY_DATA",
-                            error_message="Binary blob captured",
-                        )
-                        insert_raw_line(
-                            conn,
-                            "<BINARY_BLOB>",
-                            parse_status="FAIL",
-                            error_message="Binary blob captured",
-                        )
-                        # start file
-                        self._binary_writer.start_blob(item.data)
-                        if self._file_writer:
-                            self._file_writer.write(
-                                "ERRORS", item.data.decode("ascii", errors="replace")
-                            )
-                    elif item.end:
-                        path = self._binary_writer.finish_blob()
-                        logger.info(f"Binary blob saved to {path}")
-                    else:
-                        # middle chunk
-                        self._binary_writer.append_chunk(item.data)
-
-                    self._update_heartbeat()
-                    continue
-
-                # Otherwise it's a normal line (bytes)
-                line_bytes = item
-
-                # Process line
+        try:
+            while self._running:
                 try:
-                    self._process_line(conn, line_bytes)
+                    # Pull from queue with timeout
+                    item = self._queue.get(timeout=1.0)
+                except Empty:
+                    # Queue empty - continue
+                    continue
+                # Binary chunk streaming handling
+                try:
+                    if isinstance(item, BinaryChunk):
+                        # Start of blob
+                        if item.start:
+                            # record parse error/marker once at blob start
+                            insert_parse_error(
+                                conn,
+                                "<BINARY_BLOB>",
+                                error_type="BINARY_DATA",
+                                error_message="Binary blob captured",
+                            )
+                            insert_raw_line(
+                                conn,
+                                "<BINARY_BLOB>",
+                                parse_status="FAIL",
+                                error_message="Binary blob captured",
+                            )
+                            # start file
+                            self._binary_writer.start_blob(item.data)
+                            if self._file_writer:
+                                self._file_writer.write(
+                                    "ERRORS", item.data.decode("ascii", errors="replace")
+                                )
+                        elif item.end:
+                            path = self._binary_writer.finish_blob()
+                            logger.info(f"Binary blob saved to {path}")
+                        else:
+                            # middle chunk
+                            self._binary_writer.append_chunk(item.data)
+
+                        self._update_heartbeat()
+                        continue
+
+                    # Otherwise it's a normal line (bytes)
+                    line_bytes = item
+
+                    # Process line
+                    try:
+                        self._process_line(conn, line_bytes)
+                    except Exception as e:
+                        logger.error(f"Error processing line: {e}", exc_info=True)
+                        # Try to keep going
                 except Exception as e:
-                    logger.error(f"Error processing line: {e}", exc_info=True)
-                    # Try to keep going
-            except Exception as e:
-                logger.error(f"Consumer loop processing error: {e}", exc_info=True)
+                    logger.error(f"Consumer loop processing error: {e}", exc_info=True)
 
-            self._update_heartbeat()
-
-        logger.info("Consumer loop exiting")
+                self._update_heartbeat()
+        finally:
+            self._db_manager.close()
+            logger.info("Consumer loop exiting")
 
     def _process_line(self, conn: duckdb.DuckDBPyConnection, line_bytes: bytes) -> None:
         """Process a single line from the queue.

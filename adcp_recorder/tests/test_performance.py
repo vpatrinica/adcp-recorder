@@ -102,11 +102,14 @@ def test_throughput_performance():
                 errors = conn.execute(
                     "SELECT error_type, error_message FROM parse_errors LIMIT 5"
                 ).fetchall()
+                db.close()
                 print(
                     f"\nTarget count not reached. raw_lines={raw_count}, parse_errors={error_count}"
                 )
                 for e in errors:
                     print(f"Error: {e}")
+            else:
+                db.close()
 
             print(
                 f"\nThroughput: {throughput:.2f} messages/sec "
@@ -178,14 +181,17 @@ def test_database_concurrency():
                 )
                 conn.commit()
 
-        threads = []
-        for i in range(5):
-            t = threading.Thread(target=insert_worker, args=(i,))
-            threads.append(t)
-            t.start()
+        try:
+            threads = []
+            for i in range(5):
+                t = threading.Thread(target=insert_worker, args=(i,))
+                threads.append(t)
+                t.start()
 
-        for t in threads:
-            t.join()
+            for t in threads:
+                t.join()
+        finally:
+            db_manager.close()
 
         # Verify all records inserted
         conn = db_manager.get_connection()

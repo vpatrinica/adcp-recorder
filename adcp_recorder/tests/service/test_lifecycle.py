@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 
+@pytest.mark.skipif(os.name == "nt", reason="SIGTERM is not graceful on Windows via Popen.terminate()")
 def test_supervisor_lifecycle_with_signals(tmp_path):
     """
     Runs mock_runner.py as a subprocess.
@@ -66,26 +67,35 @@ def test_supervisor_lifecycle_sigint(tmp_path):
     env = os.environ.copy()
     env["PYTHONPATH"] = os.getcwd()
 
-    process = subprocess.Popen(
-        [sys.executable, str(runner_script)],
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
+    kwargs = {
+        "env": env,
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.PIPE,
+        "text": True,
+    }
+
+    if os.name == "nt":
+        # On Windows, we need a new process group to send CTRL_C_EVENT
+        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+
+    process = subprocess.Popen([sys.executable, str(runner_script)], **kwargs)
 
     time.sleep(1)
     if process.poll() is not None:
         stdout, stderr = process.communicate()
         pytest.fail(f"Mock service died early.\nOUT: {stdout}\nERR: {stderr}")
 
-    process.send_signal(signal.SIGINT)
+    if os.name == "nt":
+        # Send CTRL_C_EVENT instead of SIGINT
+        process.send_signal(signal.CTRL_C_EVENT)
+    else:
+        process.send_signal(signal.SIGINT)
 
     try:
         stdout, stderr = process.communicate(timeout=5)
     except subprocess.TimeoutExpired:
         process.kill()
-        pytest.fail("Mock service timeout on SIGINT")
+        pytest.fail("Mock service timeout on signal")
 
     assert process.returncode == 0
     assert "Mock Service Clean Exit" in stdout

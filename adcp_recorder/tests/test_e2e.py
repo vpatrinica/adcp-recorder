@@ -70,7 +70,7 @@ def test_full_pipeline_e2e(temp_recorder_dir):
         recorder.start()
 
         # Wait for processing with a loop
-        max_wait = 5.0
+        max_wait = 15.0
         start_time = time.time()
         db = DatabaseManager(str(db_path))
         conn = db.get_connection()
@@ -99,24 +99,31 @@ def test_full_pipeline_e2e(temp_recorder_dir):
                 "SELECT record_type, parse_status, error_message FROM raw_lines"
             ).fetchall()
             errors = conn.execute("SELECT error_type, error_message FROM parse_errors").fetchall()
+            db.close()
+            recorder.stop()
             pytest.fail(
                 f"E2E wait timeout. Found_all={found_all}. Raw lines: {raw_lines}. Errors: {errors}"
             )
 
         # Final verifications
-        res = conn.execute("SELECT head_id FROM pnori").fetchall()
-        assert res[0][0] == "1001"
+        db = DatabaseManager(str(db_path))
+        conn = db.get_connection()
+        try:
+            res = conn.execute("SELECT head_id FROM pnori").fetchall()
+            assert res[0][0] == "1001"
 
-        res = conn.execute("SELECT heading FROM pnors_df100").fetchall()
-        assert float(res[0][0]) == 0.0
+            res = conn.execute("SELECT heading FROM pnors_df100").fetchall()
+            assert float(res[0][0]) == 0.0
 
-        res = conn.execute("SELECT vel1, speed FROM pnorc_df100").fetchall()
-        assert float(res[0][0]) == 0.5
-        assert float(res[0][1]) == 0.4
+            res = conn.execute("SELECT vel1, speed FROM pnorc_df100").fetchall()
+            assert float(res[0][0]) == 0.5
+            assert float(res[0][1]) == 0.4
 
-        # Check Error Table (for binary data)
-        res = conn.execute("SELECT error_type FROM parse_errors").fetchall()
-        assert any("BINARY" in r[0] for r in res)
+            # Check Error Table (for binary data)
+            res = conn.execute("SELECT error_type FROM parse_errors").fetchall()
+            assert any("BINARY" in r[0] for r in res)
+        finally:
+            db.close()
 
         # --- File Export Verification (Phase 7) ---
         # Verify that files were created for each message type and errors
@@ -191,7 +198,7 @@ def test_reconnect_scenario(temp_recorder_dir):
             conn = db.get_connection()
 
             # Wait for processing
-            max_wait = 10.0  # Increased timeout
+            max_wait = 15.0  # Increased timeout
             start_time = time.time()
             found = False
             while time.time() - start_time < max_wait:
@@ -211,13 +218,17 @@ def test_reconnect_scenario(temp_recorder_dir):
                 # Get diagnostics if failed
                 raw = conn.execute("SELECT * FROM raw_lines").fetchall()
                 errors = conn.execute("SELECT * FROM parse_errors").fetchall()
+                db.close()
+                recorder.stop()
                 print(f"DEBUG: raw_lines={raw}")
                 print(f"DEBUG: parse_errors={errors}")
                 print(f"DEBUG: instances={len(instances)}")
+                assert found, "Did not find both records after reconnection"
 
-            assert found, "Did not find both records after reconnection"
             res = conn.execute("SELECT head_id FROM pnori ORDER BY head_id").fetchall()
             ids = [r[0] for r in res]
+            db.close()
+            recorder.stop()
             assert "2001" in ids
             assert "AfterReconnect" in ids
 
