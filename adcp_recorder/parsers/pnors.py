@@ -9,7 +9,6 @@ Implements parsers for:
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from .utils import (
     parse_tagged_field,
@@ -73,7 +72,7 @@ class PNORS:
     temperature: float
     analog1: int
     analog2: int
-    checksum: Optional[str] = field(default=None, repr=False)
+    checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
         validate_date_mm_dd_yy(self.date)
@@ -162,7 +161,7 @@ class PNORS1:
     pressure: float
     pressure_std_dev: float
     temperature: float
-    checksum: Optional[str] = field(default=None, repr=False)
+    checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
         validate_date_mm_dd_yy(self.date)
@@ -254,7 +253,7 @@ class PNORS2:
     pressure: float
     pressure_std_dev: float
     temperature: float
-    checksum: Optional[str] = field(default=None, repr=False)
+    checksum: str | None = field(default=None, repr=False)
 
     TAG_IDS = {
         "DATE": "date",
@@ -364,7 +363,7 @@ class PNORS3:
     roll: float
     pressure: float
     temperature: float
-    checksum: Optional[str] = field(default=None, repr=False)
+    checksum: str | None = field(default=None, repr=False)
 
     TAG_IDS = {
         "BV": "battery",
@@ -437,7 +436,7 @@ class PNORS4:
     roll: float
     pressure: float
     temperature: float
-    checksum: Optional[str] = field(default=None, repr=False)
+    checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
         _validate_battery(self.battery)

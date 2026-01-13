@@ -2,7 +2,6 @@
 
 import re
 from datetime import datetime
-from typing import Optional
 
 
 def validate_date_mm_dd_yy(date_str: str) -> None:
@@ -62,7 +61,7 @@ def parse_tagged_field(field_str: str) -> tuple[str, str]:
 def parse_optional_float(
     value_str: str,
     invalid_values: tuple = ("-9.00", "-99.99", "-9.000", "-9.0000"),
-) -> Optional[float]:
+) -> float | None:
     """Parse float from string, returning None for invalid indicators or empty fields."""
     if not value_str or value_str in invalid_values:
         return None

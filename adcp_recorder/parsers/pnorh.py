@@ -6,7 +6,6 @@ Implements parsers for:
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from .utils import (
     parse_tagged_field,
@@ -45,7 +44,7 @@ class PNORH3:
     time: str
     error_code: int
     status_code: str
-    checksum: Optional[str] = field(default=None, repr=False)
+    checksum: str | None = field(default=None, repr=False)
 
     TAG_IDS = {"DATE": "date", "TIME": "time", "EC": "error_code", "SC": "status_code"}
 
@@ -105,7 +104,7 @@ class PNORH4:
     time: str
     error_code: int
     status_code: str
-    checksum: Optional[str] = field(default=None, repr=False)
+    checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
         validate_date_yy_mm_dd(self.date)

@@ -1,7 +1,6 @@
 """PNORWD wave directional spectra message parser (DF=501)."""
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from .utils import (
     parse_optional_float,
@@ -24,8 +23,8 @@ class PNORWD:
     start_frequency: float
     step_frequency: float
     num_frequencies: int
-    values: list[Optional[float]]
-    checksum: Optional[str] = field(default=None, repr=False)
+    values: list[float | None]
+    checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
         validate_date_mm_dd_yy(self.date)

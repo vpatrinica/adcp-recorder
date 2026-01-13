@@ -8,7 +8,7 @@ import logging
 import threading
 import time
 from queue import Empty, Queue
-from typing import Any, Optional
+from typing import Any
 
 import duckdb
 
@@ -60,7 +60,7 @@ class MessageRouter:
         self._parsers[prefix.upper()] = parser_class
         logger.debug(f"Registered parser for {prefix}")
 
-    def route(self, sentence: str) -> Optional[Any]:
+    def route(self, sentence: str) -> Any | None:
         """Route sentence to appropriate parser.
 
         Args:
@@ -114,7 +114,7 @@ class SerialConsumer:
         db_manager: DatabaseManager,
         router: MessageRouter,
         heartbeat_interval: float = 5.0,
-        file_writer: Optional[FileWriter] = None,
+        file_writer: FileWriter | None = None,
     ):
         """Initialize serial consumer.
 
@@ -136,7 +136,7 @@ class SerialConsumer:
         self._binary_writer = BinaryBlobWriter(bp)
 
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._last_heartbeat = time.time()
 
     @property

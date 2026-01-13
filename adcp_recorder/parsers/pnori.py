@@ -8,7 +8,7 @@ Implements parsers for:
 
 import re
 from dataclasses import dataclass, field
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 from adcp_recorder.core.enums import CoordinateSystem, InstrumentType
 from adcp_recorder.core.nmea import compute_checksum
@@ -77,7 +77,7 @@ class PNORI:
     blanking_distance: float
     cell_size: float
     coordinate_system: CoordinateSystem
-    checksum: Optional[str] = field(default=None, repr=False)
+    checksum: str | None = field(default=None, repr=False)
 
     HEAD_ID_PATTERN: ClassVar[re.Pattern] = re.compile(r"^[A-Za-z0-9\s]{1,30}$")
 
@@ -197,7 +197,7 @@ class PNORI1:
     blanking_distance: float
     cell_size: float
     coordinate_system: CoordinateSystem
-    checksum: Optional[str] = field(default=None, repr=False)
+    checksum: str | None = field(default=None, repr=False)
 
     HEAD_ID_PATTERN: ClassVar[re.Pattern] = re.compile(r"^[A-Za-z0-9]{1,20}$")
 
@@ -359,7 +359,7 @@ class PNORI2:
     blanking_distance: float
     cell_size: float
     coordinate_system: CoordinateSystem
-    checksum: Optional[str] = field(default=None, repr=False)
+    checksum: str | None = field(default=None, repr=False)
 
     HEAD_ID_PATTERN: ClassVar[re.Pattern] = re.compile(r"^[A-Za-z0-9]{1,20}$")
 

@@ -5,7 +5,6 @@ Implements parser for:
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from .utils import (
     validate_date_yy_mm_dd,
@@ -29,7 +28,7 @@ class PNORA:
     status: str
     pitch: float
     roll: float
-    checksum: Optional[str] = field(default=None, repr=False)
+    checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
         validate_date_yy_mm_dd(self.date)

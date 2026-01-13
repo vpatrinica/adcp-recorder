@@ -6,7 +6,7 @@ identifier when multiple blobs start in the same second.
 """
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -21,7 +21,7 @@ class BinaryBlobWriter:
         self._identifier = 0
 
     def _next_filepath(self) -> str:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         timestamp = now.strftime("%Y%m%d_%H%M%S")
         if self._timestamp != timestamp:
             self._timestamp = timestamp

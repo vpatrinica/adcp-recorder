@@ -3,7 +3,7 @@ import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar
 
 CONFIG_DIR_NAME = ".adcp-recorder"
 CONFIG_FILE_NAME = "config.json"
@@ -21,7 +21,7 @@ class RecorderConfig:
     log_level: str = "INFO"
 
     # Database settings
-    db_path: Optional[str] = None  # If None, will default to output_dir/adcp.duckdb
+    db_path: str | None = None  # If None, will default to output_dir/adcp.duckdb
 
     # Fields persisted to disk
     PERSISTED_FIELDS: ClassVar[tuple[str, ...]] = (

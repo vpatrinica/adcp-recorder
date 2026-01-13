@@ -8,7 +8,6 @@ import logging
 import threading
 import time
 from queue import Full, Queue
-from typing import Optional
 
 from adcp_recorder.core.nmea import is_binary_data
 from adcp_recorder.serial.binary_chunk import BinaryChunk
@@ -60,7 +59,7 @@ class SerialProducer:
         self._max_line_length = max_line_length
 
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._last_heartbeat = time.time()
         self._line_buffer = b""
         self._blob_mode = False

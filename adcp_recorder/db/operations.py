@@ -4,7 +4,7 @@ Provides functions for inserting, updating, and querying NMEA sentence records.
 """
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 import duckdb
 
@@ -13,9 +13,9 @@ def insert_raw_line(
     conn: duckdb.DuckDBPyConnection,
     sentence: str,
     parse_status: str = "PENDING",
-    record_type: Optional[str] = None,
-    checksum_valid: Optional[bool] = None,
-    error_message: Optional[str] = None,
+    record_type: str | None = None,
+    checksum_valid: bool | None = None,
+    error_message: str | None = None,
 ) -> int:
     """Insert a single raw NMEA sentence into the database.
 
@@ -99,10 +99,10 @@ def insert_parse_error(
     conn: duckdb.DuckDBPyConnection,
     sentence: str,
     error_type: str,
-    error_message: Optional[str] = None,
-    attempted_prefix: Optional[str] = None,
-    checksum_expected: Optional[str] = None,
-    checksum_actual: Optional[str] = None,
+    error_message: str | None = None,
+    attempted_prefix: str | None = None,
+    checksum_expected: str | None = None,
+    checksum_actual: str | None = None,
 ) -> int:
     """Insert a parsing error record.
 
@@ -150,7 +150,7 @@ def update_raw_line_status(
     conn: duckdb.DuckDBPyConnection,
     line_id: int,
     parse_status: str,
-    error_message: Optional[str] = None,
+    error_message: str | None = None,
 ) -> bool:
     """Update the parse status of a raw line record.
 
@@ -181,10 +181,10 @@ def update_raw_line_status(
 
 def query_raw_lines(
     conn: duckdb.DuckDBPyConnection,
-    start_time: Optional[datetime] = None,
-    end_time: Optional[datetime] = None,
-    record_type: Optional[str] = None,
-    parse_status: Optional[str] = None,
+    start_time: datetime | None = None,
+    end_time: datetime | None = None,
+    record_type: str | None = None,
+    parse_status: str | None = None,
     limit: int = 1000,
 ) -> list[dict[str, Any]]:
     """Query raw lines with optional filters.
@@ -254,9 +254,9 @@ def query_raw_lines(
 
 def query_parse_errors(
     conn: duckdb.DuckDBPyConnection,
-    start_time: Optional[datetime] = None,
-    end_time: Optional[datetime] = None,
-    error_type: Optional[str] = None,
+    start_time: datetime | None = None,
+    end_time: datetime | None = None,
+    error_type: str | None = None,
     limit: int = 1000,
 ) -> list[dict[str, Any]]:
     """Query parse errors with optional filters.
@@ -393,11 +393,11 @@ def insert_pnori_configuration(
 
 def query_pnori_configurations(
     conn: duckdb.DuckDBPyConnection,
-    head_id: Optional[str] = None,
-    sentence_type: Optional[str] = None,
-    start_time: Optional[datetime] = None,
-    end_time: Optional[datetime] = None,
-    limit: Optional[int] = None,
+    head_id: str | None = None,
+    sentence_type: str | None = None,
+    start_time: datetime | None = None,
+    end_time: datetime | None = None,
+    limit: int | None = None,
 ) -> list[dict[str, Any]]:
     """Query PNORI configurations from all 3 tables (pnori, pnori1, pnori2).
 
