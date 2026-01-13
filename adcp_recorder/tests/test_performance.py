@@ -141,25 +141,30 @@ def test_memory_stability():
 
         with patch("serial.Serial", return_value=BulkMockSerial(sentences)):
             recorder = AdcpRecorder(config)
+            try:
+                initial_mem = get_memory_usage_mb()
+                recorder.start()
 
-            initial_mem = get_memory_usage_mb()
-            recorder.start()
+                # Monitor memory as it processes
+                start_time = time.time()
+                mem_readings = []
+                while time.time() - start_time < 20.0:
+                    mem_readings.append(get_memory_usage_mb())
+                    time.sleep(2.0)
 
-            # Monitor memory as it processes
-            start_time = time.time()
-            mem_readings = []
-            while time.time() - start_time < 20.0:
-                mem_readings.append(get_memory_usage_mb())
-                time.sleep(2.0)
+                recorder.stop()
+                final_mem = get_memory_usage_mb()
 
-            recorder.stop()
-            final_mem = get_memory_usage_mb()
+                mem_growth = final_mem - initial_mem
+                print(f"\nMemory growth: {mem_growth:.2f} MB")
 
-            mem_growth = final_mem - initial_mem
-            print(f"\nMemory growth: {mem_growth:.2f} MB")
-
-            # Should stay within reasonable bounds (< 50MB growth for 500 msgs)
-            assert mem_growth < 50.0, f"Significant memory growth detected: {mem_growth:.2f} MB"
+                # Should stay within reasonable bounds (< 50MB growth for 500 msgs)
+                assert mem_growth < 50.0, f"Significant memory growth detected: {mem_growth:.2f} MB"
+            finally:
+                # Ensure recorder is fully stopped and all resources released
+                recorder.stop()
+                # Give time for all threads to finish and release file handles
+                time.sleep(0.5)
 
 
 def test_database_concurrency():
