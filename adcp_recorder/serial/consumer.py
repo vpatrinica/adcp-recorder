@@ -167,7 +167,7 @@ class SerialConsumer:
 
         self._running = False
         if self._thread is not None:
-            self._thread.join(timeout=5.0)
+            self._thread.join(timeout=10.0)
         logger.info("Serial consumer stopped")
 
     def _update_heartbeat(self) -> None:
