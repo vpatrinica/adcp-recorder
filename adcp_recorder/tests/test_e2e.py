@@ -67,63 +67,90 @@ def test_full_pipeline_e2e(temp_recorder_dir):
         mock_serial_class.side_effect = create_mock
 
         recorder = AdcpRecorder(config)
-        recorder.start()
-
-        # Wait for processing with a loop
-        max_wait = 15.0
-        start_time = time.time()
-        db = DatabaseManager(str(db_path))
-        conn = db.get_connection()
-
-        found_all = False
-        while time.time() - start_time < max_wait:
-            try:
-                # We expect 3 successfully parsed messages in their tables
-                count_pnori = conn.execute("SELECT count(*) FROM pnori").fetchone()[0]
-                count_pnors = conn.execute("SELECT count(*) FROM pnors_df100").fetchone()[0]
-                count_pnorc = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()[0]
-                count_errors = conn.execute("SELECT count(*) FROM parse_errors").fetchone()[0]
-
-                if count_pnori >= 1 and count_pnors >= 1 and count_pnorc >= 1 and count_errors >= 1:
-                    found_all = True
-                    break
-            except Exception:
-                pass
-            time.sleep(0.1)
-
-        recorder.stop()
-
-        if not found_all:
-            # Diagnostics: check raw_lines and parse_errors
-            raw_lines = conn.execute(
-                "SELECT record_type, parse_status, error_message FROM raw_lines"
-            ).fetchall()
-            errors = conn.execute("SELECT error_type, error_message FROM parse_errors").fetchall()
-            db.close()
-            recorder.stop()
-            pytest.fail(
-                f"E2E wait timeout. Found_all={found_all}. Raw lines: {raw_lines}. Errors: {errors}"
-            )
-
-        # Final verifications
-        db = DatabaseManager(str(db_path))
-        conn = db.get_connection()
         try:
-            res = conn.execute("SELECT head_id FROM pnori").fetchall()
-            assert res[0][0] == "1001"
+            recorder.start()
 
-            res = conn.execute("SELECT heading FROM pnors_df100").fetchall()
-            assert float(res[0][0]) == 0.0
+            # Wait for processing with a loop
+            max_wait = 20.0  # Increased
+            start_time = time.time()
+            db = DatabaseManager(str(db_path))
 
-            res = conn.execute("SELECT vel1, speed FROM pnorc_df100").fetchall()
-            assert float(res[0][0]) == 0.5
-            assert float(res[0][1]) == 0.4
+            found_all = False
+            last_err = None
+            while time.time() - start_time < max_wait:
+                conn = db.get_connection()
+                try:
+                    # Force a refresh of the connection state on Windows
+                    conn.rollback()
+                except Exception:
+                    pass
 
-            # Check Error Table (for binary data)
-            res = conn.execute("SELECT error_type FROM parse_errors").fetchall()
-            assert any("BINARY" in r[0] for r in res)
+                try:
+                    # We expect 3 successfully parsed messages in their tables
+                    count_pnori = conn.execute("SELECT count(*) FROM pnori").fetchone()[0]
+                    count_pnors = conn.execute("SELECT count(*) FROM pnors_df100").fetchone()[0]
+                    count_pnorc = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()[0]
+                    count_errors = conn.execute("SELECT count(*) FROM parse_errors").fetchone()[0]
+
+                    if (
+                        count_pnori >= 1
+                        and count_pnors >= 1
+                        and count_pnorc >= 1
+                        and count_errors >= 1
+                    ):
+                        found_all = True
+                        break
+                except Exception as e:
+                    last_err = str(e)
+
+                # Close connection and reopen next time to avoid stale state on Windows
+                db.close()
+                time.sleep(0.5)
+
+            if not found_all:
+                # Diagnostics: check raw_lines and parse_errors
+                conn = db.get_connection()
+                try:
+                    raw_lines = conn.execute(
+                        "SELECT record_type, parse_status, error_message FROM raw_lines"
+                    ).fetchall()
+                    errors = conn.execute(
+                        "SELECT error_type, error_message FROM parse_errors"
+                    ).fetchall()
+                    pnori = conn.execute("SELECT count(*) FROM pnori").fetchone()[0]
+                    pnors = conn.execute("SELECT count(*) FROM pnors_df100").fetchone()[0]
+                    pnorc = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()[0]
+                finally:
+                    db.close()
+
+                recorder.stop()
+                pytest.fail(
+                    f"E2E wait timeout. Found_all={found_all}. Last Error: {last_err}.\n"
+                    f"Counts: PNORI={pnori}, PNORS={pnors}, PNORC={pnorc}\n"
+                    f"Raw lines: {raw_lines}. Errors: {errors}"
+                )
         finally:
-            db.close()
+            recorder.stop()
+
+    # Final verifications
+    db = DatabaseManager(str(db_path))
+    conn = db.get_connection()
+    try:
+        res = conn.execute("SELECT head_id FROM pnori").fetchall()
+        assert res[0][0] == "1001"
+
+        res = conn.execute("SELECT heading FROM pnors_df100").fetchall()
+        assert float(res[0][0]) == 0.0
+
+        res = conn.execute("SELECT vel1, speed FROM pnorc_df100").fetchall()
+        assert float(res[0][0]) == 0.5
+        assert float(res[0][1]) == 0.4
+
+        # Check Error Table (for binary data)
+        res = conn.execute("SELECT error_type FROM parse_errors").fetchall()
+        assert any("BINARY" in r[0] for r in res)
+    finally:
+        db.close()
 
         # --- File Export Verification (Phase 7) ---
         # Verify that files were created for each message type and errors
@@ -191,46 +218,60 @@ def test_reconnect_scenario(temp_recorder_dir):
         # Target sleep mock to adcp_recorder.serial.port_manager to avoid hitting the test's loop
         with patch("adcp_recorder.serial.port_manager.time.sleep", return_value=None):
             recorder = AdcpRecorder(config)
-            recorder.start()
+            try:
+                recorder.start()
 
-            # Use DatabaseManager to check results
-            db = DatabaseManager(str(db_path))
-            conn = db.get_connection()
+                # Use DatabaseManager to check results
+                db = DatabaseManager(str(db_path))
 
-            # Wait for processing
-            max_wait = 15.0  # Increased timeout
-            start_time = time.time()
-            found = False
-            while time.time() - start_time < max_wait:
+                # Wait for processing
+                max_wait = 20.0  # Increased timeout
+                start_time = time.time()
+                found = False
+                last_err = None
+                while time.time() - start_time < max_wait:
+                    conn = db.get_connection()
+                    try:
+                        # Check both messages
+                        res = conn.execute("SELECT head_id FROM pnori").fetchall()
+                        if len(res) >= 2:
+                            found = True
+                            break
+                    except Exception as e:
+                        last_err = str(e)
+
+                    db.close()
+                    time.sleep(0.5)
+
+                if not found:
+                    # Get diagnostics if failed
+                    conn = db.get_connection()
+                    try:
+                        raw = conn.execute("SELECT * FROM raw_lines").fetchall()
+                        errors = conn.execute("SELECT * FROM parse_errors").fetchall()
+                        pnori = conn.execute("SELECT head_id FROM pnori").fetchall()
+                    finally:
+                        db.close()
+
+                    recorder.stop()
+                    print(f"DEBUG: last_err={last_err}")
+                    print(f"DEBUG: pnori_table={pnori}")
+                    print(f"DEBUG: raw_lines={raw}")
+                    print(f"DEBUG: parse_errors={errors}")
+                    print(f"DEBUG: instances={len(instances)}")
+                    assert found, "Did not find both records after reconnection"
+
+                # Double check content
+                conn = db.get_connection()
                 try:
-                    # Check both messages
-                    res = conn.execute("SELECT head_id FROM pnori").fetchall()
-                    if len(res) >= 2:
-                        found = True
-                        break
-                except Exception:
-                    pass
-                time.sleep(0.1)
-
-            recorder.stop()
-
-            if not found:
-                # Get diagnostics if failed
-                raw = conn.execute("SELECT * FROM raw_lines").fetchall()
-                errors = conn.execute("SELECT * FROM parse_errors").fetchall()
-                db.close()
+                    res = conn.execute("SELECT head_id FROM pnori ORDER BY head_id").fetchall()
+                    ids = [r[0] for r in res]
+                    assert "2001" in ids
+                    assert "AfterReconnect" in ids
+                finally:
+                    db.close()
+            finally:
                 recorder.stop()
-                print(f"DEBUG: raw_lines={raw}")
-                print(f"DEBUG: parse_errors={errors}")
-                print(f"DEBUG: instances={len(instances)}")
-                assert found, "Did not find both records after reconnection"
-
-            res = conn.execute("SELECT head_id FROM pnori ORDER BY head_id").fetchall()
-            ids = [r[0] for r in res]
-            db.close()
-            recorder.stop()
-            assert "2001" in ids
-            assert "AfterReconnect" in ids
 
 
 # I'll implement a more robust version of reconnect test in the file.

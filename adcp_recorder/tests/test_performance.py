@@ -199,4 +199,5 @@ def test_database_concurrency():
         # Verify all records inserted
         conn = db_manager.get_connection()
         count = conn.execute("SELECT count(*) FROM raw_lines").fetchone()[0]
+        db_manager.close()
         assert count == 250, f"Expected 250 records, got {count}"
