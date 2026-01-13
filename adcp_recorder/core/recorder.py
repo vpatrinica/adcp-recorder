@@ -143,6 +143,11 @@ class AdcpRecorder:
         # Stop components in reverse order
         self.producer.stop()
         self.consumer.stop()
+
+        # Give consumer thread time to fully exit and release file handles
+        # This is especially important on Windows where file handles may be locked
+        time.sleep(0.5)
+
         self.file_writer.close()
         self.db_manager.close()
 
