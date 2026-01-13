@@ -22,7 +22,7 @@ Complete GitHub Actions CI/CD pipeline has been configured for the ADCP Recorder
 **Features**:
 - **Matrix Testing**: 
   - OS: Ubuntu, Windows, macOS
-  - Python: 3.9, 3.10, 3.11, 3.12
+  - Python: 3.13, 3.14, 3.15
   - Total: 12 test combinations
 - **Linting**: Ruff code quality checks
 - **Coverage**: pytest with coverage reporting

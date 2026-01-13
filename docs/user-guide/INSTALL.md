@@ -21,7 +21,7 @@ This guide provides comprehensive instructions for installing the ADCP Recorder 
 
 ### Minimum Requirements
 
-- **Python**: 3.9 or higher
+- **Python**: 3.13 or higher
 - **Operating System**: 
   - Linux (Ubuntu 20.04+, Debian 11+, RHEL 8+, or equivalent)
   - Windows 10/11 or Windows Server 2019+
@@ -217,7 +217,7 @@ See [DEPLOYMENT.md](../deployment/DEPLOYMENT.md) for systemd service installatio
 
 #### Step 1: Install Python
 
-1. Download Python 3.9+ from [python.org](https://www.python.org/downloads/)
+1. Download Python 3.13+ from [python.org](https://www.python.org/downloads/)
 2. Run the installer
 3. **Important**: Check "Add Python to PATH" during installation
 4. Verify installation:

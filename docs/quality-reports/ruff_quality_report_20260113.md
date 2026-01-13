@@ -1,7 +1,7 @@
 # Ruff Quality Report - 2026-01-13
 
 ## Summary
-The `adcp-recorder` project has undergone a comprehensive linting and formatting cleanup. All 271 logic errors and style discrepancies were resolved.
+The `adcp-recorder` project has undergone a comprehensive linting and formatting cleanup and has been migrated to Python 3.13+. All 271 logic errors and style discrepancies were resolved.
 
 ## Quality Metrics
 
@@ -10,6 +10,7 @@ The `adcp-recorder` project has undergone a comprehensive linting and formatting
 | `ruff check` | PASSED (0 errors) |
 | `ruff format --check` | PASSED (75 files formatted) |
 | `pytest` | PASSED (367 / 367) |
+| **Min. Python** | **3.13** |
 
 ## Changes Overview
 
