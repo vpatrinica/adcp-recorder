@@ -1,7 +1,8 @@
 """Tests for shared enumerations."""
 
 import pytest
-from adcp_recorder.core.enums import InstrumentType, CoordinateSystem
+
+from adcp_recorder.core.enums import CoordinateSystem, InstrumentType
 
 
 class TestInstrumentType:

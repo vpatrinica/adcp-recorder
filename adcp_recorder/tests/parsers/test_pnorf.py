@@ -1,6 +1,7 @@
 """Tests for PNORF Fourier coefficient spectra parser."""
 
 import pytest
+
 from adcp_recorder.parsers.pnorf import PNORF
 
 
@@ -15,9 +16,9 @@ class TestPNORFParser:
             "0.0348,0.0958,0.1372,0.1049,-0.0215,-0.0143,0.0358,0.0903,"
             "-9.0000,-9.0000*0D"
         )
-        
+
         pnorf = PNORF.from_nmea(sentence)
-        
+
         assert pnorf.coefficient_flag == "A1"
         assert pnorf.date == "120720"
         assert pnorf.time == "093150"
@@ -27,12 +28,12 @@ class TestPNORFParser:
         assert pnorf.num_frequencies == 10
         assert len(pnorf.coefficients) == 10
         assert pnorf.checksum == "0D"
-        
+
         # Verify first few coefficients
         assert pnorf.coefficients[0] == pytest.approx(0.0348)
         assert pnorf.coefficients[1] == pytest.approx(0.0958)
         assert pnorf.coefficients[2] == pytest.approx(0.1372)
-        
+
         # Verify invalid data markers
         assert pnorf.coefficients[8] is None
         assert pnorf.coefficients[9] is None
@@ -75,7 +76,7 @@ class TestPNORFParser:
         sentence = "$PNORF,B1,120720,093150,3,0.03,0.01,4,1.1,2.2,3.3,4.4*00"
         pnorf = PNORF.from_nmea(sentence)
         data = pnorf.to_dict()
-        
+
         assert data["sentence_type"] == "PNORF"
         assert data["coefficient_flag"] == "B1"
         assert data["date"] == "120720"
@@ -120,7 +121,7 @@ class TestPNORFParser:
         sentence = "$PNORF,A1,120720,093150,1,15.0,0.02,2,1.0,2.0*00"
         with pytest.raises(ValueError, match="Start frequency"):
             PNORF.from_nmea(sentence)
-        
+
         # Step frequency negative
         sentence = "$PNORF,A1,120720,093150,1,0.05,-0.02,2,1.0,2.0*00"
         with pytest.raises(ValueError, match="Step frequency"):

@@ -9,9 +9,9 @@ import threading
 import time
 from queue import Full, Queue
 from typing import Optional
-from adcp_recorder.serial.binary_chunk import BinaryChunk
 
 from adcp_recorder.core.nmea import is_binary_data
+from adcp_recorder.serial.binary_chunk import BinaryChunk
 from adcp_recorder.serial.port_manager import SerialConnectionManager
 
 logger = logging.getLogger(__name__)

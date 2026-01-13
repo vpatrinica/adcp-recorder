@@ -3,7 +3,7 @@
 import logging
 import os
 from datetime import datetime
-from typing import Dict, Optional, TextIO
+from typing import TextIO
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ class FileWriter:
             base_path: Base directory to write files to
         """
         self.base_path = base_path
-        self._files: Dict[str, TextIO] = {}
+        self._files: dict[str, TextIO] = {}
         self._current_date = datetime.now().date()
         self._ensure_base_path()
 
@@ -72,8 +72,8 @@ class FileWriter:
         try:
             f = self._get_file_handle(prefix)
             f.write(data)
-            if not data.endswith('\n'):
-                f.write('\n')
+            if not data.endswith("\n"):
+                f.write("\n")
             f.flush()
         except Exception as e:
             logger.error(f"Failed to write to file for {prefix}: {e}")

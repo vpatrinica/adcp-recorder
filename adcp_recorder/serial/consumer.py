@@ -8,30 +8,29 @@ import logging
 import threading
 import time
 from queue import Empty, Queue
-from typing import Any, Callable, Dict, Optional, Type
+from typing import Any, Optional
 
 import duckdb
-
-from adcp_recorder.export.file_writer import FileWriter
-from adcp_recorder.export.binary_writer import BinaryBlobWriter
-from adcp_recorder.serial.binary_chunk import BinaryChunk
 
 from adcp_recorder.core.nmea import extract_prefix, is_binary_data
 from adcp_recorder.db import (
     DatabaseManager,
+    insert_echo_data,
+    insert_header_data,
     insert_parse_error,
+    insert_pnora_data,
+    insert_pnorb_data,
+    insert_pnorf_data,
     insert_pnori_configuration,
+    insert_pnorw_data,
+    insert_pnorwd_data,
     insert_raw_line,
     insert_sensor_data,
     insert_velocity_data,
-    insert_header_data,
-    insert_pnorw_data,
-    insert_pnorb_data,
-    insert_pnorf_data,
-    insert_pnorwd_data,
-    insert_pnora_data,
-    insert_echo_data,
 )
+from adcp_recorder.export.binary_writer import BinaryBlobWriter
+from adcp_recorder.export.file_writer import FileWriter
+from adcp_recorder.serial.binary_chunk import BinaryChunk
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +43,9 @@ class MessageRouter:
 
     def __init__(self):
         """Initialize message router with empty registry."""
-        self._parsers: Dict[str, Type] = {}
+        self._parsers: dict[str, type] = {}
 
-    def register_parser(self, prefix: str, parser_class: Type) -> None:
+    def register_parser(self, prefix: str, parser_class: type) -> None:
         """Register a parser for a message type.
 
         Args:
@@ -128,12 +127,13 @@ class SerialConsumer:
         self._queue = queue
         self._db_manager = db_manager
         self._router = router
-        self._router = router
         self._heartbeat_interval = heartbeat_interval
         self._file_writer = file_writer
-        self._binary_writer = BinaryBlobWriter(
-            file_writer.base_path if file_writer else "."
-        )
+        if file_writer and isinstance(file_writer.base_path, str):
+            bp = file_writer.base_path
+        else:
+            bp = "."
+        self._binary_writer = BinaryBlobWriter(bp)
 
         self._running = False
         self._thread: Optional[threading.Thread] = None
@@ -195,7 +195,7 @@ class SerialConsumer:
                         insert_parse_error(
                             conn,
                             "<BINARY_BLOB>",
-                            error_type="BINARY_BLOB",
+                            error_type="BINARY_DATA",
                             error_message="Binary blob captured",
                         )
                         insert_raw_line(
@@ -206,6 +206,10 @@ class SerialConsumer:
                         )
                         # start file
                         self._binary_writer.start_blob(item.data)
+                        if self._file_writer:
+                            self._file_writer.write(
+                                "ERRORS", item.data.decode("ascii", errors="replace")
+                            )
                     elif item.end:
                         path = self._binary_writer.finish_blob()
                         logger.info(f"Binary blob saved to {path}")
@@ -255,9 +259,7 @@ class SerialConsumer:
                 error_message="Binary data",
             )
             if self._file_writer:
-                self._file_writer.write(
-                    "ERRORS", line_bytes.decode("ascii", errors="replace")
-                )
+                self._file_writer.write("ERRORS", line_bytes.decode("ascii", errors="replace"))
             return
 
         # Decode to string
@@ -285,9 +287,9 @@ class SerialConsumer:
         try:
             # Extract prefix
             prefix = extract_prefix(sentence)
-            
+
             parsed = self._router.route(sentence)
-            
+
             if parsed is None:
                 # Unknown message type
                 logger.debug(f"Unknown message type: {prefix}")

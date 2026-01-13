@@ -8,7 +8,7 @@ Provides functionality for:
 
 import time
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
 
 import serial
 import serial.tools.list_ports
@@ -29,7 +29,7 @@ class PortInfo:
     hwid: str
 
 
-def list_serial_ports() -> List[PortInfo]:
+def list_serial_ports() -> list[PortInfo]:
     """List all available serial ports on the system.
 
     Returns:
@@ -149,7 +149,7 @@ class SerialConnectionManager:
                 stopbits=self._stopbits,
             )
             return True
-        except (serial.SerialException, OSError) as exc:
+        except (serial.SerialException, OSError):
             self._serial = None
             return False
 
@@ -167,9 +167,7 @@ class SerialConnectionManager:
         """
         return self._serial is not None and self._serial.is_open
 
-    def reconnect(
-        self, max_retries: int = 5, backoff_base: float = 2.0
-    ) -> bool:
+    def reconnect(self, max_retries: int = 5, backoff_base: float = 2.0) -> bool:
         """Attempt to reconnect with exponential backoff.
 
         Args:

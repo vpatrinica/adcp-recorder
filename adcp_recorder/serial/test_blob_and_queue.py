@@ -2,12 +2,10 @@ import os
 import time
 from queue import Queue
 
-import pytest
-
-from adcp_recorder.serial.producer import SerialProducer
-from adcp_recorder.serial.consumer import SerialConsumer, MessageRouter
 from adcp_recorder.db.db import DatabaseManager
 from adcp_recorder.export.file_writer import FileWriter
+from adcp_recorder.serial.consumer import MessageRouter, SerialConsumer
+from adcp_recorder.serial.producer import SerialProducer
 
 
 class FakeConnectionManager:

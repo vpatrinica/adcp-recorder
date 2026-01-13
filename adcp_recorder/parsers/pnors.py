@@ -8,17 +8,15 @@ Implements parsers for:
 - PNORS4: Minimal sensor data (DF=104)
 """
 
-import re
 from dataclasses import dataclass, field
-from typing import Dict, Optional
+from typing import Optional
 
 from .utils import (
+    parse_tagged_field,
     validate_date_mm_dd_yy,
-    validate_date_yy_mm_dd,
-    validate_time_string,
     validate_hex_string,
     validate_range,
-    parse_tagged_field,
+    validate_time_string,
 )
 
 
@@ -58,8 +56,10 @@ def _validate_temperature(temp: float) -> None:
 @dataclass(frozen=True)
 class PNORS:
     """PNORS base sensor data message (DF=100).
-    Format: $PNORS,MMDDYY,HHMMSS,Error,Status,Battery,SoundSpeed,Heading,Pitch,Roll,Pressure,Temperature,Analog1,Analog2*CS
+    Format: $PNORS,MMDDYY,HHMMSS,Error,Status,Battery,SoundSpeed,Heading,
+            Pitch,Roll,Pressure,Temperature,Analog1,Analog2*CS
     """
+
     date: str
     time: str
     error_code: str
@@ -95,13 +95,13 @@ class PNORS:
         if "*" in sentence:
             data_part, checksum = sentence.rsplit("*", 1)
             checksum = checksum.strip().upper()
-        
+
         fields = [f.strip() for f in data_part.split(",")]
         if len(fields) != 14:
             raise ValueError(f"Expected 14 fields for PNORS, got {len(fields)}")
         if fields[0] != "$PNORS":
             raise ValueError(f"Invalid prefix: {fields[0]}")
-            
+
         return cls(
             date=fields[1],
             time=fields[2],
@@ -116,10 +116,10 @@ class PNORS:
             temperature=float(fields[11]),
             analog1=int(fields[12]),
             analog2=int(fields[13]),
-            checksum=checksum
+            checksum=checksum,
         )
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "sentence_type": "PNORS",
             "date": self.date,
@@ -135,19 +135,22 @@ class PNORS:
             "temperature": self.temperature,
             "analog1": self.analog1,
             "analog2": self.analog2,
-            "checksum": self.checksum
+            "checksum": self.checksum,
         }
 
 
 @dataclass(frozen=True)
 class PNORS1:
     """PNORS1 sensor data with uncertainty (DF=101).
-    Format: $PNORS1,MMDDYY,HHMMSS,Error,Status,Battery,SoundSpeed,HeadingSD,Heading,Pitch,PitchSD,Roll,RollSD,Pressure,PressureSD,Temperature*CS
+    Format: $PNORS1,Date,Time,ErrorCode,StatusCode,Battery,SoundSpeed,
+            HeadingSD,Heading,Pitch,PitchSD,Roll,RollSD,Pressure,
+            PressureSD,Temperature*CS
     """
+
     date: str
     time: str
     error_code: int  # EC is integer in DF=101
-    status_code: str # SC is hex in DF=101
+    status_code: str  # SC is hex in DF=101
     battery: float
     sound_speed: float
     heading_std_dev: float
@@ -180,13 +183,13 @@ class PNORS1:
         if "*" in sentence:
             data_part, checksum = sentence.rsplit("*", 1)
             checksum = checksum.strip().upper()
-        
+
         fields = [f.strip() for f in data_part.split(",")]
         if len(fields) != 16:
             raise ValueError(f"Expected 16 fields for PNORS1, got {len(fields)}")
         if fields[0] != "$PNORS1":
             raise ValueError(f"Invalid prefix: {fields[0]}")
-            
+
         return cls(
             date=fields[1],
             time=fields[2],
@@ -203,10 +206,10 @@ class PNORS1:
             pressure=float(fields[13]),
             pressure_std_dev=float(fields[14]),
             temperature=float(fields[15]),
-            checksum=checksum
+            checksum=checksum,
         )
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "sentence_type": "PNORS1",
             "date": self.date,
@@ -224,15 +227,18 @@ class PNORS1:
             "pressure": self.pressure,
             "pressure_std_dev": self.pressure_std_dev,
             "temperature": self.temperature,
-            "checksum": self.checksum
+            "checksum": self.checksum,
         }
 
 
 @dataclass(frozen=True)
 class PNORS2:
     """PNORS2 tagged sensor data with uncertainty (DF=102).
-    Format: $PNORS2,DATE=MMDDYY,TIME=HHMMSS,EC=Error,SC=Status,BV=Battery,SS=SoundSpeed,HSD=HeadingSD,H=Heading,PI=Pitch,PISD=PitchSD,R=Roll,RSD=RollSD,P=Pressure,PSD=PressureSD,T=Temperature*CS
+    Format: $PNORS2,DATE=MMDDYY,TIME=HHMMSS,EC=Error,SC=Status,BV=Battery,
+            SS=SoundSpeed,HSD=HeadingSD,H=Heading,PI=Pitch,PISD=PitchSD,
+            R=Roll,RSD=RollSD,P=Pressure,PSD=PressureSD,T=Temperature*CS
     """
+
     date: str
     time: str
     error_code: int
@@ -251,10 +257,21 @@ class PNORS2:
     checksum: Optional[str] = field(default=None, repr=False)
 
     TAG_IDS = {
-        "DATE": "date", "TIME": "time", "EC": "error_code", "SC": "status_code",
-        "BV": "battery", "SS": "sound_speed", "HSD": "heading_std_dev", "H": "heading",
-        "PI": "pitch", "PISD": "pitch_std_dev", "R": "roll", "RSD": "roll_std_dev",
-        "P": "pressure", "PSD": "pressure_std_dev", "T": "temperature"
+        "DATE": "date",
+        "TIME": "time",
+        "EC": "error_code",
+        "SC": "status_code",
+        "BV": "battery",
+        "SS": "sound_speed",
+        "HSD": "heading_std_dev",
+        "H": "heading",
+        "PI": "pitch",
+        "PISD": "pitch_std_dev",
+        "R": "roll",
+        "RSD": "roll_std_dev",
+        "P": "pressure",
+        "PSD": "pressure_std_dev",
+        "T": "temperature",
     }
 
     def __post_init__(self):
@@ -276,22 +293,22 @@ class PNORS2:
         if "*" in sentence:
             data_part, checksum = sentence.rsplit("*", 1)
             checksum = checksum.strip().upper()
-        
+
         fields = [f.strip() for f in data_part.split(",")]
         if fields[0] != "$PNORS2":
             raise ValueError(f"Invalid prefix: {fields[0]}")
-            
+
         data = {}
         for field_str in fields[1:]:
             tag, val = parse_tagged_field(field_str)
             if tag not in cls.TAG_IDS:
                 raise ValueError(f"Unknown tag in PNORS2: {tag}")
             data[cls.TAG_IDS[tag]] = val
-            
+
         required = set(cls.TAG_IDS.values())
         if not all(k in data for k in required):
-             missing = required - set(data.keys())
-             raise ValueError(f"Missing required tags in PNORS2: {missing}")
+            missing = required - set(data.keys())
+            raise ValueError(f"Missing required tags in PNORS2: {missing}")
 
         return cls(
             date=data["date"],
@@ -309,10 +326,10 @@ class PNORS2:
             pressure=float(data["pressure"]),
             pressure_std_dev=float(data["pressure_std_dev"]),
             temperature=float(data["temperature"]),
-            checksum=checksum
+            checksum=checksum,
         )
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "sentence_type": "PNORS2",
             "date": self.date,
@@ -330,7 +347,7 @@ class PNORS2:
             "pressure": self.pressure,
             "pressure_std_dev": self.pressure_std_dev,
             "temperature": self.temperature,
-            "checksum": self.checksum
+            "checksum": self.checksum,
         }
 
 
@@ -339,6 +356,7 @@ class PNORS3:
     """PNORS3 tagged sensor data (DF=103).
     Format: $PNORS3,BV=Battery,SS=SoundSpeed,H=Heading,PI=Pitch,R=Roll,P=Pressure,T=Temperature*CS
     """
+
     battery: float
     sound_speed: float
     heading: float
@@ -349,8 +367,13 @@ class PNORS3:
     checksum: Optional[str] = field(default=None, repr=False)
 
     TAG_IDS = {
-        "BV": "battery", "SS": "sound_speed", "H": "heading",
-        "PI": "pitch", "R": "roll", "P": "pressure", "T": "temperature"
+        "BV": "battery",
+        "SS": "sound_speed",
+        "H": "heading",
+        "PI": "pitch",
+        "R": "roll",
+        "P": "pressure",
+        "T": "temperature",
     }
 
     def __post_init__(self):
@@ -369,25 +392,25 @@ class PNORS3:
         if "*" in sentence:
             data_part, checksum = sentence.rsplit("*", 1)
             checksum = checksum.strip().upper()
-        
+
         fields = [f.strip() for f in data_part.split(",")]
         if fields[0] != "$PNORS3":
             raise ValueError(f"Invalid prefix: {fields[0]}")
-            
+
         data = {}
         for field_str in fields[1:]:
             tag, val = parse_tagged_field(field_str)
             if tag not in cls.TAG_IDS:
                 raise ValueError(f"Unknown tag in PNORS3: {tag}")
             data[cls.TAG_IDS[tag]] = float(val)
-            
+
         if not all(k in data for k in cls.TAG_IDS.values()):
-             missing = set(cls.TAG_IDS.values()) - set(data.keys())
-             raise ValueError(f"Missing required tags in PNORS3: {missing}")
+            missing = set(cls.TAG_IDS.values()) - set(data.keys())
+            raise ValueError(f"Missing required tags in PNORS3: {missing}")
 
         return cls(**data, checksum=checksum)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "sentence_type": "PNORS3",
             "battery": self.battery,
@@ -397,7 +420,7 @@ class PNORS3:
             "roll": self.roll,
             "pressure": self.pressure,
             "temperature": self.temperature,
-            "checksum": self.checksum
+            "checksum": self.checksum,
         }
 
 
@@ -406,6 +429,7 @@ class PNORS4:
     """PNORS4 minimal sensor data (DF=104).
     Format: $PNORS4,Battery,SoundSpeed,Heading,Pitch,Roll,Pressure,Temperature*CS
     """
+
     battery: float
     sound_speed: float
     heading: float
@@ -431,13 +455,13 @@ class PNORS4:
         if "*" in sentence:
             data_part, checksum = sentence.rsplit("*", 1)
             checksum = checksum.strip().upper()
-        
+
         fields = [f.strip() for f in data_part.split(",")]
         if len(fields) != 8:
             raise ValueError(f"Expected 8 fields for PNORS4, got {len(fields)}")
         if fields[0] != "$PNORS4":
             raise ValueError(f"Invalid prefix: {fields[0]}")
-            
+
         return cls(
             battery=float(fields[1]),
             sound_speed=float(fields[2]),
@@ -446,10 +470,10 @@ class PNORS4:
             roll=float(fields[5]),
             pressure=float(fields[6]),
             temperature=float(fields[7]),
-            checksum=checksum
+            checksum=checksum,
         )
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "sentence_type": "PNORS4",
             "battery": self.battery,
@@ -459,5 +483,5 @@ class PNORS4:
             "roll": self.roll,
             "pressure": self.pressure,
             "temperature": self.temperature,
-            "checksum": self.checksum
+            "checksum": self.checksum,
         }

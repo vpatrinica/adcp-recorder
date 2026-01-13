@@ -5,13 +5,13 @@ Implements parser for:
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional
+from typing import Optional
 
 from .utils import (
     validate_date_yy_mm_dd,
-    validate_time_string,
-    validate_range,
     validate_hex_string,
+    validate_range,
+    validate_time_string,
 )
 
 
@@ -20,6 +20,7 @@ class PNORA:
     """PNORA altitude/range data message (DF=200, 201).
     Format: $PNORA,Date,Time,Pressure,Distance,Quality,Status,Pitch,Roll*CS
     """
+
     date: str
     time: str
     pressure: float
@@ -46,7 +47,7 @@ class PNORA:
         if "*" in sentence:
             data_part, checksum = sentence.rsplit("*", 1)
             checksum = checksum.strip().upper()
-        
+
         fields = [f.strip() for f in data_part.split(",")]
         if fields[0] != "$PNORA":
             raise ValueError(f"Invalid prefix: {fields[0]}")
@@ -58,7 +59,7 @@ class PNORA:
                 if "=" in f:
                     key, value = f.split("=", 1)
                     data_map[key] = value
-            
+
             # Helper to safely get and convert
             try:
                 return cls(
@@ -70,7 +71,7 @@ class PNORA:
                     status=data_map["ST"],
                     pitch=float(data_map["PI"]),
                     roll=float(data_map["R"]),
-                    checksum=checksum
+                    checksum=checksum,
                 )
             except KeyError as e:
                 raise ValueError(f"Missing required tag for PNORA DF=201: {e}")
@@ -80,7 +81,7 @@ class PNORA:
         # Fallback to standard positional format (DF=200)
         if len(fields) != 9:
             raise ValueError(f"Expected 9 fields for PNORA, got {len(fields)}")
-            
+
         return cls(
             date=fields[1],
             time=fields[2],
@@ -90,10 +91,10 @@ class PNORA:
             status=fields[6],
             pitch=float(fields[7]),
             roll=float(fields[8]),
-            checksum=checksum
+            checksum=checksum,
         )
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "sentence_type": "PNORA",
             "date": self.date,
@@ -104,5 +105,5 @@ class PNORA:
             "status": self.status,
             "pitch": self.pitch,
             "roll": self.roll,
-            "checksum": self.checksum
+            "checksum": self.checksum,
         }

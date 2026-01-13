@@ -1,7 +1,5 @@
-"""Unit tests for PNORH family parsers.
-"""
+"""Unit tests for PNORH family parsers."""
 
-import pytest
 from adcp_recorder.parsers.pnorh import PNORH3, PNORH4
 
 

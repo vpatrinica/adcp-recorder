@@ -1,12 +1,13 @@
 """Tests for core NMEA protocol utilities."""
 
 import pytest
+
 from adcp_recorder.core.nmea import (
     compute_checksum,
-    validate_checksum,
     extract_prefix,
-    split_sentence,
     is_binary_data,
+    split_sentence,
+    validate_checksum,
 )
 
 

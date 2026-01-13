@@ -2,14 +2,14 @@
 
 from adcp_recorder.db import (
     DatabaseManager,
-    insert_raw_line,
     batch_insert_raw_lines,
     insert_parse_error,
-    update_raw_line_status,
-    query_raw_lines,
-    query_parse_errors,
     insert_pnori_configuration,
+    insert_raw_line,
+    query_parse_errors,
     query_pnori_configurations,
+    query_raw_lines,
+    update_raw_line_status,
 )
 from adcp_recorder.parsers import PNORI, PNORI1, PNORI2
 
@@ -276,9 +276,7 @@ class TestQueryOperations:
         conn = db.get_connection()
 
         # Insert errors
-        insert_parse_error(
-            conn, "$INVALID*FF", "CHECKSUM_FAILED", "Bad checksum", "PNORI"
-        )
+        insert_parse_error(conn, "$INVALID*FF", "CHECKSUM_FAILED", "Bad checksum", "PNORI")
         insert_parse_error(conn, "$MALFORMED", "INVALID_FORMAT", "Malformed sentence")
 
         # Query all errors
@@ -517,7 +515,7 @@ class TestPNORIConfigurationOperations:
 
         # Insert multiple configurations
         for i in range(10):
-            sentence = f"$PNORI,4,{1000+i},4,20,0.20,1.00,0*00"
+            sentence = f"$PNORI,4,{1000 + i},4,20,0.20,1.00,0*00"
             config = PNORI.from_nmea(sentence)
             insert_pnori_configuration(conn, config.to_dict(), sentence)
 
@@ -588,4 +586,3 @@ class TestPNORIConfigurationOperations:
                 VALUES (1, '$TEST', 'SIGNATURE', 4, '123', 4, 20, 0.20, 1.00, 'ENU', 1, '00')
                 """
             )
-

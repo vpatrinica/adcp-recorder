@@ -8,7 +8,7 @@ Implements parsers for:
 
 import re
 from dataclasses import dataclass, field
-from typing import ClassVar, Dict, Optional
+from typing import ClassVar, Optional
 
 from adcp_recorder.core.enums import CoordinateSystem, InstrumentType
 from adcp_recorder.core.nmea import compute_checksum
@@ -21,7 +21,7 @@ def _validate_head_id(head_id: str, max_length: int = 30, numeric_only: bool = F
         raise ValueError("Head ID cannot be empty")
     if len(head_id) > max_length:
         raise ValueError(f"Head ID too long: {len(head_id)} > {max_length}")
-    
+
     pattern = r"^\d+$" if numeric_only else r"^[A-Za-z0-9\s]+$"
     if not re.match(pattern, head_id):
         raise ValueError(f"Head ID contains invalid characters: {head_id}")
@@ -154,7 +154,7 @@ class PNORI:
 
         return sentence
 
-    def to_dict(self) -> Dict[str, any]:
+    def to_dict(self) -> dict[str, any]:
         """Convert to dictionary for database insertion.
 
         Returns:
@@ -274,7 +274,7 @@ class PNORI1:
 
         return sentence
 
-    def to_dict(self) -> Dict[str, any]:
+    def to_dict(self) -> dict[str, any]:
         """Convert to dictionary for database insertion.
 
         Returns:
@@ -340,7 +340,8 @@ class PNORITag:
 class PNORI2:
     """PNORI2 configuration message parser.
 
-    Format: $PNORI2,IT=InstrType,SN=HeadID,NB=BeamCnt,NC=CellCnt,BD=BlankDist,CS=CellSize,CY=CoordSys*CS
+    Format: $PNORI2,IT=InstrType,SN=HeadID,NB=BeamCnt,NC=CellCnt,
+            BD=BlankDist,CS=CellSize,CY=CoordSys*CS
 
     Tagged fields (order-independent) with string coordinate system.
 
@@ -402,7 +403,7 @@ class PNORI2:
             raise ValueError(f"Invalid prefix: expected $PNORI2, got {fields[0]}")
 
         # Parse tagged fields
-        data: Dict[str, str] = {}
+        data: dict[str, str] = {}
         for field_str in fields[1:]:
             tag, value = PNORITag.parse_tagged_field(field_str)
             if tag in data:
@@ -420,17 +421,13 @@ class PNORI2:
 
         # Parse and validate
         return cls(
-            instrument_type=InstrumentType.from_code(
-                int(data[PNORITag.INSTRUMENT_TYPE])
-            ),
+            instrument_type=InstrumentType.from_code(int(data[PNORITag.INSTRUMENT_TYPE])),
             head_id=data[PNORITag.SERIAL_NUMBER],
             beam_count=int(data[PNORITag.NUM_BEAMS]),
             cell_count=int(data[PNORITag.NUM_CELLS]),
             blanking_distance=float(data[PNORITag.BLANKING_DISTANCE]),
             cell_size=float(data[PNORITag.CELL_SIZE]),
-            coordinate_system=CoordinateSystem.from_code(
-                data[PNORITag.COORDINATE_SYSTEM]
-            ),
+            coordinate_system=CoordinateSystem.from_code(data[PNORITag.COORDINATE_SYSTEM]),
             checksum=checksum,
         )
 
@@ -456,7 +453,7 @@ class PNORI2:
 
         return sentence
 
-    def to_dict(self) -> Dict[str, any]:
+    def to_dict(self) -> dict[str, any]:
         """Convert to dictionary for database insertion.
 
         Returns:

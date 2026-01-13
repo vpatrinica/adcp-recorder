@@ -1,21 +1,23 @@
 """PNORB wave band parameters message parser (DF=501)."""
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional
+from typing import Optional
 
 from .utils import (
-    validate_date_mm_dd_yy,
-    validate_time_string,
-    validate_range,
     parse_optional_float,
+    validate_date_mm_dd_yy,
+    validate_range,
+    validate_time_string,
 )
 
 
 @dataclass(frozen=True)
 class PNORB:
     """PNORB wave band parameters message (DF=501).
-    Format: $PNORB,Date,Time,Basis,Method,FreqLow,FreqHigh,Hm0,Tm02,Tp,DirTp,SprTp,MainDir,ErrorCode*CS
+    Format: $PNORB,Date,Time,Basis,Method,FreqLow,FreqHigh,Hm0,Tm02,Tp,
+            DirTp,SprTp,MainDir,ErrorCode*CS
     """
+
     date: str
     time: str
     spectrum_basis: int
@@ -38,9 +40,12 @@ class PNORB:
         validate_range(self.processing_method, "Processing method", 1, 4)
         validate_range(self.freq_low, "Frequency low", 0.0, 10.0)
         validate_range(self.freq_high, "Frequency high", 0.0, 10.0)
-        if self.hm0 is not None: validate_range(self.hm0, "Hm0", 0.0, 100.0)
-        if self.tm02 is not None: validate_range(self.tm02, "Tm02", 0.0, 100.0)
-        if self.tp is not None: validate_range(self.tp, "Tp", 0.0, 100.0)
+        if self.hm0 is not None:
+            validate_range(self.hm0, "Hm0", 0.0, 100.0)
+        if self.tm02 is not None:
+            validate_range(self.tm02, "Tm02", 0.0, 100.0)
+        if self.tp is not None:
+            validate_range(self.tp, "Tp", 0.0, 100.0)
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORB":
@@ -49,13 +54,13 @@ class PNORB:
         if "*" in sentence:
             data_part, checksum = sentence.rsplit("*", 1)
             checksum = checksum.strip().upper()
-        
+
         fields = [f.strip() for f in data_part.split(",")]
         if len(fields) != 14:
             raise ValueError(f"Expected 14 fields for PNORB, got {len(fields)}")
         if fields[0] != "$PNORB":
             raise ValueError(f"Invalid prefix: {fields[0]}")
-            
+
         return cls(
             date=fields[1],
             time=fields[2],
@@ -70,10 +75,10 @@ class PNORB:
             spr_tp=parse_optional_float(fields[11]),
             main_dir=parse_optional_float(fields[12]),
             wave_error_code=fields[13],
-            checksum=checksum
+            checksum=checksum,
         )
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "sentence_type": "PNORB",
             "date": self.date,
@@ -89,5 +94,5 @@ class PNORB:
             "spr_tp": self.spr_tp,
             "main_dir": self.main_dir,
             "wave_error_code": self.wave_error_code,
-            "checksum": self.checksum
+            "checksum": self.checksum,
         }
