@@ -238,6 +238,10 @@ class SerialConsumer:
 
                 self._update_heartbeat()
         finally:
+            try:
+                self._binary_writer.finish_blob()
+            except Exception:
+                pass
             self._db_manager.close()
             logger.info("Consumer loop exiting")
 
