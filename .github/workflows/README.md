@@ -12,11 +12,11 @@ This directory contains GitHub Actions workflows for automated testing, building
 - Manual dispatch
 
 **Jobs**:
-- **test**: Runs tests across multiple OS (Ubuntu, Windows, macOS) and Python versions (3.9-3.12)
+- **test**: Runs tests across multiple OS (Ubuntu, Windows, macOS) and Python versions (3.13-3.14)
   - Installs dependencies
   - Runs linting with Ruff
   - Runs pytest with coverage
-  - Uploads coverage to Codecov (Ubuntu + Python 3.11 only)
+  - Uploads coverage to Codecov (Ubuntu + Python 3.13 only)
 - **test-install**: Tests package installation from both wheel and source distributions
 
 **Status Badge**:

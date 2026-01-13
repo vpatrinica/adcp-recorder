@@ -514,7 +514,7 @@ adcp-recorder start
 ### Example 5: Docker Container
 
 ```dockerfile
-FROM python:3.9-slim
+FROM python:3.13-slim
 
 RUN pip install adcp-recorder
 

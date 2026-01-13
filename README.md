@@ -1,6 +1,6 @@
 # ADCP Recorder
 
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Tests](https://github.com/vpatrinica/adcp-recorder/workflows/Tests/badge.svg)](https://github.com/vpatrinica/adcp-recorder/actions/workflows/tests.yml)
 [![Build](https://github.com/vpatrinica/adcp-recorder/workflows/Build/badge.svg)](https://github.com/vpatrinica/adcp-recorder/actions/workflows/build.yml)
@@ -87,7 +87,7 @@ Browse the full documentation at [docs/README.md](docs/README.md)
 
 ## System Requirements
 
-- **Python**: 3.9 or higher
+- **Python**: 3.13 or higher
 - **Operating System**: Linux (Ubuntu 20.04+, Debian 11+, RHEL 8+) or Windows 10/11
 - **RAM**: 512 MB minimum, 1 GB recommended
 - **Disk Space**: 100 MB for application, additional space for data storage
