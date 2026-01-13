@@ -163,8 +163,11 @@ def test_memory_stability():
             finally:
                 # Ensure recorder is fully stopped and all resources released
                 recorder.stop()
-                # Give time for all threads to finish and release file handles
-                time.sleep(0.5)
+                # On Windows, file handles may take time to release
+                # Force garbage collection and wait longer
+                import gc
+                gc.collect()
+                time.sleep(1.5)
 
 
 def test_database_concurrency():
