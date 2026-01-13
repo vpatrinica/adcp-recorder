@@ -208,7 +208,9 @@ class TestIntegration:
 
             # Verify error logging
             conn = db.get_connection()
-            errors = conn.execute("SELECT error_type, attempted_prefix FROM parse_errors").fetchone()
+            errors = conn.execute(
+                "SELECT error_type, attempted_prefix FROM parse_errors"
+            ).fetchone()
 
             assert errors is not None
             assert errors[0] == "PARSE_ERROR"
