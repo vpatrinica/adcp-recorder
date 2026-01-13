@@ -172,14 +172,17 @@ def test_database_concurrency():
         db_manager.initialize_schema()
 
         def insert_worker(worker_id):
-            conn = db_manager.get_connection()
-            for i in range(50):
-                conn.execute(
-                    "INSERT INTO raw_lines (line_id, raw_sentence, record_type) "
-                    "VALUES (nextval('raw_lines_seq'), ?, ?)",
-                    [f"worker {worker_id} line {i}", "TEST"],
-                )
-                conn.commit()
+            try:
+                conn = db_manager.get_connection()
+                for i in range(50):
+                    conn.execute(
+                        "INSERT INTO raw_lines (line_id, raw_sentence, record_type) "
+                        "VALUES (nextval('raw_lines_seq'), ?, ?)",
+                        [f"worker {worker_id} line {i}", "TEST"],
+                    )
+                    conn.commit()
+            finally:
+                db_manager.close()
 
         try:
             threads = []
