@@ -2,6 +2,9 @@
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Tests](https://github.com/vpatrinica/adcp-recorder/workflows/Tests/badge.svg)](https://github.com/vpatrinica/adcp-recorder/actions/workflows/tests.yml)
+[![Build](https://github.com/vpatrinica/adcp-recorder/workflows/Build/badge.svg)](https://github.com/vpatrinica/adcp-recorder/actions/workflows/build.yml)
+[![Code Quality](https://github.com/vpatrinica/adcp-recorder/workflows/Code%20Quality/badge.svg)](https://github.com/vpatrinica/adcp-recorder/actions/workflows/code-quality.yml)
 
 **ADCP Recorder** is a production-ready NMEA telemetry recorder for Nortek ADCP (Acoustic Doppler Current Profiler) instruments with a DuckDB backend. It provides reliable, high-performance data collection with comprehensive parsing, validation, and storage capabilities.
 
