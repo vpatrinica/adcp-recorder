@@ -94,7 +94,7 @@ def test_supervisor_lifecycle_sigint(tmp_path):
         process.send_signal(signal.SIGINT)
 
     try:
-        stdout, stderr = process.communicate(timeout=5)
+        stdout, stderr = process.communicate(timeout=15)
     except subprocess.TimeoutExpired:
         process.kill()
         pytest.fail("Mock service timeout on signal")

@@ -180,12 +180,15 @@ class SerialConsumer:
         conn = self._db_manager.get_connection()
 
         try:
-            while self._running:
+            while True:
                 try:
-                    # Pull from queue with timeout
-                    item = self._queue.get(timeout=1.0)
+                    # Pull from queue - use short timeout if stopping to drain quickly
+                    limit = 1.0 if self._running else 0.1
+                    item = self._queue.get(timeout=limit)
                 except Empty:
-                    # Queue empty - continue
+                    # Queue empty - if we are stopping, we are done
+                    if not self._running:
+                        break
                     continue
                 # Binary chunk streaming handling
                 try:
