@@ -23,8 +23,11 @@ class MockSerial:
         if self._ptr < len(self.lines):
             line = self.lines[self._ptr]
             self._ptr += 1
+            # Small delay to simulate realistic serial port behavior
+            time.sleep(0.01)
             return line
         # After all lines are read, simulate timeout or empty
+        time.sleep(0.1)
         return b""
 
     def close(self):
