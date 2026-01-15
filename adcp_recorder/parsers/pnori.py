@@ -22,7 +22,7 @@ def _validate_head_id(head_id: str, max_length: int = 30, numeric_only: bool = F
     if len(head_id) > max_length:
         raise ValueError(f"Head ID too long: {len(head_id)} > {max_length}")
 
-    pattern = r"^\d+$" if numeric_only else r"^[A-Za-z0-9_\-\s]+$"
+    pattern = r"^\d+$" if numeric_only else r"^[A-Za-z0-9_]+$"
     if not re.match(pattern, head_id):
         raise ValueError(f"Head ID contains invalid characters: {head_id}")
 
@@ -79,7 +79,7 @@ class PNORI:
     coordinate_system: CoordinateSystem
     checksum: str | None = field(default=None, repr=False)
 
-    HEAD_ID_PATTERN: ClassVar[re.Pattern] = re.compile(r"^[A-Za-z0-9\s]{1,30}$")
+    HEAD_ID_PATTERN: ClassVar[re.Pattern] = re.compile(r"^[A-Za-z0-9_]{1,30}$")
 
     def __post_init__(self) -> None:
         """Validate all fields after initialization."""
@@ -199,7 +199,7 @@ class PNORI1:
     coordinate_system: CoordinateSystem
     checksum: str | None = field(default=None, repr=False)
 
-    HEAD_ID_PATTERN: ClassVar[re.Pattern] = re.compile(r"^[A-Za-z0-9]{1,20}$")
+    HEAD_ID_PATTERN: ClassVar[re.Pattern] = re.compile(r"^\d{1,20}$")
 
     def __post_init__(self) -> None:
         """Validate all fields after initialization."""
@@ -361,7 +361,7 @@ class PNORI2:
     coordinate_system: CoordinateSystem
     checksum: str | None = field(default=None, repr=False)
 
-    HEAD_ID_PATTERN: ClassVar[re.Pattern] = re.compile(r"^[A-Za-z0-9]{1,20}$")
+    HEAD_ID_PATTERN: ClassVar[re.Pattern] = re.compile(r"^\d{1,20}$")
 
     def __post_init__(self) -> None:
         """Validate all fields after initialization."""
