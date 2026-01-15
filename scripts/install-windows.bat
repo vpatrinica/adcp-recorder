@@ -116,12 +116,30 @@ set INSTALL_DIR=C:\Program Files\ADCP-Recorder
 set DATA_DIR=C:\ADCP_Data
 set CONFIG_DIR=%PROGRAMDATA%\ADCP-Recorder
 set LOG_DIR=%DATA_DIR%\logs
+set SERVY_INSTALL_PATH=C:\Program Files\Servy
 
 echo Installation directory: %INSTALL_DIR%
 echo Data directory: %DATA_DIR%
 echo Configuration directory: %CONFIG_DIR%
 echo Log directory: %LOG_DIR%
 echo.
+
+REM Detect existing installation
+if exist "%INSTALL_DIR%\venv" (
+    echo.
+    echo ========================================
+    echo   EXISTING INSTALLATION DETECTED
+    echo ========================================
+    echo.
+    set /p UPGRADE="Upgrade existing installation? [Y/N]: "
+    if /i "!UPGRADE!" neq "Y" (
+        echo Installation cancelled.
+        pause
+        exit /b 0
+    )
+    echo.
+    echo Preparing upgrade...
+)
 
 REM Create directories
 if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
@@ -134,8 +152,36 @@ echo.
 REM Step 4: Create virtual environment
 echo [4/9] Creating virtual environment...
 if exist "%INSTALL_DIR%\venv" (
+    echo Stopping any running ADCP Recorder processes...
+    
+    REM Try to stop Servy-managed service first
+    set "SERVY_PATH=%SERVY_INSTALL_PATH%\servy-cli.exe"
+    if exist "!SERVY_PATH!" (
+        "!SERVY_PATH!" stop --name="ADCPRecorder" --quiet 2>nul
+    ) else (
+        servy-cli stop --name="ADCPRecorder" --quiet 2>nul
+    )
+    
+    REM Kill any running adcp-recorder processes
+    taskkill /IM adcp-recorder.exe /F >nul 2>&1
+    
+    REM Wait for file handles to be released
+    echo Waiting for processes to terminate...
+    timeout /t 3 /nobreak >nul
+    
     echo Removing existing virtual environment...
-    rmdir /s /q "%INSTALL_DIR%\venv"
+    rmdir /s /q "%INSTALL_DIR%\venv" 2>nul
+    if exist "%INSTALL_DIR%\venv" (
+        echo WARNING: Could not fully remove old virtual environment
+        echo Some files may be locked. Please close any programs using ADCP Recorder.
+        echo.
+        set /p FORCE_CONTINUE="Continue anyway? [Y/N]: "
+        if /i "!FORCE_CONTINUE!" neq "Y" (
+            echo Installation cancelled.
+            pause
+            exit /b 1
+        )
+    )
 )
 py -3.13 -m venv "%INSTALL_DIR%\venv"
 if %errorLevel% neq 0 (
@@ -192,25 +238,39 @@ echo.
 
 REM Step 7: Install Windows service using Servy (if admin)
 echo [7/9] Windows service setup using Servy...
-if %ADMIN%==1 (
-    REM Check if Servy is installed
-    servy-cli --version >nul 2>&1
-    if %errorLevel% neq 0 (
+if %ADMIN% equ 1 (
+    REM Define Servy CLI path - use direct path for same-session reliability
+    set "SERVY_CLI=%SERVY_INSTALL_PATH%\servy-cli.exe"
+    set "SERVY_FOUND=0"
+    
+    REM Check if Servy is already installed (try direct path first)
+    if exist "!SERVY_CLI!" (
+        set "SERVY_FOUND=1"
+    ) else (
+        REM Try PATH-based servy-cli
+        servy-cli --version >nul 2>&1
+        if !errorLevel! equ 0 (
+            set "SERVY_CLI=servy-cli"
+            set "SERVY_FOUND=1"
+        )
+    )
+    
+    if !SERVY_FOUND! equ 0 (
         echo Installing Servy service manager via winget...
         winget install -e --id aelassas.Servy --silent --accept-package-agreements --accept-source-agreements
-        if %errorLevel% neq 0 (
+        if !errorLevel! neq 0 (
             echo WARNING: Servy installation may have failed
             echo You can install it manually: winget install -e --id aelassas.Servy
+        ) else (
+            REM After installation, use direct path
+            set "SERVY_CLI=%SERVY_INSTALL_PATH%\Servy\servy-cli.exe"
+            if exist "!SERVY_CLI!" set "SERVY_FOUND=1"
         )
-        
-        REM Refresh PATH to find servy-cli
-        set "PATH=%PATH%;%LOCALAPPDATA%\Programs\Servy"
     )
     
     REM Verify Servy is available
-    servy-cli --version >nul 2>&1
-    if %errorLevel% neq 0 (
-        echo WARNING: Servy CLI not found in PATH
+    if !SERVY_FOUND! equ 0 (
+        echo WARNING: Servy CLI not found
         echo Please restart your terminal after Servy installation and run this script again.
         echo Or install Servy manually from: https://github.com/aelassas/servy/releases
         echo.
@@ -218,20 +278,20 @@ if %ADMIN%==1 (
         goto :skip_service
     )
     
-    echo Servy is available
+    echo Servy is available: !SERVY_CLI!
     
     REM Check if service already exists and remove it
-    servy-cli status --name="ADCPRecorder" --quiet >nul 2>&1
-    if %errorLevel% equ 0 (
+    "!SERVY_CLI!" status --name="ADCPRecorder" --quiet >nul 2>&1
+    if !errorLevel! equ 0 (
         echo Removing existing ADCPRecorder service...
-        servy-cli stop --name="ADCPRecorder" --quiet >nul 2>&1
+        "!SERVY_CLI!" stop --name="ADCPRecorder" --quiet >nul 2>&1
         timeout /t 2 /nobreak >nul
-        servy-cli uninstall --name="ADCPRecorder" --quiet
+        "!SERVY_CLI!" uninstall --name="ADCPRecorder" --quiet
         timeout /t 2 /nobreak >nul
     )
     
     echo Installing Windows service via Servy...
-    servy-cli install --quiet ^
+    "!SERVY_CLI!" install --quiet ^
         --name="ADCPRecorder" ^
         --displayName="ADCP Recorder Service" ^
         --description="NMEA Telemetry Recorder for Nortek ADCP Instruments" ^
@@ -252,18 +312,20 @@ if %ADMIN%==1 (
         --maxRestartAttempts=5 ^
         --stopTimeout=10
     
-    if %errorLevel% neq 0 (
+    if !errorLevel! neq 0 (
         echo WARNING: Service installation failed
         echo You can run the recorder manually with: adcp-recorder start
     ) else (
         echo Service installed successfully via Servy
     )
-) else (
-    echo Skipping service installation (requires Administrator)
-    echo To install service later, run as Administrator:
-    echo   servy-cli install --name="ADCPRecorder" --path="%INSTALL_DIR%\venv\Scripts\python.exe" --params="-m adcp_recorder.service.supervisor"
+    goto :after_service_setup
 )
+echo Skipping service installation (requires Administrator)
+echo To install service later, run as Administrator:
+echo   servy-cli install --name="ADCPRecorder" --path="%INSTALL_DIR%\venv\Scripts\python.exe" --params="-m adcp_recorder.service.supervisor"
+
 :skip_service
+:after_service_setup
 echo.
 
 REM Step 8: Create shortcuts
@@ -320,7 +382,7 @@ echo   %INSTALL_DIR%\Start ADCP Recorder.bat
 echo   %INSTALL_DIR%\Configure ADCP Recorder.bat
 echo   %INSTALL_DIR%\Check Status.bat
 echo.
-if %ADMIN%==1 (
+if %ADMIN% equ 1 (
     echo Service Management (Servy):
     echo   Start service:   servy-cli start --name="ADCPRecorder"
     echo   Stop service:    servy-cli stop --name="ADCPRecorder"
@@ -332,7 +394,7 @@ if %ADMIN%==1 (
     echo   Stop:    sc stop ADCPRecorder
     echo   Query:   sc query ADCPRecorder
     echo.
-    set /p START_SERVICE="Start service now? (Y/N): "
+    set /p START_SERVICE="Start service now? [Y/N]: "
     if /i "!START_SERVICE!"=="Y" (
         servy-cli start --name="ADCPRecorder" --quiet
         echo Service started

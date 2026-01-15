@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar
@@ -45,7 +46,15 @@ class RecorderConfig:
 
     @classmethod
     def get_default_config_dir(cls) -> Path:
-        """Returns the default configuration directory path."""
+        """Returns the default configuration directory path.
+
+        On Windows, uses ProgramData for system-wide config (works for services).
+        On other platforms, uses the user's home directory.
+        """
+        if sys.platform == "win32":
+            # Use ProgramData on Windows for service compatibility
+            programdata = os.environ.get("PROGRAMDATA", "C:\\ProgramData")
+            return Path(programdata) / "ADCP-Recorder"
         return Path.home() / CONFIG_DIR_NAME
 
     @classmethod
