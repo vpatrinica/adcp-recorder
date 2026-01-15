@@ -4,3 +4,5 @@ __pycache__/
 
 errors_binary
 errors_binary/
+build/
+build/*

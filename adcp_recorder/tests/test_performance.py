@@ -74,47 +74,48 @@ def test_throughput_performance():
             recorder.start()
 
             # Wait for processing
+            # Wait for processing
             db = DatabaseManager(str(db_path))
-            conn = db.get_connection()
+            try:
+                conn = db.get_connection()
 
-            max_wait = 10.0
-            processed = False
-            count = 0
-            while time.time() - start_time < max_wait:
-                try:
-                    count = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()[0]
-                    if count >= 48:
-                        processed = True
-                        break
-                except Exception:
-                    pass
-                time.sleep(0.5)
+                max_wait = 10.0
+                processed = False
+                count = 0
+                while time.time() - start_time < max_wait:
+                    try:
+                        count = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()[0]
+                        if count >= 48:
+                            processed = True
+                            break
+                    except Exception:
+                        pass
+                    time.sleep(0.5)
 
-            end_time = time.time()
-            recorder.stop()
+                end_time = time.time()
+                recorder.stop()
 
-            duration = end_time - start_time
-            throughput = len(sentences) / duration
+                duration = end_time - start_time
+                throughput = len(sentences) / duration
 
-            if not processed:
-                raw_count = conn.execute("SELECT count(*) FROM raw_lines").fetchone()[0]
-                error_count = conn.execute("SELECT count(*) FROM parse_errors").fetchone()[0]
-                errors = conn.execute(
-                    "SELECT error_type, error_message FROM parse_errors LIMIT 5"
-                ).fetchall()
-                db.close()
+                if not processed:
+                    raw_count = conn.execute("SELECT count(*) FROM raw_lines").fetchone()[0]
+                    error_count = conn.execute("SELECT count(*) FROM parse_errors").fetchone()[0]
+                    errors = conn.execute(
+                        "SELECT error_type, error_message FROM parse_errors LIMIT 5"
+                    ).fetchall()
+                    print(
+                        f"\nTarget count not reached. raw_lines={raw_count}, parse_errors={error_count}"
+                    )
+                    for e in errors:
+                        print(f"Error: {e}")
+
                 print(
-                    f"\nTarget count not reached. raw_lines={raw_count}, parse_errors={error_count}"
+                    f"\nThroughput: {throughput:.2f} messages/sec "
+                    f"(Duration: {duration:.2f}s, Count: {count})"
                 )
-                for e in errors:
-                    print(f"Error: {e}")
-            else:
+            finally:
                 db.close()
-
-            print(
-                f"\nThroughput: {throughput:.2f} messages/sec "
-                f"(Duration: {duration:.2f}s, Count: {count})"
-            )
 
             assert processed, f"Timed out after {max_wait}s. Only {count} records found."
             # Baseline expectation for individual commits: > 1 msg/s

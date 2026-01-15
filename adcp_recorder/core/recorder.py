@@ -133,26 +133,26 @@ class AdcpRecorder:
 
     def stop(self):
         """Stops the recording process."""
-        if not self.is_running:
-            return
+        if self.is_running:
+            logger.info("Stopping ADCP Recorder...")
 
-        logger.info("Stopping ADCP Recorder...")
+            self._stop_event.set()
 
-        self._stop_event.set()
+            # Stop components in reverse order
+            self.producer.stop()
+            self.consumer.stop()
 
-        # Stop components in reverse order
-        self.producer.stop()
-        self.consumer.stop()
+            # Give consumer thread time to fully exit and release file handles
+            # This is especially important on Windows where file handles may be locked
+            time.sleep(0.5)
 
-        # Give consumer thread time to fully exit and release file handles
-        # This is especially important on Windows where file handles may be locked
-        time.sleep(0.5)
+            self.is_running = False
+            logger.info("Recorder stopped")
 
+        # Always ensure resources are closed, even if not running
+        # This prevents connection leaks if start() was never called
         self.file_writer.close()
         self.db_manager.close()
-
-        self.is_running = False
-        logger.info("Recorder stopped")
 
     def run_blocking(self):
         """Runs the recorder and blocks until interrupted."""
