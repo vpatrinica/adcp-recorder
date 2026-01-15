@@ -41,24 +41,61 @@ if /i not "%CONFIRM%"=="yes" (
 )
 echo.
 
-REM Step 1: Stop and remove service
+REM Step 1: Stop and remove service using Servy
 echo [1/4] Removing Windows service...
 if %ADMIN%==1 (
-    sc query adcp-recorder >nul 2>&1
-    if %errorLevel%==0 (
-        echo Stopping service...
-        sc stop adcp-recorder >nul 2>&1
-        timeout /t 3 /nobreak >nul
-        
-        echo Removing service...
-        sc delete adcp-recorder >nul 2>&1
-        if %errorLevel%==0 (
-            echo Service removed
+    REM Check if Servy CLI is available
+    servy-cli --version >nul 2>&1
+    if %errorLevel% equ 0 (
+        REM Check if service exists via Servy
+        servy-cli status --name="ADCPRecorder" --quiet >nul 2>&1
+        if %errorLevel% equ 0 (
+            echo Stopping service via Servy...
+            servy-cli stop --name="ADCPRecorder" --quiet >nul 2>&1
+            timeout /t 3 /nobreak >nul
+            
+            echo Removing service via Servy...
+            servy-cli uninstall --name="ADCPRecorder" --quiet
+            if %errorLevel% equ 0 (
+                echo Service removed via Servy
+            ) else (
+                echo WARNING: Failed to remove service via Servy, trying sc.exe...
+                sc stop ADCPRecorder >nul 2>&1
+                timeout /t 2 /nobreak >nul
+                sc delete ADCPRecorder >nul 2>&1
+            )
         ) else (
-            echo WARNING: Failed to remove service
+            echo Service not found via Servy, checking Windows services...
+            sc query ADCPRecorder >nul 2>&1
+            if %errorLevel% equ 0 (
+                echo Stopping service via sc.exe...
+                sc stop ADCPRecorder >nul 2>&1
+                timeout /t 3 /nobreak >nul
+                echo Removing service via sc.exe...
+                sc delete ADCPRecorder >nul 2>&1
+                echo Service removed
+            ) else (
+                echo Service not found
+            )
         )
     ) else (
-        echo Service not found
+        REM Servy not available, try sc.exe
+        sc query ADCPRecorder >nul 2>&1
+        if %errorLevel% equ 0 (
+            echo Stopping service...
+            sc stop ADCPRecorder >nul 2>&1
+            timeout /t 3 /nobreak >nul
+            
+            echo Removing service...
+            sc delete ADCPRecorder >nul 2>&1
+            if %errorLevel% equ 0 (
+                echo Service removed
+            ) else (
+                echo WARNING: Failed to remove service
+            )
+        ) else (
+            echo Service not found
+        )
     )
 ) else (
     echo Skipping service removal (requires Administrator)

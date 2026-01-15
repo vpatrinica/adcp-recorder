@@ -22,7 +22,7 @@ This guide provides comprehensive instructions for installing the ADCP Recorder 
 ### Minimum Requirements
 
 - **Python**: 3.13 or higher
-- **Operating System**: 
+- **Operating System**:
   - Linux (Ubuntu 20.04+, Debian 11+, RHEL 8+, or equivalent)
   - Windows 10/11 or Windows Server 2019+
 - **RAM**: 512 MB minimum, 1 GB recommended
@@ -32,15 +32,17 @@ This guide provides comprehensive instructions for installing the ADCP Recorder 
 ### Python Dependencies
 
 Core dependencies (automatically installed):
+
 - `pyserial >= 3.5` - Serial port communication
 - `duckdb >= 0.9.0` - Embedded database
 - `click >= 8.1.0` - CLI framework
 
 Optional dependencies:
+
 - `pytest >= 7.4.0` - For running tests (development)
 - `pytest-cov >= 4.1.0` - For coverage reports (development)
 - `pytest-mock >= 3.11.0` - For mocking in tests (development)
-- `pywin32 >= 306` - For Windows service support (Windows only)
+- [Servy](https://github.com/aelassas/servy) - For Windows service support (Windows only, installed via winget)
 
 ### Hardware Requirements
 
@@ -144,12 +146,14 @@ pytest --cov=adcp_recorder --cov-report=html
 #### Step 1: Install System Dependencies
 
 **Ubuntu/Debian:**
+
 ```bash
 sudo apt-get update
 sudo apt-get install -y python3 python3-pip python3-venv
 ```
 
 **RHEL/CentOS/Fedora:**
+
 ```bash
 sudo dnf install -y python3 python3-pip
 ```
@@ -167,6 +171,7 @@ sudo usermod -a -G dialout $USER
 ```
 
 Verify serial port access:
+
 ```bash
 # List available serial ports
 ls -l /dev/ttyUSB* /dev/ttyACM*
@@ -221,6 +226,7 @@ See [DEPLOYMENT.md](../deployment/DEPLOYMENT.md) for systemd service installatio
 2. Run the installer
 3. **Important**: Check "Add Python to PATH" during installation
 4. Verify installation:
+
    ```cmd
    python --version
    pip --version
@@ -246,16 +252,19 @@ REM cd adcp-recorder
 REM pip install .
 ```
 
-#### Step 3: Install Windows Service Support (Optional)
+#### Step 3: Install Windows Service Support using Servy (Optional)
 
-For running as a Windows service:
+For running as a Windows service, install [Servy](https://github.com/aelassas/servy):
 
 ```cmd
-REM Install pywin32
-pip install pywin32
+REM Install Servy via winget
+winget install -e --id aelassas.Servy
 
 REM Install the service (requires Administrator)
-python -m adcp_recorder.service.win_service install
+servy-cli install --name="ADCPRecorder" ^
+    --path="C:\adcp-env\Scripts\python.exe" ^
+    --params="-m adcp_recorder.service.supervisor" ^
+    --startupType="Automatic"
 ```
 
 #### Step 4: Configure and Test
@@ -338,6 +347,7 @@ pytest --cov=adcp_recorder --cov-report=term-missing
 **Cause**: Python scripts directory not in PATH
 
 **Solution**:
+
 ```bash
 # Linux/macOS - Add to ~/.bashrc or ~/.zshrc
 export PATH="$HOME/.local/bin:$PATH"
@@ -354,6 +364,7 @@ source ~/adcp-env/bin/activate
 **Cause**: User not in `dialout` group
 
 **Solution**:
+
 ```bash
 # Add user to dialout group
 sudo usermod -a -G dialout $USER
@@ -370,6 +381,7 @@ groups | grep dialout
 **Cause**: Package not installed or wrong Python environment
 
 **Solution**:
+
 ```bash
 # Verify Python environment
 which python
@@ -384,6 +396,7 @@ pip install --force-reinstall adcp-recorder
 **Cause**: USB driver not installed or wrong COM port
 
 **Solution**:
+
 1. Open Device Manager (Win+X → Device Manager)
 2. Check "Ports (COM & LPT)" section
 3. Install driver if device shows with yellow warning
@@ -395,6 +408,7 @@ pip install --force-reinstall adcp-recorder
 **Cause**: Missing Visual C++ Redistributable
 
 **Solution**:
+
 1. Download and install [Microsoft Visual C++ Redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe)
 2. Restart Command Prompt
 3. Reinstall package: `pip install --force-reinstall adcp-recorder`
@@ -404,6 +418,7 @@ pip install --force-reinstall adcp-recorder
 **Cause**: Another process is using the database
 
 **Solution**:
+
 ```bash
 # Stop all recorder instances
 pkill -f adcp-recorder  # Linux

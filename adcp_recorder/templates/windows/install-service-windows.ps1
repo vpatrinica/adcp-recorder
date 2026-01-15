@@ -1,6 +1,6 @@
-# ADCP Recorder - Windows Service Installation Script
+# ADCP Recorder - Windows Service Installation Script using Servy
 # 
-# This PowerShell script installs the ADCP Recorder as a Windows service.
+# This PowerShell script installs the ADCP Recorder as a Windows service using Servy.
 # Must be run as Administrator.
 #
 # Usage:
@@ -12,6 +12,7 @@
 
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "ADCP Recorder - Windows Service Setup" -ForegroundColor Green
+Write-Host "(Using Servy Service Manager)" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
 
@@ -19,7 +20,9 @@ Write-Host ""
 $InstallDir = "C:\Program Files\ADCP-Recorder"
 $VenvPath = Join-Path $InstallDir "venv"
 $PythonExe = Join-Path $VenvPath "Scripts\python.exe"
-$ServiceName = "adcp-recorder"
+$DataDir = "C:\ADCP_Data"
+$LogDir = Join-Path $DataDir "logs"
+$ServiceName = "ADCPRecorder"
 $ServiceDisplayName = "ADCP Recorder Service"
 $ServiceDescription = "NMEA Telemetry Recorder for Nortek ADCP Instruments"
 
@@ -36,63 +39,134 @@ $PythonVersion = & $PythonExe --version 2>&1
 Write-Host "Python: $PythonVersion" -ForegroundColor Green
 Write-Host ""
 
-# Step 2: Check if pywin32 is installed
-Write-Host "[2/6] Checking pywin32..." -ForegroundColor Yellow
+# Step 2: Check/Install Servy
+Write-Host "[2/6] Checking Servy installation..." -ForegroundColor Yellow
 
-& $PythonExe -c "import win32serviceutil" 2>$null
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Installing pywin32..." -ForegroundColor Yellow
-    & (Join-Path $VenvPath "Scripts\pip.exe") install --quiet pywin32
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: Failed to install pywin32" -ForegroundColor Red
+$ServyInstalled = $false
+try {
+    $null = & servy-cli --version 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        $ServyInstalled = $true
+        Write-Host "Servy is installed" -ForegroundColor Green
+    }
+} catch {
+    $ServyInstalled = $false
+}
+
+if (-not $ServyInstalled) {
+    Write-Host "Installing Servy via winget..." -ForegroundColor Yellow
+    
+    # Check if winget is available
+    try {
+        $null = & winget --version 2>&1
+    } catch {
+        Write-Host "ERROR: winget not found" -ForegroundColor Red
+        Write-Host "Please install Servy manually from: https://github.com/aelassas/servy/releases" -ForegroundColor Red
         exit 1
     }
+    
+    & winget install -e --id aelassas.Servy --silent --accept-package-agreements --accept-source-agreements
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "WARNING: Servy installation may have failed" -ForegroundColor Yellow
+        Write-Host "Please install Servy manually from: https://github.com/aelassas/servy/releases" -ForegroundColor Yellow
+    }
+    
+    # Refresh PATH
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+    
+    # Verify Servy is available
+    try {
+        $null = & servy-cli --version 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            throw "servy-cli not found"
+        }
+    } catch {
+        Write-Host "ERROR: Servy CLI not found after installation" -ForegroundColor Red
+        Write-Host "Please restart PowerShell and try again" -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "Servy installed successfully" -ForegroundColor Green
 }
-Write-Host "pywin32 is installed" -ForegroundColor Green
 Write-Host ""
 
-# Step 3: Check if service already exists
-Write-Host "[3/6] Checking existing service..." -ForegroundColor Yellow
+# Step 3: Create log directory
+Write-Host "[3/6] Setting up directories..." -ForegroundColor Yellow
 
+if (-not (Test-Path $LogDir)) {
+    New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
+    Write-Host "Created log directory: $LogDir" -ForegroundColor Green
+} else {
+    Write-Host "Log directory exists: $LogDir" -ForegroundColor Green
+}
+Write-Host ""
+
+# Step 4: Check if service already exists
+Write-Host "[4/6] Checking existing service..." -ForegroundColor Yellow
+
+try {
+    $StatusResult = & servy-cli status --name="$ServiceName" --quiet 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "Service already exists. Stopping and removing..." -ForegroundColor Yellow
+        
+        & servy-cli stop --name="$ServiceName" --quiet 2>&1
+        Start-Sleep -Seconds 2
+        
+        & servy-cli uninstall --name="$ServiceName" --quiet
+        Start-Sleep -Seconds 2
+        Write-Host "Existing service removed" -ForegroundColor Green
+    }
+} catch {
+    # Service doesn't exist, which is fine
+}
+
+# Also check via Windows services in case it was installed via pywin32 previously
 $ExistingService = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
 if ($ExistingService) {
-    Write-Host "Service already exists. Stopping and removing..." -ForegroundColor Yellow
+    Write-Host "Found legacy Windows service. Removing..." -ForegroundColor Yellow
     
     if ($ExistingService.Status -eq 'Running') {
         Stop-Service -Name $ServiceName -Force
         Start-Sleep -Seconds 2
     }
     
-    & $PythonExe -m adcp_recorder.service.win_service remove
+    sc.exe delete $ServiceName | Out-Null
     Start-Sleep -Seconds 2
-    Write-Host "Existing service removed" -ForegroundColor Green
+    Write-Host "Legacy service removed" -ForegroundColor Green
 }
 Write-Host ""
 
-# Step 4: Install service
-Write-Host "[4/6] Installing Windows service..." -ForegroundColor Yellow
+# Step 5: Install service via Servy
+Write-Host "[5/6] Installing Windows service via Servy..." -ForegroundColor Yellow
 
-& $PythonExe -m adcp_recorder.service.win_service install
+$StdoutLog = Join-Path $LogDir "stdout.log"
+$StderrLog = Join-Path $LogDir "stderr.log"
+
+& servy-cli install --quiet `
+    --name="$ServiceName" `
+    --displayName="$ServiceDisplayName" `
+    --description="$ServiceDescription" `
+    --path="$PythonExe" `
+    --startupDir="$InstallDir" `
+    --params="-m adcp_recorder.service.supervisor" `
+    --startupType="Automatic" `
+    --priority="Normal" `
+    --stdout="$StdoutLog" `
+    --stderr="$StderrLog" `
+    --enableDateRotation `
+    --dateRotationType="Daily" `
+    --maxRotations=30 `
+    --enableHealth `
+    --heartbeatInterval=30 `
+    --maxFailedChecks=3 `
+    --recoveryAction="RestartService" `
+    --maxRestartAttempts=5 `
+    --stopTimeout=10
+
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Service installation failed" -ForegroundColor Red
     exit 1
 }
-Write-Host "Service installed" -ForegroundColor Green
-Write-Host ""
-
-# Step 5: Configure service
-Write-Host "[5/6] Configuring service..." -ForegroundColor Yellow
-
-# Set service to start automatically
-sc.exe config $ServiceName start= auto | Out-Null
-
-# Set service description
-sc.exe description $ServiceName $ServiceDescription | Out-Null
-
-# Set recovery options (restart on failure)
-sc.exe failure $ServiceName reset= 86400 actions= restart/60000/restart/60000/restart/60000 | Out-Null
-
-Write-Host "Service configured for automatic startup" -ForegroundColor Green
+Write-Host "Service installed via Servy" -ForegroundColor Green
 Write-Host ""
 
 # Step 6: Start service
@@ -100,15 +174,16 @@ Write-Host "[6/6] Starting service..." -ForegroundColor Yellow
 
 $StartService = Read-Host "Start service now? (Y/N)"
 if ($StartService -eq 'Y' -or $StartService -eq 'y') {
-    Start-Service -Name $ServiceName
+    & servy-cli start --name="$ServiceName" --quiet
     Start-Sleep -Seconds 2
     
-    $Service = Get-Service -Name $ServiceName
-    if ($Service.Status -eq 'Running') {
+    $StatusOutput = & servy-cli status --name="$ServiceName" --quiet 2>&1
+    if ($StatusOutput -match "Running") {
         Write-Host "Service started successfully" -ForegroundColor Green
     } else {
-        Write-Host "WARNING: Service failed to start" -ForegroundColor Red
-        Write-Host "Check Event Viewer for details" -ForegroundColor Yellow
+        Write-Host "WARNING: Service may not have started correctly" -ForegroundColor Red
+        Write-Host "Status: $StatusOutput" -ForegroundColor Yellow
+        Write-Host "Check logs at: $LogDir" -ForegroundColor Yellow
     }
 } else {
     Write-Host "Service not started" -ForegroundColor Yellow
@@ -123,23 +198,21 @@ Write-Host ""
 Write-Host "Service Information:" -ForegroundColor Cyan
 Write-Host "  Name:        $ServiceName"
 Write-Host "  Display:     $ServiceDisplayName"
-Write-Host "  Status:      $((Get-Service -Name $ServiceName).Status)"
 Write-Host "  Start Type:  Automatic"
+Write-Host "  Logs:        $LogDir"
 Write-Host ""
-Write-Host "Service Management Commands:" -ForegroundColor Cyan
+Write-Host "Servy Management Commands:" -ForegroundColor Cyan
+Write-Host "  Start:       servy-cli start --name=`"$ServiceName`""
+Write-Host "  Stop:        servy-cli stop --name=`"$ServiceName`""
+Write-Host "  Restart:     servy-cli restart --name=`"$ServiceName`""
+Write-Host "  Status:      servy-cli status --name=`"$ServiceName`""
+Write-Host ""
+Write-Host "Or use Windows service commands:" -ForegroundColor Cyan
 Write-Host "  Start:       Start-Service -Name $ServiceName"
 Write-Host "  Stop:        Stop-Service -Name $ServiceName"
-Write-Host "  Restart:     Restart-Service -Name $ServiceName"
 Write-Host "  Status:      Get-Service -Name $ServiceName"
-Write-Host "  Logs:        Get-EventLog -LogName Application -Source $ServiceName -Newest 20"
 Write-Host ""
-Write-Host "Or use sc.exe commands:" -ForegroundColor Cyan
-Write-Host "  Start:       sc start $ServiceName"
-Write-Host "  Stop:        sc stop $ServiceName"
-Write-Host "  Query:       sc query $ServiceName"
-Write-Host ""
-Write-Host "To view logs, open Event Viewer:" -ForegroundColor Cyan
-Write-Host "  eventvwr.msc"
-Write-Host "  Navigate to: Windows Logs -> Application"
-Write-Host "  Filter by Source: $ServiceName"
+Write-Host "Log files:" -ForegroundColor Cyan
+Write-Host "  stdout:      $StdoutLog"
+Write-Host "  stderr:      $StderrLog"
 Write-Host ""

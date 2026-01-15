@@ -1,8 +1,8 @@
 @echo off
 REM
-REM install-windows.bat - Install ADCP Recorder on Windows
+REM install-windows.bat - Install ADCP Recorder on Windows using Servy
 REM
-REM This script installs ADCP Recorder and optionally sets up Windows service.
+REM This script installs ADCP Recorder and optionally sets up Windows service using Servy.
 REM Run as Administrator for service installation.
 REM
 
@@ -115,16 +115,19 @@ echo [3/9] Setting up directories...
 set INSTALL_DIR=C:\Program Files\ADCP-Recorder
 set DATA_DIR=C:\ADCP_Data
 set CONFIG_DIR=%PROGRAMDATA%\ADCP-Recorder
+set LOG_DIR=%DATA_DIR%\logs
 
 echo Installation directory: %INSTALL_DIR%
 echo Data directory: %DATA_DIR%
 echo Configuration directory: %CONFIG_DIR%
+echo Log directory: %LOG_DIR%
 echo.
 
 REM Create directories
 if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
 if not exist "%DATA_DIR%" mkdir "%DATA_DIR%"
 if not exist "%CONFIG_DIR%" mkdir "%CONFIG_DIR%"
+if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 echo Directories created
 echo.
 
@@ -147,25 +150,12 @@ REM Step 5: Install package and dependencies
 echo [5/9] Installing ADCP Recorder and dependencies...
 py -3.13 -m pip install --upgrade pip --quiet
 
-REM Install package with Windows extras (includes pywin32)
-"%INSTALL_DIR%\venv\Scripts\pip.exe" install --quiet "adcp-recorder[win]"
+REM Install package
+"%INSTALL_DIR%\venv\Scripts\pip.exe" install --quiet "adcp-recorder"
 if %errorLevel% neq 0 (
     echo ERROR: Failed to install package
     pause
     exit /b 1
-)
-
-REM Run pywin32 post-install script to register service components
-echo Configuring pywin32 for Windows services...
-"%INSTALL_DIR%\venv\Scripts\python.exe" "%INSTALL_DIR%\venv\Scripts\pywin32_postinstall.py" -install >nul 2>&1
-if %errorLevel% neq 0 (
-    echo WARNING: pywin32 post-install script failed, trying alternative method...
-    REM Try to find and run the script in the pywin32_system32 directory
-    for /f "delims=" %%i in ('dir /b /s "%INSTALL_DIR%\venv\Lib\site-packages\pywin32_system32" 2^>nul') do (
-        if exist "%%i\pywin32_postinstall.py" (
-            "%INSTALL_DIR%\venv\Scripts\python.exe" "%%i\pywin32_postinstall.py" -install >nul 2>&1
-        )
-    )
 )
 
 echo Package and dependencies installed
@@ -200,32 +190,80 @@ echo }
 echo Configuration created at: %CONFIG_DIR%\config.json
 echo.
 
-REM Step 7: Install Windows service (if admin)
-echo [7/9] Windows service setup...
+REM Step 7: Install Windows service using Servy (if admin)
+echo [7/9] Windows service setup using Servy...
 if %ADMIN%==1 (
-    REM pywin32 should already be installed via [win] extras
-    "%INSTALL_DIR%\venv\Scripts\python.exe" -c "import win32serviceutil" >nul 2>&1
+    REM Check if Servy is installed
+    servy-cli --version >nul 2>&1
     if %errorLevel% neq 0 (
-        echo ERROR: pywin32 not found (should have been installed automatically)
-        echo Attempting manual installation...
-        "%INSTALL_DIR%\venv\Scripts\pip.exe" install --quiet pywin32
+        echo Installing Servy service manager via winget...
+        winget install -e --id aelassas.Servy --silent --accept-package-agreements --accept-source-agreements
+        if %errorLevel% neq 0 (
+            echo WARNING: Servy installation may have failed
+            echo You can install it manually: winget install -e --id aelassas.Servy
+        )
+        
+        REM Refresh PATH to find servy-cli
+        set "PATH=%PATH%;%LOCALAPPDATA%\Programs\Servy"
     )
     
-    echo Installing Windows service...
-    "%INSTALL_DIR%\venv\Scripts\python.exe" -m adcp_recorder.service.win_service install
+    REM Verify Servy is available
+    servy-cli --version >nul 2>&1
+    if %errorLevel% neq 0 (
+        echo WARNING: Servy CLI not found in PATH
+        echo Please restart your terminal after Servy installation and run this script again.
+        echo Or install Servy manually from: https://github.com/aelassas/servy/releases
+        echo.
+        echo You can run the recorder manually with: adcp-recorder start
+        goto :skip_service
+    )
+    
+    echo Servy is available
+    
+    REM Check if service already exists and remove it
+    servy-cli status --name="ADCPRecorder" --quiet >nul 2>&1
+    if %errorLevel% equ 0 (
+        echo Removing existing ADCPRecorder service...
+        servy-cli stop --name="ADCPRecorder" --quiet >nul 2>&1
+        timeout /t 2 /nobreak >nul
+        servy-cli uninstall --name="ADCPRecorder" --quiet
+        timeout /t 2 /nobreak >nul
+    )
+    
+    echo Installing Windows service via Servy...
+    servy-cli install --quiet ^
+        --name="ADCPRecorder" ^
+        --displayName="ADCP Recorder Service" ^
+        --description="NMEA Telemetry Recorder for Nortek ADCP Instruments" ^
+        --path="%INSTALL_DIR%\venv\Scripts\python.exe" ^
+        --startupDir="%INSTALL_DIR%" ^
+        --params="-m adcp_recorder.service.supervisor" ^
+        --startupType="Automatic" ^
+        --priority="Normal" ^
+        --stdout="%LOG_DIR%\stdout.log" ^
+        --stderr="%LOG_DIR%\stderr.log" ^
+        --enableDateRotation ^
+        --dateRotationType="Daily" ^
+        --maxRotations=30 ^
+        --enableHealth ^
+        --heartbeatInterval=30 ^
+        --maxFailedChecks=3 ^
+        --recoveryAction="RestartService" ^
+        --maxRestartAttempts=5 ^
+        --stopTimeout=10
+    
     if %errorLevel% neq 0 (
         echo WARNING: Service installation failed
         echo You can run the recorder manually with: adcp-recorder start
     ) else (
-        echo Configuring service to start automatically...
-        sc config adcp-recorder start= auto
-        echo Service installed successfully
+        echo Service installed successfully via Servy
     )
 ) else (
     echo Skipping service installation (requires Administrator)
     echo To install service later, run as Administrator:
-    echo   "%INSTALL_DIR%\venv\Scripts\python.exe" -m adcp_recorder.service.win_service install
+    echo   servy-cli install --name="ADCPRecorder" --path="%INSTALL_DIR%\venv\Scripts\python.exe" --params="-m adcp_recorder.service.supervisor"
 )
+:skip_service
 echo.
 
 REM Step 8: Create shortcuts
@@ -273,6 +311,7 @@ echo.
 echo Configuration:
 echo   Config file: %CONFIG_DIR%\config.json
 echo   Data directory: %DATA_DIR%
+echo   Log directory: %LOG_DIR%
 echo   Serial port: %SERIAL_PORT%
 echo   Baud rate: %BAUD_RATE%
 echo.
@@ -282,14 +321,20 @@ echo   %INSTALL_DIR%\Configure ADCP Recorder.bat
 echo   %INSTALL_DIR%\Check Status.bat
 echo.
 if %ADMIN%==1 (
-    echo Service Management:
-    echo   Start service:   sc start adcp-recorder
-    echo   Stop service:    sc stop adcp-recorder
-    echo   Service status:  sc query adcp-recorder
+    echo Service Management (Servy):
+    echo   Start service:   servy-cli start --name="ADCPRecorder"
+    echo   Stop service:    servy-cli stop --name="ADCPRecorder"
+    echo   Service status:  servy-cli status --name="ADCPRecorder"
+    echo   Restart:         servy-cli restart --name="ADCPRecorder"
+    echo.
+    echo Or use sc.exe commands:
+    echo   Start:   sc start ADCPRecorder
+    echo   Stop:    sc stop ADCPRecorder
+    echo   Query:   sc query ADCPRecorder
     echo.
     set /p START_SERVICE="Start service now? (Y/N): "
     if /i "!START_SERVICE!"=="Y" (
-        sc start adcp-recorder
+        servy-cli start --name="ADCPRecorder" --quiet
         echo Service started
     )
 ) else (

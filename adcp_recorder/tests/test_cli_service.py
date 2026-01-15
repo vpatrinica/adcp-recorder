@@ -41,4 +41,4 @@ def test_generate_service_windows(runner, tmp_path):
     generated_file = tmp_path / "install_service.bat"
     assert generated_file.exists()
     content = generated_file.read_text()
-    assert "python -m adcp_recorder.service.win_service install" in content
+    assert "servy-cli install" in content

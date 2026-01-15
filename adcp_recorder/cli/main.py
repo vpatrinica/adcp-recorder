@@ -141,16 +141,38 @@ def generate_service(platform, out):
         src = base_path / "linux" / "adcp-recorder.service"
         dst_name = "adcp-recorder.service"
     elif platform == "windows":
-        # Instead of a template file, we generate a README or script that calls the python module
+        # Generate a Servy-based service installation script
         dst_name = "install_service.bat"
-        # We'll write content directly since it's simple
         content = (
             "@echo off\n"
-            "REM Install ADCP Recorder Service\n"
-            "REM Ensure python is in PATH and pywin32 is installed\n"
-            "python -m adcp_recorder.service.win_service install\n"
-            "python -m adcp_recorder.service.win_service start\n"
-            "echo Service installed and started.\n"
+            "REM Install ADCP Recorder Service using Servy\n"
+            "REM Prerequisites: Servy installed via 'winget install -e --id aelassas.Servy'\n"
+            "REM Run this script as Administrator\n"
+            "\n"
+            "set INSTALL_DIR=C:\\Program Files\\ADCP-Recorder\n"
+            "set DATA_DIR=C:\\ADCP_Data\n"
+            "set LOG_DIR=%DATA_DIR%\\logs\n"
+            "\n"
+            "REM Create log directory if it doesn't exist\n"
+            'if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"\n'
+            "\n"
+            "REM Install service via Servy\n"
+            "servy-cli install --quiet ^\n"
+            '    --name="ADCPRecorder" ^\n'
+            '    --displayName="ADCP Recorder Service" ^\n'
+            '    --description="NMEA Telemetry Recorder for Nortek ADCP Instruments" ^\n'
+            '    --path="%INSTALL_DIR%\\venv\\Scripts\\python.exe" ^\n'
+            '    --startupDir="%INSTALL_DIR%" ^\n'
+            '    --params="-m adcp_recorder.service.supervisor" ^\n'
+            '    --startupType="Automatic" ^\n'
+            '    --stdout="%LOG_DIR%\\stdout.log" ^\n'
+            '    --stderr="%LOG_DIR%\\stderr.log" ^\n'
+            "    --enableDateRotation ^\n"
+            '    --dateRotationType="Daily" ^\n'
+            "    --enableHealth ^\n"
+            '    --recoveryAction="RestartService"\n'
+            "\n"
+            'echo Service installed. Start with: servy-cli start --name="ADCPRecorder"\n'
             "pause\n"
         )
 
@@ -159,7 +181,8 @@ def generate_service(platform, out):
             with open(dst, "w") as f:
                 f.write(content)
             click.echo(f"Generated {dst_name} in {out}")
-            click.echo("Run this script as Administrator to install the service.")
+            click.echo("Install Servy first: winget install -e --id aelassas.Servy")
+            click.echo("Then run this script as Administrator to install the service.")
             return  # Skip copy fallback
         except Exception as e:
             click.echo(f"Error generating script: {e}")

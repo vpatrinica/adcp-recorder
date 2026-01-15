@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "adcp-recorder"
-version = "0.1.1"
+version = "0.1.2"
 description = "NMEA telemetry recorder for Nortek ADCP instruments with DuckDB backend"
 readme = "README.md"
 license = {text = "MIT"}
@@ -54,9 +54,6 @@ dev = [
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.11.0",
     "ruff>=0.1.0",
-]
-win = [
-    "pywin32>=306; sys_platform == 'win32'",
 ]
 
 [project.urls]
