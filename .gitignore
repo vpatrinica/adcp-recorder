@@ -10,3 +10,13 @@ debug_data
 debug_data/*
 debug_home
 debug_home/*
+.pytest_cache
+.mypy_cache
+venv
+venv/*
+.venv
+.venv/*
+.eggs
+.eggs/*
+adcp_recorder.egg-info
+adcp_recorder.egg-info/*
