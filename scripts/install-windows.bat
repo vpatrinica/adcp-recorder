@@ -154,6 +154,20 @@ if %errorLevel% neq 0 (
     pause
     exit /b 1
 )
+
+REM Run pywin32 post-install script to register service components
+echo Configuring pywin32 for Windows services...
+"%INSTALL_DIR%\venv\Scripts\python.exe" "%INSTALL_DIR%\venv\Scripts\pywin32_postinstall.py" -install >nul 2>&1
+if %errorLevel% neq 0 (
+    echo WARNING: pywin32 post-install script failed, trying alternative method...
+    REM Try to find and run the script in the pywin32_system32 directory
+    for /f "delims=" %%i in ('dir /b /s "%INSTALL_DIR%\venv\Lib\site-packages\pywin32_system32" 2^>nul') do (
+        if exist "%%i\pywin32_postinstall.py" (
+            "%INSTALL_DIR%\venv\Scripts\python.exe" "%%i\pywin32_postinstall.py" -install >nul 2>&1
+        )
+    )
+)
+
 echo Package and dependencies installed
 echo.
 

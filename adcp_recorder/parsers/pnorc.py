@@ -19,8 +19,8 @@ from .utils import (
 
 
 def _validate_velocity(value: float, index: int) -> None:
-    """Validate velocity component (-10 to +10 m/s)."""
-    validate_range(value, f"Velocity {index}", -10.0, 10.0)
+    """Validate velocity component (-100 to +100 m/s, per dd.dd format)."""
+    validate_range(value, f"Velocity {index}", -100.0, 100.0)
 
 
 def _validate_correlation(value: int, index: int) -> None:

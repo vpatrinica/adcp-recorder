@@ -32,7 +32,7 @@ class PNORE:
             raise ValueError(f"Invalid spectrum basis: {self.spectrum_basis}")
         validate_range(self.start_frequency, "Start frequency", 0.0, 10.0)
         validate_range(self.step_frequency, "Step frequency", 0.0, 10.0)
-        validate_range(self.num_frequencies, "Number of frequencies", 1, 99)
+        validate_range(self.num_frequencies, "Number of frequencies", 1, 999)
 
         if len(self.energy_densities) != self.num_frequencies:
             raise ValueError(

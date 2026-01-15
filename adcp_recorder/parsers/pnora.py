@@ -33,10 +33,10 @@ class PNORA:
     def __post_init__(self):
         validate_date_yy_mm_dd(self.date)
         validate_time_string(self.time)
-        validate_range(self.pressure, "Pressure", 0.0, 20000.0)
-        validate_range(self.distance, "Distance", 0.0, 1000.0)
-        validate_range(self.pitch, "Pitch", -90.0, 90.0)
-        validate_range(self.roll, "Roll", -90.0, 90.0)
+        validate_range(self.pressure, "Pressure", 0.0, 999.999)
+        validate_range(self.distance, "Distance", 0.0, 999.999)
+        validate_range(self.pitch, "Pitch", -9.9, 9.9)
+        validate_range(self.roll, "Roll", -9.9, 9.9)
         validate_hex_string(self.status, 2, 2)
 
     @classmethod

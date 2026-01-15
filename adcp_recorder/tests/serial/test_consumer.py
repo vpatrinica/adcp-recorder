@@ -346,7 +346,7 @@ class TestSerialConsumer:
         # PNORWD - Wave Directional (Prefix+Type+Date+Time+Basis+Start+Step+Num+Values)
         queue.put(b"$PNORWD,MD,102115,090715,1,0.02,0.01,2,45.0,90.0*42")
         # PNORA - Altitude (9 fields, Date is YYMMDD)
-        queue.put(b"$PNORA,151021,090715,1,15.50,1,00,0.0,10.0*55")
+        queue.put(b"$PNORA,151021,090715,1,15.50,1,00,0.0,5.5*55")
 
         consumer.start()
         time.sleep(2.0)  # Wait longer

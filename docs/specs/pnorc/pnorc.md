@@ -1,12 +1,12 @@
-line based format data definitiobn lale, [🏠 Home](../../README.md) > [📋 Specs](../README.md) > [PNORC Family](README.md)
+[🏠 Home](../../README.md) > [📋 Specs](../README.md) > [PNORC Family](README.md)
 
 # PNORC Specification
 
-**Base current velocity message** with positional measurements.
+**Current velocity data** (DF=100) with velocities, speed, direction, amplitudes, and correlations.
 
 ## Format
 
-```
+```nmea
 $PNORC,Date,Time,Cell,Vel1,Vel2,Vel3,Vel4,Speed,Dir,AmpUnit,Amp1,Amp2,Amp3,Amp4,Corr1,Corr2,Corr3,Corr4*CHECKSUM
 ```
 
@@ -14,46 +14,45 @@ $PNORC,Date,Time,Cell,Vel1,Vel2,Vel3,Vel4,Speed,Dir,AmpUnit,Amp1,Amp2,Amp3,Amp4,
 
 ## Field Definitions
 
-| Position | Field | Python Type | DuckDB Type | Unit | Range | Description |
-|----------|-------|-------------|-------------|------|-------|-------------|
-| 0 | Prefix | str | VARCHAR(10) | - | - | Always `$PNORC` |
-| 1 | Date | str | CHAR(6) | - | YYMMDD | Measurement date |
-| 2 | Time | str | CHAR(6) | - | HHMMSS | Measurement time |
-| 3 | Cell Index | int | SMALLINT | - | 1-1000 | Measurement cell number |
-| 4 | Vel 1 | float | DECIMAL(8,4) | m/s | -10 to +10 | East or X or Beam 1 |
-| 5 | Vel 2 | float | DECIMAL(8,4) | m/s | -10 to +10 | North or Y or Beam 2 |
-| 6 | Vel 3 | float | DECIMAL(8,4) | m/s | -10 to +10 | Up or Z or Beam 3 |
-| 7 | Vel 4 | float | DECIMAL(8,4) | m/s | -10 to +10 | Vertical 2 or Beam 4 |
-| 8 | Speed | float | DECIMAL(8,4) | m/s | 0-100 | Horizontal speed |
-| 9 | Direction | float | DECIMAL(5,2) | degrees | 0-360 | Horizontal direction |
-| 10| Amp Unit | str | CHAR(1) | - | C/D | C=Counts, D=dB |
-| 11-14 | Amp 1-4 | int | SMALLINT | counts/dB | 0-255 | Amplitude per beam |
-| 15-18 | Corr 1-4 | int | SMALLINT | % | 0-100 | Correlation per beam |
+| Position | Field | Python Type | DuckDB Type | Unit | Format | Range | Description |
+|----------|-------|-------------|-------------|------|--------|-------|-------------|
+| 0 | Prefix | str | VARCHAR(10) | - | "$PNORC" | - | Always `$PNORC` |
+| 1 | Date | str | CHAR(6) | - | MMDDYY | - | Measurement date |
+| 2 | Time | str | CHAR(6) | - | HHMMSS | - | Measurement time |
+| 3 | Cell Number | int | SMALLINT | - | N | 1-999 | Measurement cell index |
+| 4 | Velocity 1 | float | DECIMAL(6,2) | m/s | dd.dd | -99 to +99 | Beam1/X/East |
+| 5 | Velocity 2 | float | DECIMAL(6,2) | m/s | dd.dd | -99 to +99 | Beam2/Y/North |
+| 6 | Velocity 3 | float | DECIMAL(6,2) | m/s | dd.dd | -99 to +99 | Beam3/Z1/Up1 |
+| 7 | Velocity 4 | float | DECIMAL(6,2) | m/s | dd.dd | -99 to +99 | Beam4/Z2/Up2 (3-beam: empty) |
+| 8 | Speed | float | DECIMAL(6,2) | m/s | dd.dd | 0-99 | Horizontal speed |
+| 9 | Direction | float | DECIMAL(5,1) | deg | ddd.d | 0-360 | Horizontal direction |
+| 10 | Amplitude Unit | str | CHAR(1) | - | C or D | - | C=Counts, D=dB |
+| 11-14 | Amplitude 1-4 | int | SMALLINT | - | N | 0-255 | Amplitude per beam |
+| 15-18 | Correlation 1-4 | int | SMALLINT | % | N | 0-100 | Correlation per beam |
+
+> [!NOTE]
+> Velocity 4, Amplitude 4, and Correlation 4 are not relevant for 3-beam systems (will be empty).
 
 ## Example Sentence
 
+```nmea
+$PNORC,102115,090715,4,0.56,-0.80,-1.99,-1.33,0.98,305.2,C,80,88,67,78,13,17,10,18*22
 ```
-$PNORC,141112,081946,1,0.123,-0.456,0.012,0.001,0.472,164.9,C,80,82,79,81,98,99,97,98*XX
-```
 
-## Validation Rules
+**Parsed**:
 
-1. **Date Format**: 6 digits, valid month/day
-2. **Time Format**: 6 digits, valid hour/minute/second
-3. **Cell Index**: Must be ≥ 1 and ≤ configured cell_count (from PNORI)
-4. **Velocity Components**: Typically -10 to +10 m/s (instrument-dependent)
-
-## Usage Notes
-
-- **Multiple sentences**: One PNORC sentence per measurement cell
-- **Cell order**: Cells typically sent sequentially (1, 2, 3, ...)
-- **Timestamp**: All cells in a single profile share the same timestamp
-- **Coordinate system**: Must reference PNO RI configuration to interpret components
+- Date: October 21, 2015 (MMDDYY = 102115), Time: 09:07:15
+- Cell: 4
+- Velocities: 0.56, -0.80, -1.99, -1.33 m/s
+- Speed: 0.98 m/s, Direction: 305.2°
+- Amplitude Unit: C (Counts), Amplitudes: 80, 88, 67, 78
+- Correlations: 13%, 17%, 10%, 18%
 
 ## Related Documents
 
+- [PNORC1](pnorc1.md) - Same data, simplified format
+- [PNORC2](pnorc2.md) - Same data, tagged format
 - [PNORC Family Overview](README.md)
-- [PNORI Configuration](../pnori/README.md)
 
 ---
 
