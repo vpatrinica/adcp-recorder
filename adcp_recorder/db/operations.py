@@ -69,29 +69,49 @@ def batch_insert_raw_lines(conn: duckdb.DuckDBPyConnection, records: list[dict[s
     if not records:
         return 0
 
+    # Pre-fetch IDs to avoid nextval() overhead in executemany loop
+    count = len(records)
+    if count == 0:
+        return 0
+
+    ids_result = conn.execute(f"SELECT nextval('raw_lines_seq') FROM range({count})").fetchall()
+
     # Prepare data for executemany
     data = [
         (
+            ids_result[i][0],
             r.get("sentence"),
             r.get("parse_status", "PENDING"),
             r.get("record_type"),
             r.get("checksum_valid"),
             r.get("error_message"),
         )
-        for r in records
+        for i, r in enumerate(records)
     ]
 
-    conn.executemany(
-        """
-        INSERT INTO raw_lines (
-            line_id, raw_sentence, parse_status, record_type, checksum_valid, error_message
-        )
-        VALUES (nextval('raw_lines_seq'), ?, ?, ?, ?, ?)
-        """,
-        data,
-    )
+    conn.execute("BEGIN TRANSACTION")
+    try:
+        # Chunked insert for performance
+        batch_size = 1000
+        for i in range(0, len(data), batch_size):
+            chunk = data[i : i + batch_size]
+            placeholders = ", ".join(["(?, ?, ?, ?, ?, ?)"] * len(chunk))
+            # Flatten list of tuples
+            params = [val for row in chunk for val in row]
+            conn.execute(
+                f"""
+                INSERT INTO raw_lines (
+                    line_id, raw_sentence, parse_status, record_type, checksum_valid, error_message
+                )
+                VALUES {placeholders}
+                """,
+                params,
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
 
-    conn.commit()
     return len(records)
 
 
