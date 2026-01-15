@@ -30,7 +30,7 @@ class TestFileWriter:
 
         # Check file exists
         date_str = datetime.now().strftime("%Y%m%d")
-        expected_file = os.path.join(export_dir, f"PNORI_{date_str}.nmea")
+        expected_file = os.path.join(export_dir, "nmea", "PNORI", f"PNORI_{date_str}.nmea")
         assert os.path.exists(expected_file)
 
         # Check content
@@ -45,7 +45,7 @@ class TestFileWriter:
         writer.write("PNORI", "line2\n")
 
         date_str = datetime.now().strftime("%Y%m%d")
-        expected_file = os.path.join(export_dir, f"PNORI_{date_str}.nmea")
+        expected_file = os.path.join(export_dir, "nmea", "PNORI", f"PNORI_{date_str}.nmea")
 
         with open(expected_file) as f:
             lines = f.readlines()
@@ -61,8 +61,8 @@ class TestFileWriter:
         writer.write("PNORS", "data2")
 
         date_str = datetime.now().strftime("%Y%m%d")
-        pnori_file = os.path.join(export_dir, f"PNORI_{date_str}.nmea")
-        pnors_file = os.path.join(export_dir, f"PNORS_{date_str}.nmea")
+        pnori_file = os.path.join(export_dir, "nmea", "PNORI", f"PNORI_{date_str}.nmea")
+        pnors_file = os.path.join(export_dir, "nmea", "PNORS", f"PNORS_{date_str}.nmea")
 
         assert os.path.exists(pnori_file)
         assert os.path.exists(pnors_file)
@@ -81,7 +81,7 @@ class TestFileWriter:
             writer.write("PNORI", "day1")
 
             # Verify day 1 file
-            day1_file = os.path.join(export_dir, "PNORI_20230101.nmea")
+            day1_file = os.path.join(export_dir, "nmea", "PNORI", "PNORI_20230101.nmea")
             assert os.path.exists(day1_file)
 
             # Advance to day 2
@@ -93,7 +93,7 @@ class TestFileWriter:
             writer.write("PNORI", "day2")
 
             # Verify day 2 file
-            day2_file = os.path.join(export_dir, "PNORI_20230102.nmea")
+            day2_file = os.path.join(export_dir, "nmea", "PNORI", "PNORI_20230102.nmea")
             assert os.path.exists(day2_file)
 
             # Verify day 1 file content
@@ -126,7 +126,7 @@ class TestFileWriter:
         writer.write("PNORI", "test")
 
         date_str = datetime.now().strftime("%Y%m%d")
-        filename = os.path.join(export_dir, f"PNORI_{date_str}.nmea")
+        filename = os.path.join(export_dir, "nmea", "PNORI", f"PNORI_{date_str}.nmea")
 
         writer.close()
 

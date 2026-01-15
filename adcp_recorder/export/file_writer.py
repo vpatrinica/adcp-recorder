@@ -31,13 +31,16 @@ class FileWriter:
         os.makedirs(self.base_path, exist_ok=True)
 
     def _get_filename(self, prefix: str) -> str:
-        """Get filename for a message type and current date.
+        """Get filename for a message type and current date."""
 
-        Format: {prefix}_{YYYYMMDD}.nmea
-        For errors: ERRORS_{YYYYMMDD}.log
-        """
+        # Format: nmea/{prefix}/{prefix}_{YYYYMMDD}.nmea
         date_str = self._current_date.strftime("%Y%m%d")
-        return os.path.join(self.base_path, f"{prefix}_{date_str}.nmea")
+
+        # Ensure directory exists
+        file_dir = os.path.join(self.base_path, "nmea", prefix)
+        os.makedirs(file_dir, exist_ok=True)
+
+        return os.path.join(file_dir, f"{prefix}_{date_str}.nmea")
 
     def _check_rotation(self) -> None:
         """Check if files need to be rotated (new day)."""

@@ -105,7 +105,8 @@ def test_throughput_performance():
                         "SELECT error_type, error_message FROM parse_errors LIMIT 5"
                     ).fetchall()
                     print(
-                        f"\nTarget count not reached. raw_lines={raw_count}, parse_errors={error_count}"
+                        f"\nTarget count not reached. raw_lines={raw_count}, "
+                        f"parse_errors={error_count}"
                     )
                     for e in errors:
                         print(f"Error: {e}")
