@@ -38,7 +38,7 @@
 pip install adcp-recorder
 
 # Or install from source
-git clone https://github.com/your-org/adcp-recorder.git
+git clone https://github.com/vpatrinica/adcp-recorder.git
 cd adcp-recorder
 pip install .
 ```
@@ -65,25 +65,25 @@ Press `Ctrl+C` to stop the recorder.
 
 ### User Guides
 
-- **[Installation Guide](docs/user-guide/INSTALL.md)** - Complete installation instructions for Linux and Windows
-- **[Configuration Guide](docs/user-guide/CONFIGURATION.md)** - Detailed configuration options and examples
-- **[Usage Guide](docs/user-guide/USAGE.md)** - CLI commands, workflows, and best practices
-- **[Examples](docs/user-guide/EXAMPLES.md)** - Practical examples and common scenarios
+- **[Installation Guide](https://github.com/vpatrinica/adcp-recorder/blob/main/docs/user-guide/INSTALL.md)** - Complete installation instructions for Linux and Windows
+- **[Configuration Guide](https://github.com/vpatrinica/adcp-recorder/blob/main/docs/user-guide/CONFIGURATION.md)** - Detailed configuration options and examples
+- **[Usage Guide](https://github.com/vpatrinica/adcp-recorder/blob/main/docs/user-guide/USAGE.md)** - CLI commands, workflows, and best practices
+- **[Examples](https://github.com/vpatrinica/adcp-recorder/blob/main/docs/user-guide/EXAMPLES.md)** - Practical examples and common scenarios
 
 ### Deployment
 
-- **[Deployment Guide](docs/deployment/DEPLOYMENT.md)** - Production deployment, service setup, and maintenance
+- **[Deployment Guide](https://github.com/vpatrinica/adcp-recorder/blob/main/docs/deployment/DEPLOYMENT.md)** - Production deployment, service setup, and maintenance
 
 ### Technical Documentation
 
-- **[Architecture Overview](docs/architecture/overview.md)** - System design and components
-- **[NMEA Protocol](docs/nmea/overview.md)** - NMEA sentence format and validation
-- **[Message Specifications](docs/specs/README.md)** - Detailed specs for all message types
-- **[Implementation Guides](docs/implementation/README.md)** - Parser patterns and database schemas
+- **[Architecture Overview](https://github.com/vpatrinica/adcp-recorder/blob/main/docs/architecture/overview.md)** - System design and components
+- **[NMEA Protocol](https://github.com/vpatrinica/adcp-recorder/blob/main/docs/nmea/overview.md)** - NMEA sentence format and validation
+- **[Message Specifications](https://github.com/vpatrinica/adcp-recorder/blob/main/docs/specs/README.md)** - Detailed specs for all message types
+- **[Implementation Guides](https://github.com/vpatrinica/adcp-recorder/blob/main/docs/implementation/README.md)** - Parser patterns and database schemas
 
 ### Complete Documentation
 
-Browse the full documentation at [docs/README.md](docs/README.md)
+Browse the full documentation at [docs/README.md](https://github.com/vpatrinica/adcp-recorder/blob/main/docs/README.md)
 
 ## System Requirements
 
@@ -104,7 +104,7 @@ pip install adcp-recorder
 ### Method 2: From Source
 
 ```bash
-git clone https://github.com/your-org/adcp-recorder.git
+git clone https://github.com/vpatrinica/adcp-recorder.git
 cd adcp-recorder
 pip install .
 ```
@@ -112,7 +112,7 @@ pip install .
 ### Method 3: Development Installation
 
 ```bash
-git clone https://github.com/your-org/adcp-recorder.git
+git clone https://github.com/vpatrinica/adcp-recorder.git
 cd adcp-recorder
 pip install -e ".[dev]"
 pytest  # Run tests
@@ -145,7 +145,7 @@ sc config adcp-recorder start= auto
 sc start adcp-recorder
 ```
 
-See [Deployment Guide](docs/deployment/DEPLOYMENT.md) for complete instructions.
+See [Deployment Guide](https://github.com/vpatrinica/adcp-recorder/blob/main/docs/deployment/DEPLOYMENT.md) for complete instructions.
 
 ## CLI Commands
 
@@ -255,7 +255,7 @@ ruff format adcp_recorder/
 └─────────────────────────────────────────────────────────┘
 ```
 
-See [Architecture Overview](docs/architecture/overview.md) for details.
+See [Architecture Overview](https://github.com/vpatrinica/adcp-recorder/blob/main/docs/architecture/overview.md) for details.
 
 ## Configuration
 
@@ -280,7 +280,7 @@ export ADCP_RECORDER_BAUDRATE=115200
 export ADCP_RECORDER_OUTPUT_DIR=/data/adcp
 ```
 
-See [Configuration Guide](docs/user-guide/CONFIGURATION.md) for all options.
+See [Configuration Guide](https://github.com/vpatrinica/adcp-recorder/blob/main/docs/user-guide/CONFIGURATION.md) for all options.
 
 ## Monitoring
 
@@ -313,12 +313,14 @@ duckdb ~/adcp_data/adcp.duckdb \
 ### Common Issues
 
 **Serial port permission denied (Linux)**:
+
 ```bash
 sudo usermod -a -G dialout $USER
 # Log out and log back in
 ```
 
 **Service won't start**:
+
 ```bash
 # Check logs
 sudo journalctl -u adcp-recorder -n 50
@@ -331,6 +333,7 @@ adcp-recorder start
 ```
 
 **No data being collected**:
+
 ```bash
 # Enable debug logging
 adcp-recorder configure --debug
@@ -340,7 +343,7 @@ adcp-recorder start
 adcp-recorder list-ports
 ```
 
-See [Usage Guide](docs/user-guide/USAGE.md#error-handling-and-recovery) for more troubleshooting.
+See [Usage Guide](https://github.com/vpatrinica/adcp-recorder/blob/main/docs/user-guide/USAGE.md#error-handling-and-recovery) for more troubleshooting.
 
 ## Contributing
 
@@ -357,7 +360,7 @@ Contributions are welcome! Please follow these guidelines:
 ### Development Setup
 
 ```bash
-git clone https://github.com/your-org/adcp-recorder.git
+git clone https://github.com/vpatrinica/adcp-recorder.git
 cd adcp-recorder
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
@@ -371,9 +374,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-- **Documentation**: [docs/README.md](docs/README.md)
-- **Issues**: [GitHub Issues](https://github.com/your-org/adcp-recorder/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-org/adcp-recorder/discussions)
+- **Documentation**: [docs/README.md](https://github.com/vpatrinica/adcp-recorder/blob/main/docs/README.md)
+- **Issues**: [GitHub Issues](https://github.com/vpatrinica/adcp-recorder/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/vpatrinica/adcp-recorder/discussions)
 
 ## Acknowledgments
 

@@ -84,6 +84,12 @@ class TestPNORI:
         with pytest.raises(ValueError, match="invalid characters"):
             PNORI.from_nmea(sentence)
 
+    def test_head_id_with_underscore_valid(self):
+        """Test that head ID with underscore is valid."""
+        sentence = "$PNORI,4,Signature1000_SN12345,4,20,0.20,1.00,0*1C"
+        config = PNORI.from_nmea(sentence)
+        assert config.head_id == "Signature1000_SN12345"
+
     def test_signature_requires_four_beams(self):
         """Test that Signature instruments must have 4 beams."""
         sentence = "$PNORI,4,Test,3,20,0.20,1.00,0*00"
