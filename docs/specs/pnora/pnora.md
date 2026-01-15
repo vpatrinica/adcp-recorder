@@ -22,17 +22,17 @@ $PNORA,Date,Time,Pressure,Distance,Quality,Status,Pitch,Roll*CHECKSUM
 
 ### Field Definitions
 
-| Position | Field | Python Type | DuckDB Type | Unit | Range | Description |
-|----------|-------|-------------|-------------|------|-------|-------------|
-| 0 | Prefix | str | VARCHAR(10) | - | - | Always `$PNORA` |
-| 1 | Date | str | CHAR(6) | - | YYMMDD | Measurement date |
-| 2 | Time | str | CHAR(6) | - | HHMMSS | Measurement time |
-| 3 | Pressure | float | DECIMAL(7,3) | decibars | 0-20000 | Water pressure |
-| 4 | Distance | float | DECIMAL(7,3) | meters | 0-1000 | Vertical distance |
-| 5 | Quality | int | INTEGER | - | - | Quality indicator/confidence |
-| 6 | Status | str | CHAR(2) | - | - | 2 hex digits status |
-| 7 | Pitch | float | DECIMAL(4,1) | degrees | -90 to +90 | Instrument pitch |
-| 8 | Roll | float | DECIMAL(4,1) | degrees | -90 to +90 | Instrument roll |
+| Position | Field | Python Type | DuckDB Type | Unit | Format | Range | Description |
+|----------|-------|-------------|-------------|------|--------|-------|-------------|
+| 0 | Prefix | str | VARCHAR(10) | - | "$PNORA" | - | Always `$PNORA` |
+| 1 | Date | str | CHAR(6) | - | YYMMDD | - | Measurement date |
+| 2 | Time | str | CHAR(6) | - | hhmmss | - | Measurement time |
+| 3 | Pressure | float | DECIMAL(7,3) | dBar | ddd.ddd | 0-999.999 | Water pressure |
+| 4 | Distance | float | DECIMAL(7,3) | m | ddd.ddd | 0-999.999 | Altimeter distance (Leading Edge) |
+| 5 | Quality | int | INTEGER | - | N | 0-99999 | Quality parameter |
+| 6 | Status | str | CHAR(2) | - | XX | - | 2 hex character status code |
+| 7 | Pitch | float | DECIMAL(4,1) | deg | d.d | -9.9 to +9.9 | Instrument pitch |
+| 8 | Roll | float | DECIMAL(4,1) | deg | d.d | -9.9 to +9.9 | Instrument roll |
 
 ### Example Sentence
 
@@ -42,10 +42,14 @@ $PNORA,141112,084201,10.123,5.678,95,01,1.2,-0.5*XX
 
 ### Validation Rules
 
-1. Date/time validation
-2. Distance: 0-1000m
-3. Status: 2 hex digits
-4. Pitch/Roll: -90 to +90 degrees
+1. Date format: YYMMDD (6 digits)
+2. Time format: hhmmss (6 digits)
+3. Pressure: 0-999.999 dBar (format: ddd.ddd)
+4. Distance: 0-999.999 m (format: ddd.ddd)
+5. Quality: Integer (N)
+6. Status: 2 hex characters (XX)
+7. Pitch: -9.9 to +9.9 degrees (format: d.d)
+8. Roll: -9.9 to +9.9 degrees (format: d.d)
 
 ---
 

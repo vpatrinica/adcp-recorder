@@ -95,7 +95,7 @@ def test_pnora_coverage():
         PNORA.from_nmea("$PNORA,1,2,3,4*00")
     with pytest.raises(ValueError, match="Invalid prefix"):
         PNORA.from_nmea("$NOTRA,1,2,3,4,5,6,7,8*00")
-    msg = PNORA("151021", "090715", 1, 10.0, 95, "00", 0.0, 10.0)
+    msg = PNORA("151021", "090715", 1, 10.0, 95, "00", 0.0, 5.5)
     assert msg.to_dict()["sentence_type"] == "PNORA"
 
 

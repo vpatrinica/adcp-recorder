@@ -2,63 +2,51 @@
 
 # PNORC3 Specification
 
-**Extended precision current velocity format** with additional beam data.
+**Tagged averaged current data** (DF=103) containing cell-averaged velocity measurements.
 
 ## Format
 
-```
-$PNORC3,MMDDYY,HHMMSS,CellIndex,VelE,VelN,VelU,Amplitude1,Amplitude2,Amplitude3,Amplitude4*CHECKSUM
+```nmea
+$PNORC3,CP=CellPos,SP=Speed,DIR=Direction,AC=AvgCorr,AA=AvgAmp*CHECKSUM
 ```
 
-**Field Count**: 11 fields (including prefix)
+**Field Count**: 6 fields (prefix + 5 tagged values)
 
 ## Field Definitions
 
-| Position | Field | Python Type | DuckDB Type | Unit | Range | Description |
-|----------|-------|-------------|-------------|------|-------|-------------|
-| 0 | Prefix | str | VARCHAR(10) | - | - | Always `$PNORC3` |
-| 1 | Date | str | CHAR(6) | - | MMDDYY | Measurement date |
-| 2 | Time | str | CHAR(6) | - | HHMMSS | Measurement time |
-| 3 | Cell Index | int | SMALLINT | - | 1-1000 | Measurement cell number |
-| 4 | Velocity East/X | float | DECIMAL(8,4) | m/s | -10 to +10 | First velocity component |
-| 5 | Velocity North/Y | float | DECIMAL(8,4) | m/s | -10 to +10 | Second velocity component |
-| 6 | Velocity Up/Z | float | DECIMAL(8,4) | m/s | -10 to +10 | Third velocity component |
-| 7 | Amplitude Beam 1 | int | TINYINT | counts | 0-255 | Echo amplitude beam 1 |
-| 8 | Amplitude Beam 2 | int | TINYINT | counts | 0-255 | Echo amplitude beam 2 |
-| 9 | Amplitude Beam 3 | int | TINYINT | counts | 0-255 | Echo amplitude beam 3 |
-| 10 | Amplitude Beam 4 | int | TINYINT | counts | 0-255 | Echo amplitude beam 4 (if present) |
+| Tag | Field | Python Type | DuckDB Type | Unit | Format | Range | Description |
+|-----|-------|-------------|-------------|------|--------|-------|-------------|
+| - | Prefix | str | VARCHAR(10) | - | "$PNORC3" | - | Always `$PNORC3` |
+| CP | Cell Position | float | DECIMAL(5,1) | m | dd.d | 0-999 | Distance to cell center |
+| SP | Speed | float | DECIMAL(6,3) | m/s | dd.ddd | 0-99 | Current speed magnitude |
+| DIR | Direction | float | DECIMAL(5,1) | deg | ddd.d | 0-360 | Current direction |
+| AC | Avg Correlation | int | TINYINT | - | N | 0-100 | Averaged correlation |
+| AA | Avg Amplitude | int | TINYINT | - | N | 0-255 | Averaged amplitude |
 
 ## Example Sentence
 
-```
-$PNORC3,102115,090715,1,0.123,-0.456,0.012,145,152,148,150*XX
+```nmea
+$PNORC3,CP=4.5,SP=3.519,DIR=110.9,AC=6,AA=28*3B
 ```
 
 **Parsed**:
-- Date: October 21, 2015
-- Time: 09:07:15
-- Cell: 1
-- Velocities: 0.123, -0.456, 0.012 m/s
-- Amplitudes: 145, 152, 148, 150 counts
 
-## Differences from PNORC
+- Cell Position: 4.5 m from transducer
+- Speed: 3.519 m/s
+- Direction: 110.9° (from ENE)
+- Avg Correlation: 6
+- Avg Amplitude: 28
 
-- **Added**: Four beam amplitude values
-- **Use**: Enhanced quality assessment with echo strength
-- **Same**: Velocity components
+## Differences from PNORC/PNORC4
 
-## Validation Rules
-
-1. Date/time format validation
-2. Cell index: 1 to configured cell_count
-3. Velocities: typically -10 to +10 m/s
-4. Amplitudes: 0-255 counts
+- **Format**: Tagged (TAG=VALUE) vs positional
+- **Data**: Averaged values per cell, not per-beam raw data
+- **Use**: Compact reporting with self-describing tags
 
 ## Related Documents
 
 - [PNORC Family Overview](README.md)
-- [PNORC Base](pnorc.md)
-- [PNORE Echo Intensity](../pnore/pnore.md)
+- [PNORC4](pnorc4.md) - Same data, positional format
 
 ---
 

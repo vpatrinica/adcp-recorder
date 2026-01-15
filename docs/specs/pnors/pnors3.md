@@ -14,16 +14,16 @@ $PNORS3,BV=Batt,SS=SndSpd,H=Head,PI=Pitch,R=Roll,P=Press,T=Temp*CS
 
 ## Tag Definitions
 
-| Tag | Field | Python Type | DuckDB Type | Unit | Range | Description |
-|-----|-------|-------------|-------------|------|-------|-------------|
-| - | Prefix | str | VARCHAR(10) | - | - | Always `$PNORS3` |
-| BV | Battery | float | DECIMAL(4,1) | volts | 0-30 | Battery voltage |
-| SS | Sound Speed | float | DECIMAL(6,1) | m/s | 1400-1600 | Speed of sound |
-| H | Heading | float | DECIMAL(5,1) | degrees | 0-360 | Compass heading |
-| PI | Pitch | float | DECIMAL(4,1) | degrees | -90 to +90 | Instrument pitch |
-| R | Roll | float | DECIMAL(5,1) | degrees | -180 to +180 | Instrument roll |
-| P | Pressure | float | DECIMAL(7,3) | decibars | 0-20000 | Water pressure |
-| T | Temperature | float | DECIMAL(5,2) | °C | -5 to +50 | Water temperature |
+| Tag | Field | Python Type | DuckDB Type | Unit | Format | Range | Description |
+|-----|-------|-------------|-------------|------|--------|-------|-------------|
+| - | Prefix | str | VARCHAR(10) | - | "$PNORS3" | - | Always `$PNORS3` |
+| BV | Battery | float | DECIMAL(4,1) | V | dd.d | 0-30 | Battery voltage |
+| SS | Sound Speed | float | DECIMAL(6,1) | m/s | dddd.d | 1400-2000 | Speed of sound |
+| H | Heading | float | DECIMAL(5,1) | deg | ddd.d | 0-360 | Compass heading |
+| PI | Pitch | float | DECIMAL(4,1) | deg | dd.d | -90 to +90 | Instrument pitch |
+| R | Roll | float | DECIMAL(4,1) | deg | dd.d | -90 to +90 | Instrument roll |
+| P | Pressure | float | DECIMAL(7,3) | dBar | ddd.ddd | 0-999 | Water pressure |
+| T | Temperature | float | DECIMAL(5,2) | °C | dd.dd | -5 to +50 | Water temperature |
 
 ## Example Sentence
 

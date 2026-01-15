@@ -22,7 +22,7 @@ def _validate_head_id(head_id: str, max_length: int = 30, numeric_only: bool = F
     if len(head_id) > max_length:
         raise ValueError(f"Head ID too long: {len(head_id)} > {max_length}")
 
-    pattern = r"^\d+$" if numeric_only else r"^[A-Za-z0-9\s]+$"
+    pattern = r"^\d+$" if numeric_only else r"^[A-Za-z0-9_\-\s]+$"
     if not re.match(pattern, head_id):
         raise ValueError(f"Head ID contains invalid characters: {head_id}")
 

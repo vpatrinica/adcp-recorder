@@ -184,7 +184,7 @@ class TestPersistenceSuccess:
         assert results[0][4] == "MD"  # direction_type (index 4)
 
     def test_pnora_persistence(self, db):
-        sentence = "$PNORA,151021,090715,10.5,15.50,1,00,0.0,10.0*XX"
+        sentence = "$PNORA,151021,090715,10.5,15.50,1,00,0.0,5.5*XX"
         msg = PNORA.from_nmea(sentence)
         record_id = insert_pnora_data(db, sentence, msg.to_dict())
         assert record_id > 0
