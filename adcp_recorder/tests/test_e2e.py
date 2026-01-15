@@ -160,21 +160,25 @@ def test_full_pipeline_e2e(temp_recorder_dir):
         from datetime import datetime
 
         today_str = datetime.now().strftime("%Y%m%d")
+        error_today_str = datetime.now().strftime("%d%m%y")
 
         # Helper to check file existence and content
-        def verify_export_file(prefix, partial_content):
-            expected_filename = f"{prefix}_{today_str}.nmea"
-            file_path = temp_recorder_dir / expected_filename
-            assert file_path.exists(), f"Export file {expected_filename} not found"
+        def verify_export_file(prefix, partial_content, is_error=False):
+            if is_error:
+                expected_filename = f"ERRORR_{error_today_str}.nmea"
+                file_path = temp_recorder_dir / "errors" / prefix / expected_filename
+            else:
+                expected_filename = f"{prefix}_{today_str}.nmea"
+                file_path = temp_recorder_dir / "nmea" / prefix / expected_filename
+
+            assert file_path.exists(), f"Export file {file_path} not found"
             content = file_path.read_text()
-            assert partial_content in content, (
-                f"Expected '{partial_content}' in {expected_filename}"
-            )
+            assert partial_content in content, f"Expected '{partial_content}' in {file_path}"
 
         verify_export_file("PNORI", "$PNORI")
         verify_export_file("PNORS", "$PNORS")
         verify_export_file("PNORC", "$PNORC")
-        verify_export_file("ERRORS", "BINARY DATA")
+        verify_export_file("BINARY", "BINARY DATA", is_error=True)
 
 
 def test_reconnect_scenario(temp_recorder_dir):

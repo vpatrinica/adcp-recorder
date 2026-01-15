@@ -414,9 +414,9 @@ class TestSerialConsumer:
         time.sleep(0.5)
         consumer.stop()
 
-        mock_file_writer.write.assert_called_once()
-        args = mock_file_writer.write.call_args[0]
-        assert args[0] == "ERRORS"
+        mock_file_writer.write_invalid_record.assert_called_once()
+        args = mock_file_writer.write_invalid_record.call_args[0]
+        assert args[0] == "BINARY"
         assert "\x00\x01\x02" in args[1]
 
     def test_consume_writes_unknown_to_file(self, db_path):
