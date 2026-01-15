@@ -133,3 +133,17 @@ class TestFileWriter:
         # Should be able to append
         with open(filename, "a") as f:
             f.write("more")
+
+    def test_write_invalid_record(self, export_dir):
+        """Test writing invalid records to error directory."""
+        writer = FileWriter(export_dir)
+        writer.write_invalid_record("PNORI", "bad_data")
+
+        date_str = datetime.now().strftime("%d%m%y")
+        error_file = os.path.join(export_dir, "errors", "PNORI", f"ERRORR_{date_str}.nmea")
+
+        assert os.path.exists(error_file)
+        with open(error_file) as f:
+            content = f.read()
+
+        assert content == "bad_data\n"

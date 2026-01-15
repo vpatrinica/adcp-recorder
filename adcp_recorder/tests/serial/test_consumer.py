@@ -436,3 +436,23 @@ class TestSerialConsumer:
         consumer.stop()
 
         mock_file_writer.write.assert_called_with("UNKNOWN", sentence)
+
+    def test_consume_writes_invalid_record_to_file(self, db_path):
+        """Test that consumer writes invalid records to file writer."""
+        queue = Queue(maxsize=100)
+        db = DatabaseManager(db_path)
+        router = MessageRouter()
+        # Register PNORI with a parser that will fail if data is invalid
+        router.register_parser("PNORI", PNORI)
+        mock_file_writer = Mock()
+
+        consumer = SerialConsumer(queue, db, router, file_writer=mock_file_writer)
+
+        sentence = "$PNORI,INVALID,DATA*FF"
+        queue.put(sentence.encode("ascii"))
+
+        consumer.start()
+        time.sleep(0.5)
+        consumer.stop()
+
+        mock_file_writer.write_invalid_record.assert_called_with("PNORI", sentence)

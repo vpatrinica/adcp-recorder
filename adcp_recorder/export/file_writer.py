@@ -78,6 +78,34 @@ class FileWriter:
         except Exception as e:
             logger.error(f"Failed to write to file for {prefix}: {e}")
 
+    def write_invalid_record(self, prefix: str, data: str) -> None:
+        """Write invalid record to error file.
+
+        Args:
+            prefix: Message type prefix
+            data: Invalid data string
+        """
+        if not prefix or not data:
+            return
+
+        try:
+            # Create errors directory for prefix
+            error_dir = os.path.join(self.base_path, "errors", prefix)
+            os.makedirs(error_dir, exist_ok=True)
+
+            # File name format: ERRORR_YYYYMMDD.nmea
+            date_str = self._current_date.strftime("%d%m%y")
+            filename = os.path.join(error_dir, f"ERRORR_{date_str}.nmea")
+
+            # Append to file
+            with open(filename, "a", encoding="utf-8", buffering=1) as f:
+                f.write(data)
+                if not data.endswith("\n"):
+                    f.write("\n")
+                f.flush()
+        except Exception as e:
+            logger.error(f"Failed to write invalid record for {prefix}: {e}")
+
     def write_error(self, message: str) -> None:
         """Write error message to error log."""
         timestamp = datetime.now().isoformat()
