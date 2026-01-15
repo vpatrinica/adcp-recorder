@@ -47,7 +47,9 @@ class AdcpRecorder:
         Path(self.config.output_dir).mkdir(parents=True, exist_ok=True)
 
         # Initialize database
-        self.db_path = config.db_path or str(Path(config.output_dir) / "adcp.duckdb")
+        db_dir = Path(config.output_dir) / "db"
+        db_dir.mkdir(parents=True, exist_ok=True)
+        self.db_path = config.db_path or str(db_dir / "adcp.duckdb")
         self.db_manager = DatabaseManager(self.db_path)
 
         # Shared Queue
