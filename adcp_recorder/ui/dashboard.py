@@ -1,0 +1,105 @@
+"""Streamlit dashboard for ADCP data visualization and analysis."""
+
+from datetime import datetime
+from pathlib import Path
+
+import plotly.express as px
+import streamlit as st
+
+from adcp_recorder.config import RecorderConfig
+from adcp_recorder.db import DatabaseManager
+
+# Setup page
+st.set_page_config(page_title="ADCP Analysis Dashboard", layout="wide")
+
+st.title("🌊 ADCP Recorder - Analysis Dashboard")
+
+
+# Initialize DB connection
+@st.cache_resource
+def get_db():
+    config = RecorderConfig.load()
+    db_path = config.db_path or (Path(config.output_dir) / "adcp.duckdb")
+    return DatabaseManager(str(db_path))
+
+
+db = get_db()
+conn = db.get_connection()
+
+# Sidebar
+st.sidebar.header("Data Source")
+db_path = st.sidebar.text_input("Database Path", value=db.db_path)
+
+# Main Navigation
+tab1, tab2, tab3 = st.tabs(["📊 Records & DuckLake", "⚠️ Parsing Errors", "⚙️ System Status"])
+
+with tab1:
+    st.header("Structured Records")
+
+    # Query DuckLake views
+    try:
+        views_res = conn.execute(
+            "SELECT view_name FROM duckdb_views() WHERE view_name LIKE 'view_%'"
+        ).fetchall()
+        available_views = [v[0] for v in views_res]
+
+        if available_views:
+            selected_view = st.selectbox("Select Record Type", available_views)
+
+            # Load sample data
+            df = conn.execute(f"SELECT * FROM {selected_view} LIMIT 1000").df()
+
+            st.metric("Total Records Loaded (Sample)", len(df))
+            st.dataframe(df, use_container_width=True)
+
+            # Simple visualization if applicable
+            if "heading" in df.columns:
+                st.subheader("Heading Distribution")
+                fig = px.histogram(df, x="heading", title="Compass Heading Distribution")
+                st.plotly_chart(fig, use_container_width=True)
+
+            if "temperature" in df.columns:
+                st.subheader("Temperature Over Time")
+                # Assuming recorded_at is available
+                if "recorded_at" in df.columns:
+                    fig = px.line(df, x="recorded_at", y="temperature", title="Temperature Trend")
+                    st.plotly_chart(fig, use_container_width=True)
+
+        else:
+            st.warning(
+                "No DuckLake views initialized. "
+                "Try running some recordings or check parquet directory."
+            )
+    except Exception as e:
+        st.error(f"Error loading DuckLake data: {e}")
+
+with tab2:
+    st.header("Parsing Errors")
+    try:
+        errors_df = conn.execute(
+            "SELECT * FROM parse_errors ORDER BY received_at DESC LIMIT 500"
+        ).df()
+        if not errors_df.empty:
+            st.dataframe(errors_df, use_container_width=True)
+
+            st.subheader("Error Types Distribution")
+            fig = px.pie(errors_df, names="error_type", title="Error Distribution by Type")
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.success("No parsing errors found! All systems nominal.")
+    except Exception as e:
+        st.error(f"Error loading parse errors: {e}")
+
+with tab3:
+    st.header("System Configuration")
+    config = RecorderConfig.load()
+    st.json({field: getattr(config, field) for field in RecorderConfig.PERSISTED_FIELDS})
+
+    if st.button("Refresh DuckLake Views"):
+        db.initialize_ducklake()
+        st.success("Views refreshed!")
+
+st.markdown("---")
+st.caption(
+    f"ADCP Recorder Dashboard - Last Refresh: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+)

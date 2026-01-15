@@ -1,6 +1,6 @@
-[🏠 Home](../README.md)
-
 # ADCP Recorder Documentation
+
+[🏠 Home](../README.md)
 
 Welcome to the ADCP Recorder documentation. This system provides a CLI/control plane and supervised service for recording NMEA-format telemetry from Nortek ADCP instruments into DuckDB.
 
@@ -12,6 +12,7 @@ Welcome to the ADCP Recorder documentation. This system provides a CLI/control p
 - [Configuration Guide](user-guide/CONFIGURATION.md) - Detailed configuration options and environment variables
 - [Usage Guide](user-guide/USAGE.md) - CLI commands, workflows, and best practices
 - [Examples](user-guide/EXAMPLES.md) - Practical examples and common scenarios
+- [Analysis Platform](user-guide/ANALYSIS.md) - Using the FastAPI backend and Streamlit dashboard
 
 ## 🚀 Deployment
 
@@ -23,17 +24,19 @@ Welcome to the ADCP Recorder documentation. This system provides a CLI/control p
   - Monitoring and maintenance
   - Backup and recovery
   - Upgrade procedures
+  - [API & Dashboard Deployment](deployment/ANALYSIS_DEPLOY.md)
 
 ## Quick Navigation
 
-
 ### 📐 Architecture
+
 - [System Overview](architecture/overview.md) - High-level system design and components
 - [Serial Processing](architecture/serial-processing.md) - FIFO producer/consumer pattern
-- [DuckDB Integration](architecture/duckdb-integration.md) - Database backend architecture
+- [DuckLake & DuckDB](architecture/duckdb-integration.md) - Multi-layer storage (Parquet + DuckDB)
 - [Binary Detection](architecture/binary-detection.md) - Non-NMEA data handling
 
 ### 🌊 NMEA Protocol
+
 - [NMEA Overview](nmea/overview.md) - Sentence format and structure
 - [Checksum Calculation](nmea/checksum.md) - XOR algorithm details
 - [Data Validation](nmea/validation.md) - Validation rules and constraints
@@ -41,16 +44,20 @@ Welcome to the ADCP Recorder documentation. This system provides a CLI/control p
 ### 📋 Message Specifications
 
 #### Configuration Messages
+
 - [PNORI Family](specs/pnori/README.md) - Instrument configuration (PNORI, PNORI1, PNORI2)
 
 #### Sensor Data Messages
+
 - [PNORS Family](specs/pnors/README.md) - Sensor data (PNORS, PNORS1, PNORS2, PNORS3, PNORS4)
 
 #### Current Velocity Messages
+
 - [PNORC Family](specs/pnorc/README.md) - Current velocity (PNORC, PNORC1, PNORC2, PNORC3, PNORC4)
 - [PNORH Family](specs/pnorh/README.md) - Header data (PNORH3, PNORH4)
 
 #### Additional Data Messages
+
 - [PNORA](specs/pnora/pnora.md) - Altitude/range data
 - [PNORW](specs/pnorw/pnorw.md) - Wave data
 - [PNORB](specs/pnorb/pnorb.md) - Bottom tracking data
@@ -63,36 +70,38 @@ Welcome to the ADCP Recorder documentation. This system provides a CLI/control p
 ### 💻 Implementation Guides
 
 #### Python Implementation
+
 - [Parser Patterns](implementation/python/parsers.md) - Sentence parsing and serialization
 - [Dataclass Structures](implementation/python/dataclasses.md) - Immutable data structures
 - [Enumerations](implementation/python/enumerations.md) - Type-safe enums
 - [Validation](implementation/python/validation.md) - Data validation patterns
+- [Parquet Export](implementation/python/parquet.md) - DuckLake storage implementation
 
 #### DuckDB Implementation
+
 - [Schema Patterns](implementation/duckdb/schemas.md) - Table definitions and types
 - [Constraints](implementation/duckdb/constraints.md) - CHECK and cross-field constraints
-- [Views](implementation/duckdb/views.md) - Views and materialized views
-- [Functions](implementation/duckdb/functions.md) - UDFs and stored procedures
+- [Views](implementation/duckdb/views.md) - Parquet views and DuckLake querying
 
 [💻 Complete Implementation Guide](implementation/README.md)
 
 ### 📝 Examples
+
 - [Parsing Examples](examples/parsing-examples.md) - Complete parsing code examples
 - [Validation Examples](examples/validation-examples.md) - Validation and error handling
 - [Query Examples](examples/query-examples.md) - DuckDB query patterns
+- [API Usage](examples/api-examples.md) - FastAPI endpoint examples
 
 [📝 All Examples](examples/README.md)
 
 ## Key Features
 
-- ✅ Asynchronous serial polling with automatic reconnection
-- ✅ NMEA checksum validation and frame parsing
-- ✅ DuckDB persistence with timestamped raw lines
-- ✅ Graceful signal handling and clean shutdown
-- ✅ Health monitoring with optional webhook alerting
-- ✅ Binary blob detection and separate error logging
-- ✅ Daily output files per record type
-- ✅ Cross-platform support (Windows/Linux)
+- ✅ **DuckLake Storage**: Combined Parquet + DuckDB storage for scalability
+- ✅ **Asynchronous Serial Polling**: Robust capture with automatic reconnection
+- ✅ **FastAPI Backend**: Programmatic access to all terrestrial and underwater data
+- ✅ **Streamlit Dashboard**: Visual analysis of velocity profiles and sensor trends
+- ✅ **Multi-Platform**: Full support for Windows (Servy) and Linux (Systemd)
+- ✅ **Resilient Design**: Binary detection, auto-recovery, and extensive validation
 
 ## Valid NMEA Prefixes
 

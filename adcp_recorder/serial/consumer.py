@@ -355,8 +355,13 @@ class SerialConsumer:
     def _store_parsed_message(
         self, conn: duckdb.DuckDBPyConnection, sentence: str, prefix: str, parsed: Any
     ) -> None:
-        """Store parsed message to appropriate table."""
+        """Store parsed message to appropriate table and export to Parquet."""
         data = parsed.to_dict()
+
+        # Export structured data to DuckLake (Parquet)
+        if self._file_writer:
+            self._file_writer.write_record(prefix, data)
+
         if prefix in ("PNORI", "PNORI1", "PNORI2"):
             insert_pnori_configuration(conn, data, sentence)
         elif prefix in ("PNORS", "PNORS1", "PNORS2", "PNORS3", "PNORS4"):

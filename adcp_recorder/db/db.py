@@ -1,14 +1,12 @@
-"""Database management for DuckDB backend.
-
-Provides database connection management, schema initialization, and thread-safe access.
-"""
-
+import logging
 from pathlib import Path
 from threading import local
 
 import duckdb
 
 from .schema import ALL_SCHEMA_SQL
+
+logger = logging.getLogger(__name__)
 
 
 class DatabaseManager:
@@ -78,6 +76,40 @@ class DatabaseManager:
 
         conn.commit()
         self._schema_initialized = True
+
+        # After structural schema is ready, attempt to link DuckLake (Parquet)
+        self.initialize_ducklake()
+
+    def initialize_ducklake(self) -> None:
+        """Initialize DuckLake views pointing to Parquet files if they exist."""
+        conn = self.get_connection()
+
+        # We look for parquet files in the standard output directory
+        # This assumes the DB is sibling to 'parquet' folder or we can derive it
+        # Real implementation should probably get this from config
+        base_path = Path(self.db_path).parent
+        parquet_path = base_path / "parquet"
+
+        if not parquet_path.exists():
+            return
+
+        logger.info(f"Initializing DuckLake views from {parquet_path}")
+
+        # Register a view for each record type found in parquet folder
+        try:
+            for record_type_dir in parquet_path.iterdir():
+                if record_type_dir.is_dir():
+                    prefix = record_type_dir.name.lower()
+                    view_name = f"view_{prefix}"
+                    parquet_glob = str(record_type_dir / "**" / "*.parquet")
+
+                    conn.execute(
+                        f"CREATE OR REPLACE VIEW {view_name} "
+                        f"AS SELECT * FROM read_parquet('{parquet_glob}')"
+                    )
+                    logger.debug(f"Created DuckLake view: {view_name}")
+        except Exception as e:
+            logger.warning(f"Failed to initialize some DuckLake views: {e}")
 
     def close(self) -> None:
         """Close all database connections.

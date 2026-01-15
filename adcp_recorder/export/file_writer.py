@@ -3,16 +3,18 @@
 import logging
 import os
 from datetime import datetime
-from typing import TextIO
+from typing import Any, TextIO
+
+from adcp_recorder.export.parquet_writer import ParquetWriter
 
 logger = logging.getLogger(__name__)
 
 
 class FileWriter:
-    """Writes NMEA sentences to files with daily rotation.
+    """Writes NMEA sentences to files and structured records to Parquet.
 
-    Maintains separate files for each message type (e.g. PNORI, PNORS).
-    Rotates files daily based on the current date.
+    Maintains separate files for each message type and rotates daily.
+    Also handles Parquet export for structured ADCP data.
     """
 
     def __init__(self, base_path: str):
@@ -25,6 +27,7 @@ class FileWriter:
         self._files: dict[str, TextIO] = {}
         self._current_date = datetime.now().date()
         self._ensure_base_path()
+        self.parquet_writer = ParquetWriter(base_path)
 
     def _ensure_base_path(self) -> None:
         """Ensure base directory exists."""
@@ -81,6 +84,18 @@ class FileWriter:
         except Exception as e:
             logger.error(f"Failed to write to file for {prefix}: {e}")
 
+    def write_record(self, prefix: str, record: dict[str, Any]) -> None:
+        """Write structured record to Parquet.
+
+        Args:
+            prefix: Message type prefix
+            record: Data dictionary
+        """
+        try:
+            self.parquet_writer.write_record(prefix, record)
+        except Exception as e:
+            logger.error(f"Failed to write record for {prefix} to Parquet: {e}")
+
     def write_invalid_record(self, prefix: str, data: str) -> None:
         """Write invalid record to error file.
 
@@ -115,10 +130,15 @@ class FileWriter:
         self.write_invalid_record("SYSTEM", f"[{timestamp}] {message}")
 
     def close(self) -> None:
-        """Close all open files."""
+        """Close all open files and writers."""
         for prefix, f in self._files.items():
             try:
                 f.close()
             except Exception as e:
                 logger.error(f"Error closing file for {prefix}: {e}")
         self._files.clear()
+
+        try:
+            self.parquet_writer.close()
+        except Exception as e:
+            logger.error(f"Error closing parquet writer: {e}")

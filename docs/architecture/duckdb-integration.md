@@ -1,8 +1,8 @@
+# DuckDB & DuckLake Integration
+
 [🏠 Home](../README.md) > [Architecture](overview.md)
 
-# DuckDB Integration
-
-The DuckDB backend provides persistent storage for raw NMEA sentences and parsed structured data.
+The DuckDB backend provides persistent storage for raw NMEA sentences and parsed structured data, now enhanced with Parquet-native DuckLake storage.
 
 ## Database Schema Architecture
 
@@ -83,24 +83,28 @@ Serial Port
     ┌────┴────┐
     │  Parse  │
     └────┬────┘
-         │
-    ┌────┴─────┐
-    │          │
-Success      Failure
-    │          │
-    v          v
-┌─────────┐  ┌──────────────┐
-│ Update  │  │    Update    │
-│raw_lines│  │  raw_lines   │
-│OK       │  │  FAIL        │
-└────┬────┘  └──────┬───────┘
-     │              │
-     v              v
-┌─────────┐  ┌──────────────┐
-│ Insert  │  │    Insert    │
-│ Record  │  │parse_errors  │
-│ Table   │  │              │
-└─────────┘  └──────────────┘
+             ┌────────┴─────────┐
+      │                  │
+      v                  v
+┌─────────┐      ┌────────────┐
+│ DuckDB  │      │ Daily Files│
+│ (Metadata/│    │  (*.dat)   │
+│ Views)  │      └────────────┘
+└─────────┘             │
+     │                  v
+     │           ┌────────────┐
+     v           │ Parquet    │
+┌─────────┐      │ (DuckLake) │
+│Raw Lines│      │ Partitioned│
+│Parsed   │      └────────────┘
+│Errors   │             │
+└─────────┘             v
+               ┌────────────────┐
+               │ Analysis Layer │
+               │ - FastAPI      │
+               │ - Streamlit    │
+               └────────────────┘
+  └──────────────┘
 ```
 
 ## Daily File Output
@@ -109,10 +113,11 @@ In addition to DuckDB storage, records are optionally written to daily files:
 
 ### File Naming Convention
 
-```
-data_report/PNORI_YYYY_MM_DD.dat
-data_report/PNORC_YYYY_MM_DD.dat
-data_report/PNORS_YYYY_MM_DD.dat
+```text
+data_report/PNORI_2025_12_30.dat
+data_report/PNORC_2025_12_30.dat
+data_report/PNORS_2025_12_30.dat
+...
 data_report/PNORI1_YYYY_MM_DD.dat
 data_report/PNORC1_YYYY_MM_DD.dat
 data_report/PNORS1_YYYY_MM_DD.dat
@@ -127,7 +132,7 @@ data_report/PNORC4_YYYY_MM_DD.dat
 
 Plain text, one NMEA sentence per line:
 
-```
+```text
 $PNORI,4,Signature1000900001,4,20,0.20,1.00,0*2E
 $PNORI,4,Signature1000900001,4,20,0.20,1.00,0*2E
 ```
@@ -261,6 +266,67 @@ cp ./data/adcp_recorder.db ./backups/adcp_recorder_$(date +%Y%m%d).db
 
 # Export to Parquet for long-term archival
 duckdb ./data/adcp_recorder.db -c "COPY raw_lines TO 'archive/raw_lines.parquet'"
+```
+
+## DuckLake: Multi-Layer Storage
+
+Starting with version 0.1.3, ADCP Recorder adopts a "DuckLake" architecture. This combines the transactional reliability of DuckDB for metadata and active logging with the scalability and compression of Parquet for long-term structured data.
+
+### Hybrid Data Strategy
+
+1. **DuckDB (Transactional)**:
+    - Stores `raw_lines` for every incoming sentence.
+    - Stores `parse_errors` for immediate troubleshooting.
+    - Serves as the query engine (linking to Parquet via Views).
+2. **Parquet (Analytical)**:
+    - Stores parsed structured records (Current velocity, Sensor data, etc.).
+    - Partitioned by record type and date: `data/parquet/{record_type}/date={YYYY-MM-DD}/`.
+    - Highly compressed and optimal for large-scale analysis.
+
+### Parquet Storage Structure
+
+The `ParquetWriter` component buffers records and writes them to a partitioned directory structure:
+
+```
+data/
+└── parquet/
+    ├── pnors/
+    │   └── date=2026-01-15/
+    │       └── pnors_1705352400.parquet
+    ├── pnorc/
+    │   └── date=2026-01-15/
+    │       └── pnorc_1705352400.parquet
+    └── ...
+```
+
+### DuckLake Views
+
+The `DatabaseManager` automatically discovers Parquet files and creates virtual views for seamless SQL access:
+
+```sql
+-- View created automatically on startup
+CREATE OR REPLACE VIEW view_pnors AS 
+SELECT * FROM read_parquet('data/parquet/pnors/**/*.parquet');
+
+-- You can query it like a normal table
+SELECT AVG(temperature), recorded_at 
+FROM view_pnors 
+WHERE recorded_at > '2026-01-15 00:00:00'
+GROUP BY 2;
+```
+
+### Data Flow (Revised)
+
+```mermaid
+graph TD
+    S[Serial Port] --> C[SerialConsumer]
+    C --> RL[DuckDB: raw_lines]
+    C --> PW[ParquetWriter]
+    PW --> P[Parquet Files]
+    DB[DuckDB Engine] -.->|External View| P
+    API[FastAPI] --> DB
+    UI[Streamlit] --> API
+    UI --> DB
 ```
 
 ## Performance Tuning
