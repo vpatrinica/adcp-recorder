@@ -133,16 +133,19 @@ sudo systemctl enable adcp-recorder
 sudo systemctl start adcp-recorder
 ```
 
-### Windows (Windows Service)
+### Windows (Windows Service via Servy)
 
 ```cmd
 REM Automated installation (run as Administrator)
 install-windows.bat
 
-REM Or manual service installation
-python -m adcp_recorder.service.win_service install
-sc config adcp-recorder start= auto
-sc start adcp-recorder
+REM Or manual service installation using Servy
+REM First install Servy: winget install -e --id aelassas.Servy
+servy-cli install --name="ADCPRecorder" ^
+    --path="C:\Program Files\ADCP-Recorder\venv\Scripts\python.exe" ^
+    --params="-m adcp_recorder.service.supervisor" ^
+    --startupType="Automatic"
+servy-cli start --name="ADCPRecorder"
 ```
 
 See [Deployment Guide](https://github.com/vpatrinica/adcp-recorder/blob/main/docs/deployment/DEPLOYMENT.md) for complete instructions.

@@ -13,6 +13,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Web-based monitoring dashboard
 - Data export to additional formats (Parquet, NetCDF)
 
+## [0.1.2] - 2026-01-15
+
+### Changed
+
+- **Windows Service now uses Servy**: Replaced pywin32-based Windows service with [Servy](https://github.com/aelassas/servy), a full-featured Windows service wrapper
+- Windows service installation now uses `servy-cli install` command with automatic health monitoring, log rotation, and recovery actions
+- Simplified Windows installation - no more pywin32 post-install configuration required
+
+### Removed
+
+- Removed pywin32 optional dependency (`[win]` extras no longer needed)
+- Deleted `adcp_recorder/service/win_service.py` (pywin32-based service)
+- Deleted `scripts/fix-windows-service.bat` and `scripts/test-pywin32.bat` (legacy pywin32 scripts)
+
+### Breaking Changes
+
+> **Windows users upgrading from 0.1.1**: You must uninstall the existing pywin32-based service before upgrading. Then reinstall using the new Servy-based installation scripts.
+>
+> Upgrade steps:
+>
+> 1. Stop and remove old service: `sc stop ADCPRecorder && sc delete ADCPRecorder`
+> 2. Install Servy: `winget install -e --id aelassas.Servy`
+> 3. Run the new `install-windows.bat` as Administrator
+
+### Added
+
+- Servy-based service management with health checks, log rotation, and automatic recovery
+- Service logs now written to `C:\ADCP_Data\logs\stdout.log` and `stderr.log` with daily rotation
+
 ## [0.1.1] - 2026-01-15
 
 ### Changed
@@ -90,6 +119,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/vpatrinica/adcp-recorder/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/vpatrinica/adcp-recorder/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/vpatrinica/adcp-recorder/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/vpatrinica/adcp-recorder/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/vpatrinica/adcp-recorder/releases/tag/v0.1.0

@@ -95,8 +95,8 @@ New-Item -ItemType Directory -Path "C:\Program Files\ADCP-Recorder" -Force
 # Create data directory
 New-Item -ItemType Directory -Path "C:\ADCP_Data" -Force
 
-# Install pywin32 for Windows service support
-pip install pywin32
+# Install Servy for Windows service support
+winget install -e --id aelassas.Servy --silent
 ```
 
 ---
@@ -115,6 +115,7 @@ sudo ./install-linux.sh
 ```
 
 The script will:
+
 1. Install the package in a virtual environment
 2. Configure the system service
 3. Set up logging
@@ -165,6 +166,7 @@ sudo nano /etc/systemd/system/adcp-recorder.service
 ```
 
 **Service File Template:**
+
 ```ini
 [Unit]
 Description=ADCP Recorder Service
@@ -281,20 +283,32 @@ echo } >> "%PROGRAMDATA%\ADCP-Recorder\config.json"
 ```powershell
 # Run PowerShell as Administrator
 
+# Install Servy if not already installed
+winget install -e --id aelassas.Servy --silent
+
 # Navigate to installation directory
 cd "C:\Program Files\ADCP-Recorder"
 
-# Install service
-.\venv\Scripts\python.exe -m adcp_recorder.service.win_service install
-
-# Configure service to start automatically
-sc config adcp-recorder start= auto
+# Install service via Servy
+servy-cli install --quiet `
+    --name="ADCPRecorder" `
+    --displayName="ADCP Recorder Service" `
+    --description="NMEA Telemetry Recorder for Nortek ADCP Instruments" `
+    --path="$PWD\venv\Scripts\python.exe" `
+    --startupDir="$PWD" `
+    --params="-m adcp_recorder.service.supervisor" `
+    --startupType="Automatic" `
+    --stdout="C:\ADCP_Data\logs\stdout.log" `
+    --stderr="C:\ADCP_Data\logs\stderr.log" `
+    --enableDateRotation `
+    --enableHealth `
+    --recoveryAction="RestartService"
 
 # Start service
-sc start adcp-recorder
+servy-cli start --name="ADCPRecorder"
 
 # Check service status
-sc query adcp-recorder
+servy-cli status --name="ADCPRecorder"
 ```
 
 **Alternative: Use PowerShell Script**
@@ -367,6 +381,7 @@ sc qc adcp-recorder
 ```
 
 **Using Services GUI:**
+
 ```cmd
 REM Open Services management console
 services.msc
@@ -376,6 +391,7 @@ REM Right-click for Start, Stop, Restart options
 ```
 
 **View Logs (Event Viewer):**
+
 ```cmd
 REM Open Event Viewer
 eventvwr.msc
@@ -391,6 +407,7 @@ REM Filter by Source: adcp-recorder
 ### Principle of Least Privilege
 
 **Linux:**
+
 ```bash
 # Run service as dedicated user (not root)
 # Already configured in systemd service file
@@ -404,6 +421,7 @@ sudo chmod 600 /var/lib/adcp-recorder/.adcp-recorder/config.json
 ```
 
 **Windows:**
+
 ```powershell
 # Run service as dedicated user (not Administrator)
 # Configure in Services → Properties → Log On tab
@@ -503,6 +521,7 @@ define service {
 ### Log Rotation
 
 **Linux (systemd journal):**
+
 ```bash
 # Configure journald retention
 sudo nano /etc/systemd/journald.conf
@@ -516,6 +535,7 @@ sudo systemctl restart systemd-journald
 ```
 
 **Custom log files:**
+
 ```bash
 # Create logrotate configuration
 sudo tee /etc/logrotate.d/adcp-recorder << EOF
@@ -597,6 +617,7 @@ echo "Backup completed: $DATE"
 ```
 
 Add to cron:
+
 ```bash
 # Daily at 3 AM
 0 3 * * * /usr/local/bin/adcp-backup.sh
@@ -694,6 +715,7 @@ sudo systemctl start adcp-recorder
 ### Service Won't Start
 
 **Check service status:**
+
 ```bash
 sudo systemctl status adcp-recorder
 sudo journalctl -u adcp-recorder -n 50
@@ -702,18 +724,21 @@ sudo journalctl -u adcp-recorder -n 50
 **Common issues:**
 
 1. **Permission denied on serial port:**
+
    ```bash
    sudo usermod -a -G dialout adcp-recorder
    sudo systemctl restart adcp-recorder
    ```
 
 2. **Configuration file not found:**
+
    ```bash
    sudo -u adcp-recorder ls -la /var/lib/adcp-recorder/.adcp-recorder/
    # Recreate if missing
    ```
 
 3. **Python module not found:**
+
    ```bash
    sudo -u adcp-recorder /var/lib/adcp-recorder/venv/bin/pip list | grep adcp
    # Reinstall if missing
@@ -771,6 +796,7 @@ sudo journalctl -u adcp-recorder -f
 **Your ADCP Recorder is now deployed and ready for production use!**
 
 For ongoing operations, refer to:
+
 - [USAGE.md](../user-guide/USAGE.md) for daily operations
 - [CONFIGURATION.md](../user-guide/CONFIGURATION.md) for configuration changes
 - [EXAMPLES.md](../user-guide/EXAMPLES.md) for common scenarios
