@@ -347,6 +347,9 @@ class SerialConsumer:
                 error_message=str(e),
             )
 
+            if self._file_writer:
+                self._file_writer.write_invalid_record(prefix, sentence)
+
     def _store_parsed_message(
         self, conn: duckdb.DuckDBPyConnection, sentence: str, prefix: str, parsed: Any
     ) -> None:
