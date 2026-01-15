@@ -211,8 +211,8 @@ class SerialConsumer:
                             # start file
                             self._binary_writer.start_blob(item.data)
                             if self._file_writer:
-                                self._file_writer.write(
-                                    "ERRORS", item.data.decode("ascii", errors="replace")
+                                self._file_writer.write_invalid_record(
+                                    "BINARY", item.data.decode("ascii", errors="replace")
                                 )
                         elif item.end:
                             path = self._binary_writer.finish_blob()
@@ -268,7 +268,9 @@ class SerialConsumer:
                 error_message="Binary data",
             )
             if self._file_writer:
-                self._file_writer.write("ERRORS", line_bytes.decode("ascii", errors="replace"))
+                self._file_writer.write_invalid_record(
+                    "BINARY", line_bytes.decode("ascii", errors="replace")
+                )
             return
 
         # Decode to string
