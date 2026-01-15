@@ -6,3 +6,7 @@ errors_binary
 errors_binary/
 build/
 build/*
+debug_data
+debug_data/*
+debug_home
+debug_home/*

@@ -9,9 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- Additional NMEA message type support
 - Web-based monitoring dashboard
-- Data export to additional formats (Parquet, NetCDF)
+- Data export to additional formats (Parquet)
+
+## [0.1.3] - 2026-01-15
+
+### Added
+
+- **DuckLake Architecture**: Transitioned to a multi-layer storage strategy combining DuckDB with partitioned Parquet files.
+- **Parquet Storage**: Structured records (PNORS, PNORC, etc.) are now exported to compressed Parquet files in `data/parquet/{prefix}/date={YYYY-MM-DD}/`.
+- **FastAPI Data Access**: Introduced a REST API for programmatic access to records, errors, and DuckLake data.
+- **Analysis Dashboard**: Integrated a Streamlit-based dashboard for real-time visualization of ADCP profiles, sensor trends, and error analytics.
+- **DuckDB Parquet Views**: Automatic creation of DuckDB views (`view_{prefix}`) pointing to Parquet data for seamless querying.
+
+### Changed
+
+- Updated `FileWriter` to coordinate concurrent text (NMEA), binary, and Parquet export.
+- Refactored `DatabaseManager` to initialize DuckLake views on startup.
+- Enhanced `SerialConsumer` to route structured data to both the database and Parquet storage.
 
 ## [0.1.2] - 2026-01-15
 
