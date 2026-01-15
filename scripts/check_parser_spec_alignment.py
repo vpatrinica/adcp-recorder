@@ -5,12 +5,11 @@ Usage:
 
 Exits with non-zero status if any spec family lacks a parser.
 """
+import re
 import sys
 from pathlib import Path
-import re
 
 from adcp_recorder.parsers import __all__ as parser_exports
-
 
 SPEC_DIR = Path(__file__).resolve().parents[1] / "docs" / "specs"
 
