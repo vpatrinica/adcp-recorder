@@ -46,6 +46,7 @@ dependencies = [
     "pyserial>=3.5",
     "duckdb>=0.9.0",
     "click>=8.1.0",
+    "polars>=1.0.0",
 ]
 
 [project.optional-dependencies]

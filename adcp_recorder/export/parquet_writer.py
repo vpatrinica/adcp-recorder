@@ -107,15 +107,14 @@ class ParquetWriter:
                 r["record_type"] = prefix
 
         try:
-            # Use DuckDB to write Parquet from Python list of dicts
-            # Use the relation API for better robustness
-            import pandas as pd
+            # Use polars to write Parquet directly - more efficient and no pandas dependency
+            import polars as pl
 
-            df = pd.DataFrame(records)  # noqa: F841
-            self._conn.execute("COPY (SELECT * FROM df) TO ? (FORMAT PARQUET)", [str(file_path)])
+            df = pl.DataFrame(records)
+            df.write_parquet(str(file_path))
             logger.debug(f"Wrote {len(records)} records to {file_path}")
         except Exception as e:
-            logger.error(f"DuckDB Parquet write error: {prefix}: {e}")
+            logger.error(f"Polars Parquet write error: {prefix}: {e}")
             raise
 
     def close(self) -> None:
