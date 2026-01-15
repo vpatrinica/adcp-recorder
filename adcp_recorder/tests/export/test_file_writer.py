@@ -111,8 +111,8 @@ class TestFileWriter:
         writer = FileWriter(export_dir)
         writer.write_error("Something went wrong")
 
-        date_str = datetime.now().strftime("%Y%m%d")
-        error_file = os.path.join(export_dir, f"ERRORS_{date_str}.nmea")
+        date_str = datetime.now().strftime("%d%m%y")
+        error_file = os.path.join(export_dir, "errors", "SYSTEM", f"ERRORR_{date_str}.nmea")
 
         assert os.path.exists(error_file)
         with open(error_file) as f:

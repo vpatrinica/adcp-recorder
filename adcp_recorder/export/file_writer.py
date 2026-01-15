@@ -109,7 +109,7 @@ class FileWriter:
     def write_error(self, message: str) -> None:
         """Write error message to error log."""
         timestamp = datetime.now().isoformat()
-        self.write("ERRORS", f"[{timestamp}] {message}")
+        self.write_invalid_record("SYSTEM", f"[{timestamp}] {message}")
 
     def close(self) -> None:
         """Close all open files."""
