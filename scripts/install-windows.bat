@@ -298,6 +298,7 @@ if %ADMIN% equ 1 (
         --path="%INSTALL_DIR%\venv\Scripts\python.exe" ^
         --startupDir="%INSTALL_DIR%" ^
         --params="-m adcp_recorder.service.supervisor" ^
+        --env="PROGRAMDATA=%PROGRAMDATA%" ^
         --startupType="Automatic" ^
         --priority="Normal" ^
         --stdout="%LOG_DIR%\stdout.log" ^

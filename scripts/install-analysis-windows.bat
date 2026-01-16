@@ -11,7 +11,7 @@ setlocal enabledelayedexpansion
 echo ========================================
 echo ADCP Analysis Platform - Windows Setup
 echo ========================================
-echo.
+echo(
 
 REM Check for Administrator privileges
 net session >nul 2>&1
@@ -33,26 +33,27 @@ if not exist "%INSTALL_DIR%\venv" (
 )
 
 REM Verify Servy is installed
-servy-cli --version >nul 2>&1
+where servy-cli >nul 2>&1
 if %errorLevel% neq 0 (
-    echo ERROR: Servy CLI not found. 
-    echo Please ensure Servy is installed (winget install -e --id aelassas.Servy).
+    echo ERROR: Servy CLI not found.
+    echo Please ensure Servy is installed: winget install -e --id aelassas.Servy
     pause
     exit /b 1
 )
 
-echo [1/2] Installing ADCP API Service...
-servy-cli install --quiet ^
-    --name="ADCP-API" ^
-    --displayName="ADCP Recorder API" ^
-    --description="REST API for ADCP Recorder data access" ^
-    --path="%INSTALL_DIR%\venv\Scripts\uvicorn.exe" ^
-    --startupDir="%INSTALL_DIR%" ^
-    --params="adcp_recorder.api.main:app --host 0.0.0.0 --port 8000" ^
-    --startupType="Automatic" ^
-    --stdout="%LOG_DIR%\api_stdout.log" ^
-    --stderr="%LOG_DIR%\api_stderr.log" ^
-    --enableDateRotation --dateRotationType="Daily"
+echo [1/3] Installing analysis dependencies...
+"%INSTALL_DIR%\venv\Scripts\pip.exe" install --quiet "adcp-recorder[analysis]"
+if %errorLevel% neq 0 (
+    echo ERROR: Failed to install analysis dependencies.
+    pause
+    exit /b 1
+)
+echo Analysis dependencies installed.
+echo(
+
+echo [2/3] Installing ADCP API Service...
+set "API_PARAMS=adcp_recorder.api.main:app --host 0.0.0.0 --port 8000"
+servy-cli install --quiet --name="ADCP-API" --displayName="ADCP Recorder API" --description="REST API for ADCP Recorder data access" --path="%INSTALL_DIR%\venv\Scripts\uvicorn.exe" --startupDir="%INSTALL_DIR%" --params="!API_PARAMS!" --startupType="Automatic" --stdout="%LOG_DIR%\api_stdout.log" --stderr="%LOG_DIR%\api_stderr.log" --enableDateRotation --dateRotationType="Daily"
 
 if %errorLevel% equ 0 (
     echo API Service installed successfully.
@@ -62,19 +63,10 @@ if %errorLevel% equ 0 (
     echo WARNING: API Service installation failed.
 )
 
-echo.
-echo [2/2] Installing ADCP Dashboard Service...
-servy-cli install --quiet ^
-    --name="ADCP-Dashboard" ^
-    --displayName="ADCP Recorder Dashboard" ^
-    --description="Interactive Streamlit dashboard for ADCP analysis" ^
-    --path="%INSTALL_DIR%\venv\Scripts\streamlit.exe" ^
-    --startupDir="%INSTALL_DIR%" ^
-    --params="run adcp_recorder/ui/dashboard.py --server.port 8501 --server.address 0.0.0.0" ^
-    --startupType="Automatic" ^
-    --stdout="%LOG_DIR%\dashboard_stdout.log" ^
-    --stderr="%LOG_DIR%\dashboard_stderr.log" ^
-    --enableDateRotation --dateRotationType="Daily"
+echo(
+echo [3/3] Installing ADCP Dashboard Service...
+set "DASH_PARAMS=run adcp_recorder/ui/dashboard.py --server.port 8501 --server.address 0.0.0.0"
+servy-cli install --quiet --name="ADCP-Dashboard" --displayName="ADCP Recorder Dashboard" --description="Interactive Streamlit dashboard for ADCP analysis" --path="%INSTALL_DIR%\venv\Scripts\streamlit.exe" --startupDir="%INSTALL_DIR%" --params="!DASH_PARAMS!" --startupType="Automatic" --stdout="%LOG_DIR%\dashboard_stdout.log" --stderr="%LOG_DIR%\dashboard_stderr.log" --enableDateRotation --dateRotationType="Daily"
 
 if %errorLevel% equ 0 (
     echo Dashboard Service installed successfully.
@@ -84,11 +76,11 @@ if %errorLevel% equ 0 (
     echo WARNING: Dashboard Service installation failed.
 )
 
-echo.
+echo(
 echo ========================================
 echo Setup Complete!
 echo ========================================
 echo API:       http://localhost:8000
 echo Dashboard: http://localhost:8501
-echo.
+echo(
 pause
