@@ -20,6 +20,7 @@
 - ✅ **Cross-Platform** - Full support for Linux and Windows
 - ✅ **Service Integration** - Systemd (Linux) and Windows Service support
 - ✅ **Production Ready** - Comprehensive testing, logging, and error handling
+- ✅ **Advanced Dashboard** - Multi-page Streamlit dashboard with customizable plots and YAML persistence
 
 ## Supported NMEA Message Types
 
@@ -196,6 +197,24 @@ Daily CSV files are automatically exported to `{output_dir}/{MESSAGE_TYPE}/{YYYY
 cat ~/adcp_data/PNORS/$(date +%Y-%m-%d).csv
 ```
 
+### Scientist Dashboard
+
+The advanced dashboard provides interactive data exploration and visualization:
+
+```bash
+# Install analysis dependencies
+pip install adcp-recorder[analysis]
+
+# Start the dashboard
+streamlit run -m adcp_recorder.ui.dashboard
+```
+
+Open `http://localhost:8501` to access:
+
+- **Data Explorer**: Browse all data sources with filtering and CSV export
+- **Plot Builder**: Create time series, velocity profiles, and wave spectra
+- **Dashboard Editor**: Save custom dashboard configurations (persisted as YAML)
+
 ## Development
 
 ### Running Tests
@@ -242,7 +261,7 @@ ruff format adcp_recorder/
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │                    ADCP Recorder                        │
 ├─────────────────────────────────────────────────────────┤
@@ -389,4 +408,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Built with ❤️ for oceanographic research and marine monitoring**
+Built with ❤️ for oceanographic research and marine monitoring

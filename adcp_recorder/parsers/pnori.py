@@ -68,6 +68,7 @@ class PNORI:
         <InstrumentType.SIGNATURE: 4>
         >>> config.beam_count
         4
+
     """
 
     instrument_type: InstrumentType
@@ -101,6 +102,7 @@ class PNORI:
 
         Raises:
             ValueError: If sentence format is invalid or fields fail validation
+
         """
         sentence = sentence.strip()
 
@@ -140,6 +142,7 @@ class PNORI:
 
         Returns:
             NMEA sentence string
+
         """
         sentence = (
             f"$PNORI,{self.instrument_type.value},{self.head_id},"
@@ -159,6 +162,7 @@ class PNORI:
 
         Returns:
             Dictionary with all fields mapped to database column names
+
         """
         return {
             "sentence_type": "PNORI",
@@ -188,6 +192,7 @@ class PNORI1:
         >>> config = PNORI1.from_nmea(sentence)
         >>> config.coordinate_system
         <CoordinateSystem.BEAM: 'BEAM'>
+
     """
 
     instrument_type: InstrumentType
@@ -221,6 +226,7 @@ class PNORI1:
 
         Raises:
             ValueError: If sentence format is invalid or fields fail validation
+
         """
         sentence = sentence.strip()
 
@@ -260,6 +266,7 @@ class PNORI1:
 
         Returns:
             NMEA sentence string
+
         """
         sentence = (
             f"$PNORI1,{self.instrument_type.value},{self.head_id},"
@@ -279,6 +286,7 @@ class PNORI1:
 
         Returns:
             Dictionary with all fields mapped to database column names
+
         """
         return {
             "sentence_type": "PNORI1",
@@ -328,6 +336,7 @@ class PNORITag:
 
         Raises:
             ValueError: If field format is invalid
+
         """
         if "=" not in field_str:
             raise ValueError(f"Tagged field must contain '=': {field_str}")
@@ -350,6 +359,7 @@ class PNORI2:
         >>> config = PNORI2.from_nmea(sentence)
         >>> config.head_id
         '123456'
+
     """
 
     instrument_type: InstrumentType
@@ -383,6 +393,7 @@ class PNORI2:
 
         Raises:
             ValueError: If sentence format is invalid or fields fail validation
+
         """
         sentence = sentence.strip()
 
@@ -439,6 +450,7 @@ class PNORI2:
 
         Returns:
             NMEA sentence string with tags in canonical order
+
         """
         sentence = (
             f"$PNORI2,IT={self.instrument_type.value},SN={self.head_id},"
@@ -458,6 +470,7 @@ class PNORI2:
 
         Returns:
             Dictionary with all fields mapped to database column names
+
         """
         return {
             "sentence_type": "PNORI2",

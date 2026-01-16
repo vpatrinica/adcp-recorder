@@ -28,6 +28,7 @@ class InstrumentType(IntEnum):
 
         Raises:
             ValueError: If code is not valid
+
         """
         try:
             return cls(code)
@@ -47,6 +48,7 @@ class InstrumentType(IntEnum):
         Note:
             Signature instruments must have exactly 4 beams.
             Other instruments can have 1-3 beams.
+
         """
         if self == InstrumentType.SIGNATURE:
             return (4,)
@@ -78,6 +80,7 @@ class CoordinateSystem(Enum):
 
         Raises:
             ValueError: If code is not valid
+
         """
         if isinstance(code, int):
             mapping = {0: cls.ENU, 1: cls.XYZ, 2: cls.BEAM}
@@ -87,19 +90,19 @@ class CoordinateSystem(Enum):
                     f"Valid codes: 0 (ENU), 1 (XYZ), 2 (BEAM)"
                 )
             return mapping[code]
-        else:
-            # String code
-            code_upper = str(code).upper()
-            try:
-                return cls(code_upper)
-            except ValueError:
-                raise ValueError(f"Invalid coordinate system: {code}. Valid values: ENU, XYZ, BEAM")
+        # String code
+        code_upper = str(code).upper()
+        try:
+            return cls(code_upper)
+        except ValueError:
+            raise ValueError(f"Invalid coordinate system: {code}. Valid values: ENU, XYZ, BEAM")
 
     def to_numeric_code(self) -> int:
         """Convert to numeric code for backward compatibility.
 
         Returns:
             Numeric code: 0 (ENU), 1 (XYZ), 2 (BEAM)
+
         """
         mapping = {self.ENU: 0, self.XYZ: 1, self.BEAM: 2}
         return mapping[self]

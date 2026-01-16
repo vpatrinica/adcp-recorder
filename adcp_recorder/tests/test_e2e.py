@@ -163,7 +163,7 @@ def test_full_pipeline_e2e(temp_recorder_dir):
         error_today_str = datetime.now().strftime("%d%m%y")
 
         # Helper to check file existence and content
-        def verify_export_file(prefix, partial_content, is_error=False):
+        def verify_export_file(prefix, partial_content, is_error=False) -> None:
             if is_error:
                 expected_filename = f"ERRORR_{error_today_str}.nmea"
                 file_path = temp_recorder_dir / "errors" / prefix / expected_filename
@@ -195,23 +195,21 @@ def test_reconnect_scenario(temp_recorder_dir):
             self.is_open = True
             self.read_count = 0
 
-        def readline(self):
+        def readline(self) -> bytes:
             self.read_count += 1
             if self.instance_id == 1:
                 if self.read_count == 1:
                     # First instance, first read: success
                     return b"$PNORI,4,2001,4,20,0.20,1.00,0*1C\r\n"
-                else:
-                    # First instance, subsequent read: fail
-                    self.is_open = False
-                    raise serial.SerialException("Simulated connection loss")
-            else:
-                # Subsequent instances (reconnections)
-                if self.read_count == 1:
-                    return b"$PNORI,4,AfterReconnect,4,20,0.20,1.00,0*33\r\n"
-                return b""
+                # First instance, subsequent read: fail
+                self.is_open = False
+                raise serial.SerialException("Simulated connection loss")
+            # Subsequent instances (reconnections)
+            if self.read_count == 1:
+                return b"$PNORI,4,AfterReconnect,4,20,0.20,1.00,0*33\r\n"
+            return b""
 
-        def close(self):
+        def close(self) -> None:
             self.is_open = False
 
     instances = []

@@ -20,7 +20,7 @@ def db_conn(tmp_path):
     db_file = tmp_path / "consumer_test.db"
     db_manager = DatabaseManager(str(db_file))
     db_manager.initialize_schema()
-    yield db_manager
+    return db_manager
 
 
 @pytest.fixture
@@ -59,7 +59,7 @@ def consumer_stack(db_conn):
 
 
 class TestConsumerParseErrors:
-    def _verify_error_captured(self, queue, db_manager, prefix, bad_sentence):
+    def _verify_error_captured(self, queue, db_manager, prefix, bad_sentence) -> None:
         """Helper to inject bad message and verify error capture."""
         queue.put(bad_sentence.encode("utf-8"))
 

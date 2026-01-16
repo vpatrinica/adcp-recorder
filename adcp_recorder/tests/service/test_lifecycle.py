@@ -12,8 +12,7 @@ import pytest
     os.name == "nt", reason="SIGTERM is not graceful on Windows via Popen.terminate()"
 )
 def test_supervisor_lifecycle_with_signals(tmp_path):
-    """
-    Runs mock_runner.py as a subprocess.
+    """Runs mock_runner.py as a subprocess.
     Sends SIGTERM and verifies clean exit.
     """
     runner_script = Path(__file__).parent / "mock_runner.py"

@@ -1,5 +1,6 @@
 """Parquet writer for efficient storage of structured ADCP records."""
 
+import contextlib
 import logging
 import os
 from datetime import datetime
@@ -23,6 +24,7 @@ class ParquetWriter:
         Args:
             base_path: Base directory for the "DuckLake" storage
             buffer_size: Number of records to buffer before flushing to disk
+
         """
         self.base_path = Path(base_path) / "parquet"
         self.buffer_size = buffer_size
@@ -48,6 +50,7 @@ class ParquetWriter:
         Args:
             prefix: Record type prefix (e.g., 'PNORS', 'PNORC')
             record: Dictionary of data to store
+
         """
         if prefix not in self._buffers:
             self._buffers[prefix] = []
@@ -66,6 +69,7 @@ class ParquetWriter:
 
         Args:
             prefix: If specified, only flush that prefix. Otherwise flush all.
+
         """
         prefixes = [prefix] if prefix else list(self._buffers.keys())
 
@@ -120,7 +124,5 @@ class ParquetWriter:
     def close(self) -> None:
         """Flush all buffers and close connections."""
         self.flush()
-        try:
+        with contextlib.suppress(Exception):
             self._conn.close()
-        except Exception:
-            pass

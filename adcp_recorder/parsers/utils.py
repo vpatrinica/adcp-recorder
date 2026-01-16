@@ -51,6 +51,7 @@ def parse_tagged_field(field_str: str) -> tuple[str, str]:
 
     Returns:
         Tuple of (TAG, VALUE) normalized to uppercase tag.
+
     """
     if "=" not in field_str:
         raise ValueError(f"Tagged field must contain '=': {field_str}")

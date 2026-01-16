@@ -8,15 +8,13 @@ from unittest.mock import MagicMock, patch
 
 
 def run_mock_service():
-    """
-    Runs the supervisor main loop with mocked internals.
-    """
+    """Runs the supervisor main loop with mocked internals."""
     # Create the mock
     mock_recorder = MagicMock()
     mock_recorder.is_running = True
 
     # We need to simulate running state
-    def stop_recorder():
+    def stop_recorder() -> None:
         mock_recorder.is_running = False
 
     mock_recorder.stop.side_effect = stop_recorder

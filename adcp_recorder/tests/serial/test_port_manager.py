@@ -221,7 +221,7 @@ class TestSerialConnectionManager:
 
         sleep_times = []
 
-        def track_sleep(duration):
+        def track_sleep(duration) -> None:
             sleep_times.append(duration)
 
         with patch("serial.Serial", side_effect=serial.SerialException("Fail")):
@@ -242,7 +242,7 @@ class TestSerialConnectionManager:
 
         sleep_times = []
 
-        def track_sleep(duration):
+        def track_sleep(duration) -> None:
             sleep_times.append(duration)
 
         with patch("serial.Serial", side_effect=serial.SerialException("Fail")):
