@@ -16,6 +16,7 @@ def compute_checksum(sentence: str) -> str:
     Example:
         >>> compute_checksum("$PNORI,4,Signature1000900001,4,20,0.20,1.00,0*2E")
         '2E'
+
     """
     # Remove $ prefix and everything after * (including checksum)
     if sentence.startswith("$"):
@@ -43,6 +44,7 @@ def validate_checksum(sentence: str) -> bool:
 
     Raises:
         ValueError: If sentence doesn't contain a checksum
+
     """
     if "*" not in sentence:
         raise ValueError("Sentence must contain checksum separator '*'")
@@ -70,6 +72,7 @@ def extract_prefix(sentence: str) -> str:
     Example:
         >>> extract_prefix("$PNORI,4,Signature1000900001,...")
         'PNORI'
+
     """
     sentence = sentence.strip()
 
@@ -79,9 +82,7 @@ def extract_prefix(sentence: str) -> str:
     if "," not in sentence:
         raise ValueError("NMEA sentence must contain fields separated by ','")
 
-    prefix = sentence[1:].split(",", 1)[0].upper()
-
-    return prefix
+    return sentence[1:].split(",", 1)[0].upper()
 
 
 def split_sentence(sentence: str) -> tuple[list[str], str | None]:
@@ -98,6 +99,7 @@ def split_sentence(sentence: str) -> tuple[list[str], str | None]:
     Example:
         >>> split_sentence("$PNORI,4,Test,4,20,0.20,1.00,0*2E")
         (['$PNORI', '4', 'Test', '4', '20', '0.20', '1.00', '0'], '2E')
+
     """
     sentence = sentence.strip()
 
@@ -131,6 +133,7 @@ def is_binary_data(data: bytes, threshold: int = 1024) -> bool:
     Note:
         Per spec, if more than MAX_NON_NMEA_CHARS_PER_LINE non-printable
         characters are found, we consider it binary data.
+
     """
     # NMEA valid characters: printable ASCII (0x20-0x7E) + CR (0x0D) + LF (0x0A)
     scan_length = min(len(data), threshold)

@@ -5,6 +5,7 @@ Usage:
 
 Exits with non-zero status if any spec family lacks a parser.
 """
+
 import re
 import sys
 from pathlib import Path
@@ -16,6 +17,7 @@ SPEC_DIR = Path(__file__).resolve().parents[1] / "docs" / "specs"
 
 def normalize_parser_name(name: str) -> str:
     return re.sub(r"\d+$", "", name)
+
 
 def main() -> int:
     spec_families = {p.name.upper() for p in SPEC_DIR.iterdir() if p.is_dir()}
@@ -29,8 +31,11 @@ def main() -> int:
             print(f"  - {spec}")
         return 1
 
-    print("All spec families have at least one parser export.\n"+
-          "Spec check passed for families: " + ", ".join(sorted(spec_families)))
+    print(
+        "All spec families have at least one parser export.\n"
+        + "Spec check passed for families: "
+        + ", ".join(sorted(spec_families))
+    )
     return 0
 
 

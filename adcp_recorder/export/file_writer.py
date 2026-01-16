@@ -22,6 +22,7 @@ class FileWriter:
 
         Args:
             base_path: Base directory to write files to
+
         """
         self.base_path = base_path
         self._files: dict[str, TextIO] = {}
@@ -71,6 +72,7 @@ class FileWriter:
         Args:
             prefix: Message type prefix (e.g. 'PNORI') or 'ERRORS'
             data: Data string to write (should include newlines if needed)
+
         """
         if not prefix or not data:
             return
@@ -90,6 +92,7 @@ class FileWriter:
         Args:
             prefix: Message type prefix
             record: Data dictionary
+
         """
         try:
             self.parquet_writer.write_record(prefix, record)
@@ -102,6 +105,7 @@ class FileWriter:
         Args:
             prefix: Message type prefix
             data: Invalid data string
+
         """
         if not prefix or not data:
             return

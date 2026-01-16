@@ -26,7 +26,7 @@ class ServiceSupervisor:
         signal.signal(signal.SIGINT, self._handle_signal)
         signal.signal(signal.SIGTERM, self._handle_signal)
 
-    def _handle_signal(self, signum, frame):
+    def _handle_signal(self, signum, frame) -> None:
         """Handle incoming signals."""
         sig_name = signal.Signals(signum).name
         logger.info(f"Received signal {sig_name}, initiating shutdown...")
@@ -58,7 +58,7 @@ class ServiceSupervisor:
         finally:
             self._shutdown()
 
-    def _shutdown(self):
+    def _shutdown(self) -> None:
         """Perform graceful shutdown."""
         logger.info("Service shutting down...")
         try:

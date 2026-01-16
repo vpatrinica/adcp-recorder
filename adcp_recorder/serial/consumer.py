@@ -4,6 +4,7 @@ The consumer runs in a separate thread, pulling lines from the FIFO queue,
 routing them to appropriate parsers, and storing parsed data to the database.
 """
 
+import contextlib
 import logging
 import threading
 import time
@@ -56,6 +57,7 @@ class MessageRouter:
             >>> from adcp_recorder.parsers import PNORI
             >>> router = MessageRouter()
             >>> router.register_parser('PNORI', PNORI)
+
         """
         self._parsers[prefix.upper()] = parser_class
         logger.debug(f"Registered parser for {prefix}")
@@ -71,6 +73,7 @@ class MessageRouter:
 
         Raises:
             ValueError: If parsing fails
+
         """
         prefix = extract_prefix(sentence)
         if prefix is None:
@@ -106,6 +109,7 @@ class SerialConsumer:
         >>> consumer.start()
         >>> # ... later ...
         >>> consumer.stop()
+
     """
 
     def __init__(
@@ -123,6 +127,7 @@ class SerialConsumer:
             db_manager: Database manager
             router: Message router
             heartbeat_interval: Seconds between heartbeat updates
+
         """
         self._queue = queue
         self._db_manager = db_manager
@@ -238,10 +243,8 @@ class SerialConsumer:
 
                 self._update_heartbeat()
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 self._binary_writer.finish_blob()
-            except Exception:
-                pass
             self._db_manager.close()
             logger.info("Consumer loop exiting")
 
@@ -251,6 +254,7 @@ class SerialConsumer:
         Args:
             conn: Database connection
             line_bytes: Line data as bytes
+
         """
         # Check for binary data
         if is_binary_data(line_bytes):

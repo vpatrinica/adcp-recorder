@@ -1,122 +1,243 @@
-"""Streamlit dashboard for ADCP data visualization and analysis."""
+"""Advanced Streamlit dashboard for ADCP data visualization and analysis.
+
+This is a multi-page application providing:
+- Data Explorer: Browse and filter data from all sources
+- Plot Builder: Create custom visualizations
+- Dashboard Editor: Configure and save custom dashboards
+- Custom Dashboards: View saved dashboard configurations
+"""
 
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
-import plotly.express as px
 import streamlit as st
 
 from adcp_recorder.config import RecorderConfig
 from adcp_recorder.db import DatabaseManager
+from adcp_recorder.ui.components import (
+    render_energy_heatmap,
+    render_fourier_spectrum,
+    render_table_view,
+    render_time_series,
+    render_velocity_profile,
+)
+from adcp_recorder.ui.config import DashboardConfig, PanelType
+from adcp_recorder.ui.data_layer import DataLayer
+from adcp_recorder.ui.pages import (
+    render_dashboard_editor,
+    render_data_explorer,
+    render_plot_builder,
+)
 
-# Setup page
-st.set_page_config(page_title="ADCP Analysis Dashboard", layout="wide")
+# Page configuration
+st.set_page_config(
+    page_title="ADCP Analysis Dashboard",
+    page_icon="🌊",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
-st.title("🌊 ADCP Recorder - Analysis Dashboard")
 
-
-# Initialize DB connection
 @st.cache_resource
-def get_db():
+def get_db() -> DatabaseManager:
+    """Initialize database connection (cached)."""
     config = RecorderConfig.load()
     db_dir = Path(config.output_dir) / "db"
     db_path = config.db_path or (db_dir / "adcp.duckdb")
     return DatabaseManager(str(db_path))
 
 
-db = get_db()
-conn = db.get_connection()
+@st.cache_resource
+def get_data_layer(_db: DatabaseManager) -> DataLayer:
+    """Initialize data layer (cached)."""
+    return DataLayer(_db.get_connection())
 
-# Sidebar
-st.sidebar.header("Data Source")
-db_path = st.sidebar.text_input("Database Path", value=db.db_path)
 
-# Main Navigation
-tab1, tab2, tab3 = st.tabs(["📊 Records & DuckLake", "⚠️ Parsing Errors", "⚙️ System Status"])
+def main() -> None:
+    """Run the main dashboard entry point."""
+    # Initialize database and data layer
+    db = get_db()
+    data_layer = get_data_layer(db)
 
-with tab1:
-    st.header("Structured Records")
+    # Sidebar navigation
+    st.sidebar.title("🌊 ADCP Dashboard")
+    st.sidebar.caption("Advanced Data Visualization")
 
-    # Query DuckLake views
+    # Navigation menu
+    pages = {
+        "📊 Data Explorer": "explorer",
+        "📈 Plot Builder": "plot_builder",
+        "⚙️ Dashboard Editor": "editor",
+    }
+
+    # Add saved dashboards to navigation
+    saved_dashboards = DashboardConfig.list_dashboards()
+    if saved_dashboards:
+        st.sidebar.divider()
+        st.sidebar.subheader("📋 My Dashboards")
+        for dash_name in saved_dashboards:
+            pages[f"  📊 {dash_name}"] = f"dashboard:{dash_name}"
+
+    selected = st.sidebar.radio(
+        "Navigation",
+        options=list(pages.keys()),
+        label_visibility="collapsed",
+    )
+
+    page_key = pages.get(selected, "explorer")
+
+    # Database info
+    st.sidebar.divider()
+    st.sidebar.caption(f"📁 DB: {db.db_path}")
+
+    # Quick actions
+    with st.sidebar.expander("⚡ Quick Actions"):
+        if st.button("🔄 Refresh Data", use_container_width=True):
+            st.cache_resource.clear()
+            st.rerun()
+
+        if st.button("📊 View Raw Lines", use_container_width=True):
+            st.session_state["quick_view"] = "raw_lines"
+
+        if st.button("⚠️ View Errors", use_container_width=True):
+            st.session_state["quick_view"] = "parse_errors"
+
+    # Footer
+    st.sidebar.divider()
+    st.sidebar.caption(f"Last refresh: {datetime.now().strftime('%H:%M:%S')}")
+
+    # Main content area
+    if page_key == "explorer":
+        render_data_explorer(data_layer)
+
+    elif page_key == "plot_builder":
+        render_plot_builder(data_layer)
+
+    elif page_key == "editor":
+        render_dashboard_editor(data_layer)
+
+    elif page_key.startswith("dashboard:"):
+        dashboard_name = page_key.split(":", 1)[1]
+        render_saved_dashboard(data_layer, dashboard_name)
+
+    # Handle quick view requests
+    if "quick_view" in st.session_state:
+        source = st.session_state.pop("quick_view")
+        st.divider()
+        st.subheader(f"Quick View: {source}")
+        render_table_view(data_layer, source, key_prefix=f"quick_{source}")
+
+
+def render_saved_dashboard(data_layer: DataLayer, dashboard_name: str) -> None:
+    """Render a saved dashboard configuration.
+
+    Args:
+        data_layer: DataLayer instance
+        dashboard_name: Name of the saved dashboard
+
+    """
     try:
-        views_res = conn.execute(
-            "SELECT view_name FROM duckdb_views() WHERE view_name LIKE 'view_%'"
-        ).fetchall()
-        available_views = [v[0] for v in views_res if v[0] and v[0].startswith("view_")]
-
-        if available_views:
-            selected_view = st.selectbox("Select Record Type", available_views)
-
-            # Load sample data
-            df = conn.execute(f'SELECT * FROM "{selected_view}" LIMIT 1000').df()
-
-            st.metric("Total Records Loaded (Sample)", len(df))
-            st.dataframe(df, width="stretch")
-
-            # Simple visualization if applicable
-            if "heading" in df.columns:
-                st.subheader("Heading Distribution")
-                fig = px.histogram(df, x="heading", title="Compass Heading Distribution")
-                st.plotly_chart(fig, width="stretch")
-
-            if "temperature" in df.columns:
-                st.subheader("Temperature Over Time")
-                # Assuming recorded_at is available
-                if "recorded_at" in df.columns:
-                    fig = px.line(df, x="recorded_at", y="temperature", title="Temperature Trend")
-                    st.plotly_chart(fig, width="stretch")
-
-        else:
-            st.info(
-                "📊 No DuckLake views available yet. "
-                "Views will be created automatically as data is recorded."
-            )
-            # Show raw_lines as fallback
-            st.subheader("Raw NMEA Lines")
-            try:
-                raw_df = conn.execute(
-                    "SELECT * FROM raw_lines ORDER BY received_at DESC LIMIT 100"
-                ).df()
-                if not raw_df.empty:
-                    st.dataframe(raw_df, width="stretch")
-                else:
-                    st.warning(
-                        "No data recorded yet. Start the ADCP Recorder to begin collecting data."
-                    )
-            except Exception:
-                st.warning(
-                    "No data recorded yet. Start the ADCP Recorder to begin collecting data."
-                )
+        dashboard = DashboardConfig.load(dashboard_name)
+    except FileNotFoundError:
+        st.error(f"Dashboard '{dashboard_name}' not found.")
+        return
     except Exception as e:
-        st.error(f"Error loading data: {e}")
+        st.error(f"Error loading dashboard: {e}")
+        return
 
-with tab2:
-    st.header("Parsing Errors")
-    try:
-        errors_df = conn.execute(
-            "SELECT * FROM parse_errors ORDER BY received_at DESC LIMIT 500"
-        ).df()
-        if not errors_df.empty:
-            st.dataframe(errors_df, width="stretch")
+    # Dashboard header
+    st.title(f"📊 {dashboard.name}")
+    if dashboard.description:
+        st.caption(dashboard.description)
 
-            st.subheader("Error Types Distribution")
-            fig = px.pie(errors_df, names="error_type", title="Error Distribution by Type")
-            st.plotly_chart(fig, width="stretch")
-        else:
-            st.success("No parsing errors found! All systems nominal.")
-    except Exception as e:
-        st.error(f"Error loading parse errors: {e}")
+    # Time range selector (global for dashboard)
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        time_range = st.selectbox(
+            "Time Range",
+            options=["1h", "6h", "24h", "7d", "30d"],
+            index=["1h", "6h", "24h", "7d", "30d"].index(dashboard.default_time_range)
+            if dashboard.default_time_range in ["1h", "6h", "24h", "7d", "30d"]
+            else 2,
+            key=f"dash_{dashboard_name}_time",
+        )
 
-with tab3:
-    st.header("System Configuration")
-    config = RecorderConfig.load()
-    st.json({field: getattr(config, field) for field in RecorderConfig.PERSISTED_FIELDS})
+    st.divider()
 
-    if st.button("Refresh DuckLake Views"):
-        db.initialize_ducklake()
-        st.success("Views refreshed!")
+    if not dashboard.panels:
+        st.info("This dashboard has no panels configured. Go to Dashboard Editor to add panels.")
+        return
 
-st.markdown("---")
-st.caption(
-    f"ADCP Recorder Dashboard - Last Refresh: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-)
+    # Render panels in grid layout
+    # Group panels by row
+    rows: dict[int, list] = {}
+    for panel in dashboard.panels:
+        row = panel.position.row
+        if row not in rows:
+            rows[row] = []
+        rows[row].append(panel)
+
+    # Render each row
+    for row_idx in sorted(rows.keys()):
+        row_panels = sorted(rows[row_idx], key=lambda p: p.position.col)
+
+        # Calculate column widths based on panel widths
+        total_width = sum(p.position.width for p in row_panels)
+        col_ratios = [p.position.width / total_width for p in row_panels]
+
+        cols = st.columns(col_ratios)
+
+        for col_container, panel in zip(cols, row_panels, strict=False):
+            with col_container:
+                if panel.title:
+                    st.subheader(panel.title)
+
+                # Merge panel config with global time range
+                panel_config = dict(panel.config)
+                panel_config["time_range"] = time_range
+
+                # Render based on panel type
+                try:
+                    render_panel(data_layer, panel, panel_config)
+                except Exception as e:
+                    st.error(f"Error rendering {panel.id}: {e}")
+
+
+def render_panel(
+    data_layer: DataLayer,
+    panel: Any,
+    config: dict[str, Any],
+) -> None:
+    """Render a single dashboard panel.
+
+    Args:
+        data_layer: DataLayer instance
+        panel: PanelConfig object
+        config: Merged configuration dict
+
+    """
+    key_prefix = f"panel_{panel.id}"
+
+    if panel.type == PanelType.TABLE:
+        source = config.get("data_source", "pnors_df100")
+        render_table_view(data_layer, source, config, key_prefix)
+
+    elif panel.type == PanelType.TIME_SERIES:
+        render_time_series(data_layer, config, key_prefix)
+
+    elif panel.type == PanelType.VELOCITY_PROFILE:
+        render_velocity_profile(data_layer, config, key_prefix)
+
+    elif panel.type == PanelType.SPECTRUM:
+        render_fourier_spectrum(data_layer, config, key_prefix)
+
+    elif panel.type == PanelType.HEATMAP:
+        render_energy_heatmap(data_layer, config, key_prefix)
+
+    else:
+        st.warning(f"Unknown panel type: {panel.type}")
+
+
+if __name__ == "__main__":
+    main()

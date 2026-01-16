@@ -19,6 +19,7 @@ class DatabaseManager:
         >>> db = DatabaseManager('./data/adcp_recorder.db')
         >>> conn = db.get_connection()
         >>> conn.execute("SELECT COUNT(*) FROM raw_lines")
+
     """
 
     def __init__(self, db_path: str = "./data/adcp_recorder.db", create_if_missing: bool = True):
@@ -33,6 +34,7 @@ class DatabaseManager:
         Raises:
             ValueError: If db_path is invalid or parent directory doesn't exist
                         and create_if_missing is False
+
         """
         self.db_path = db_path
         self._thread_local = local()
@@ -54,6 +56,7 @@ class DatabaseManager:
 
         Returns:
             DuckDB connection object for the current thread
+
         """
         if not hasattr(self._thread_local, "conn"):
             self._thread_local.conn = duckdb.connect(self.db_path)

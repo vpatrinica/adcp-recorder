@@ -61,8 +61,7 @@ async def get_records(
     db = get_db()
     conn = db.get_connection()
     try:
-        records = query_raw_lines(conn, record_type=record_type, parse_status=status, limit=limit)
-        return records
+        return query_raw_lines(conn, record_type=record_type, parse_status=status, limit=limit)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -72,8 +71,7 @@ async def get_errors(error_type: str | None = None, limit: int = Query(100, ge=1
     db = get_db()
     conn = db.get_connection()
     try:
-        errors = query_parse_errors(conn, error_type=error_type, limit=limit)
-        return errors
+        return query_parse_errors(conn, error_type=error_type, limit=limit)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -89,7 +87,7 @@ async def get_ducklake_data(prefix: str, limit: int = 100):
         res = conn.execute(f"SELECT * FROM {view_name} LIMIT {limit}").fetchall()
         # Convert results to list of dicts (need to fetch column names)
         cols = [d[0] for d in conn.description]
-        return [dict(zip(cols, row)) for row in res]
+        return [dict(zip(cols, row, strict=False)) for row in res]
     except Exception as e:
         if "does not exist" in str(e):
             raise HTTPException(status_code=404, detail=f"No DuckLake data for {prefix}")

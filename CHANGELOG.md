@@ -1,5 +1,7 @@
 # Changelog
 
+<!-- markdownlint-disable MD024 -->
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
@@ -9,8 +11,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- Web-based monitoring dashboard
-- Data export to additional formats (Parquet)
+- Directional spectrum polar plots for wave analysis
+
+## [0.1.7] - 2026-01-16
+
+### Added
+
+- **Advanced Scientist Dashboard**: Complete rewrite of the Streamlit dashboard with multi-page architecture
+  - **Data Explorer**: Browse all 21+- **Unified Data Access Layer**: Thread-safe DuckDB connection handling and generic query API.
+- **Interactive Visualizations**: Time Series, Velocity Profiles, Fourier Spectra, and Wave Energy Heatmaps.
+- **Directional Spectrum Polar Plots**: Full implementation of wave direction distribution visualizations.
+- **Persistable Dashboards**: JSON/YAML-based dashboard persistence with multiple panel types.hboard configurations with YAML persistence
+  - **Pre-built Templates**: Overview, Velocity Analysis, and Wave Analysis dashboards ready to use
+- **Persistent Dashboard Configuration**: YAML-based config files stored in `~/.adcp-recorder/dashboards/`
+- **Pydantic Configuration Models**: Type-safe panel, layout, and series configuration with validation
+- **Unified Data Access Layer**: Abstraction over all database tables with column metadata, time-range queries, and aggregation
+- **Specialized Visualizations**:
+  - Fourier coefficient spectrum plots (A1, B1, A2, B2)
+  - Velocity profile depth plots with beam color coding
+  - Wave energy density heatmaps with configurable color scales
+  - Multi-series time plots with interactive builder
+
+### Changed
+
+- Restructured `dashboard.py` as multi-page Streamlit app with sidebar navigation
+- Dashboard now supports saved configurations that persist across sessions
+
+### Dependencies
+
+- Added `pyyaml>=6.0.0` to `[analysis]` optional dependencies
 
 ## [0.1.3] - 2026-01-15
 
@@ -134,7 +163,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/vpatrinica/adcp-recorder/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/vpatrinica/adcp-recorder/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/vpatrinica/adcp-recorder/compare/v0.1.3...v0.1.7
+[0.1.3]: https://github.com/vpatrinica/adcp-recorder/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/vpatrinica/adcp-recorder/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/vpatrinica/adcp-recorder/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/vpatrinica/adcp-recorder/releases/tag/v0.1.0

@@ -32,6 +32,7 @@ def insert_raw_line(
 
     Example:
         >>> line_id = insert_raw_line(conn, "$PNORI,4,Test*2E", "OK", "PNORI", True)
+
     """
     result = conn.execute(
         """
@@ -65,6 +66,7 @@ def batch_insert_raw_lines(conn: duckdb.DuckDBPyConnection, records: list[dict[s
         ...      'record_type': 'PNORI', 'checksum_valid': True, 'error_message': None},
         ... ]
         >>> count = batch_insert_raw_lines(conn, records)
+
     """
     if not records:
         return 0
@@ -142,6 +144,7 @@ def insert_parse_error(
         >>> error_id = insert_parse_error(conn, "$PNORI,4*FF", "CHECKSUM_FAILED",
         ...                               attempted_prefix="PNORI", checksum_expected="2E",
         ...                               checksum_actual="FF")
+
     """
     result = conn.execute(
         """
@@ -185,6 +188,7 @@ def update_raw_line_status(
 
     Example:
         >>> success = update_raw_line_status(conn, 123, "OK")
+
     """
     result = conn.execute(
         """
@@ -222,6 +226,7 @@ def query_raw_lines(
 
     Example:
         >>> records = query_raw_lines(conn, record_type='PNORI', parse_status='OK', limit=100)
+
     """
     where_clauses = []
     params = []
@@ -293,6 +298,7 @@ def query_parse_errors(
 
     Example:
         >>> errors = query_parse_errors(conn, error_type='CHECKSUM_FAILED', limit=50)
+
     """
     where_clauses = []
     params = []
@@ -360,6 +366,7 @@ def insert_pnori_configuration(
         >>> from adcp_recorder.parsers import PNORI
         >>> config = PNORI.from_nmea("$PNORI,4,Test,4,20,0.20,1.00,0*2E")
         >>> config_id = insert_pnori_configuration(conn, config.to_dict(), "$PNORI...")
+
     """
     sentence_type = pnori_dict["sentence_type"]
 
@@ -431,6 +438,7 @@ def query_pnori_configurations(
 
     Returns:
         List of dictionaries containing configuration data
+
     """
     # Build query to UNION all 3 tables
     query = """
@@ -500,7 +508,7 @@ def query_pnori_configurations(
         "checksum",
     ]
 
-    return [dict(zip(columns, row)) for row in result]
+    return [dict(zip(columns, row, strict=False)) for row in result]
 
 
 def insert_sensor_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, data: dict) -> int:
@@ -798,6 +806,7 @@ def insert_echo_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, da
 
     Returns:
         The generated record_id
+
     """
     import json
 
@@ -900,6 +909,7 @@ def insert_pnorb_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
 
     Returns:
         The generated record_id
+
     """
     query = """
     INSERT INTO pnorb_data (
@@ -956,6 +966,7 @@ def insert_pnorf_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
 
     Returns:
         The generated record_id
+
     """
     import json
 
@@ -1005,6 +1016,7 @@ def insert_pnorwd_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
 
     Returns:
         The generated record_id
+
     """
     import json
 
@@ -1109,7 +1121,7 @@ def query_sensor_data(conn: duckdb.DuckDBPyConnection, limit: int = 100) -> list
         "pressure",
         "temperature",
     ]
-    return [dict(zip(columns, row)) for row in results]
+    return [dict(zip(columns, row, strict=False)) for row in results]
 
 
 def query_velocity_data(conn: duckdb.DuckDBPyConnection, limit: int = 100) -> list[dict[str, Any]]:
@@ -1129,7 +1141,7 @@ def query_velocity_data(conn: duckdb.DuckDBPyConnection, limit: int = 100) -> li
     """
     results = conn.execute(query, [limit]).fetchall()
     columns = ["record_id", "received_at", "format", "cell_index", "vel1", "vel2", "vel3", "vel4"]
-    return [dict(zip(columns, row)) for row in results]
+    return [dict(zip(columns, row, strict=False)) for row in results]
 
 
 def query_header_data(conn: duckdb.DuckDBPyConnection, limit: int = 100) -> list[dict[str, Any]]:
@@ -1145,7 +1157,7 @@ def query_header_data(conn: duckdb.DuckDBPyConnection, limit: int = 100) -> list
     """
     results = conn.execute(query, [limit]).fetchall()
     columns = ["record_id", "received_at", "format", "num_cells", "first_cell", "ping_count"]
-    return [dict(zip(columns, row)) for row in results]
+    return [dict(zip(columns, row, strict=False)) for row in results]
 
 
 def query_echo_data(conn: duckdb.DuckDBPyConnection, limit: int = 100) -> list[dict[str, Any]]:
@@ -1153,7 +1165,7 @@ def query_echo_data(conn: duckdb.DuckDBPyConnection, limit: int = 100) -> list[d
     cols = conn.execute("DESCRIBE echo_data").fetchall()
     col_names = [c[0] for c in cols]
     results = conn.execute(f"SELECT * FROM echo_data LIMIT {limit}").fetchall()
-    return [dict(zip(col_names, row)) for row in results]
+    return [dict(zip(col_names, row, strict=False)) for row in results]
 
 
 def query_pnorw_data(conn: duckdb.DuckDBPyConnection, limit: int = 100) -> list[dict[str, Any]]:
@@ -1161,7 +1173,7 @@ def query_pnorw_data(conn: duckdb.DuckDBPyConnection, limit: int = 100) -> list[
     cols = conn.execute("DESCRIBE pnorw_data").fetchall()
     col_names = [c[0] for c in cols]
     results = conn.execute(f"SELECT * FROM pnorw_data LIMIT {limit}").fetchall()
-    return [dict(zip(col_names, row)) for row in results]
+    return [dict(zip(col_names, row, strict=False)) for row in results]
 
 
 def query_pnorb_data(conn: duckdb.DuckDBPyConnection, limit: int = 100) -> list[dict[str, Any]]:
@@ -1169,7 +1181,7 @@ def query_pnorb_data(conn: duckdb.DuckDBPyConnection, limit: int = 100) -> list[
     cols = conn.execute("DESCRIBE pnorb_data").fetchall()
     col_names = [c[0] for c in cols]
     results = conn.execute(f"SELECT * FROM pnorb_data LIMIT {limit}").fetchall()
-    return [dict(zip(col_names, row)) for row in results]
+    return [dict(zip(col_names, row, strict=False)) for row in results]
 
 
 def query_pnorf_data(conn: duckdb.DuckDBPyConnection, limit: int = 100) -> list[dict[str, Any]]:
@@ -1177,7 +1189,7 @@ def query_pnorf_data(conn: duckdb.DuckDBPyConnection, limit: int = 100) -> list[
     cols = conn.execute("DESCRIBE pnorf_data").fetchall()
     col_names = [c[0] for c in cols]
     results = conn.execute(f"SELECT * FROM pnorf_data LIMIT {limit}").fetchall()
-    return [dict(zip(col_names, row)) for row in results]
+    return [dict(zip(col_names, row, strict=False)) for row in results]
 
 
 def query_pnorwd_data(conn: duckdb.DuckDBPyConnection, limit: int = 100) -> list[dict[str, Any]]:
@@ -1185,7 +1197,7 @@ def query_pnorwd_data(conn: duckdb.DuckDBPyConnection, limit: int = 100) -> list
     cols = conn.execute("DESCRIBE pnorwd_data").fetchall()
     col_names = [c[0] for c in cols]
     results = conn.execute(f"SELECT * FROM pnorwd_data LIMIT {limit}").fetchall()
-    return [dict(zip(col_names, row)) for row in results]
+    return [dict(zip(col_names, row, strict=False)) for row in results]
 
 
 def query_pnora_data(conn: duckdb.DuckDBPyConnection, limit: int = 100) -> list[dict[str, Any]]:
@@ -1193,4 +1205,4 @@ def query_pnora_data(conn: duckdb.DuckDBPyConnection, limit: int = 100) -> list[
     cols = conn.execute("DESCRIBE pnora_data").fetchall()
     col_names = [c[0] for c in cols]
     results = conn.execute(f"SELECT * FROM pnora_data LIMIT {limit}").fetchall()
-    return [dict(zip(col_names, row)) for row in results]
+    return [dict(zip(col_names, row, strict=False)) for row in results]

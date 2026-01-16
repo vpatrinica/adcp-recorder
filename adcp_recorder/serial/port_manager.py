@@ -21,6 +21,7 @@ class PortInfo:
         device: Device name (e.g., /dev/ttyUSB0 or COM3)
         description: Human-readable description
         hwid: Hardware ID string
+
     """
 
     device: str
@@ -38,6 +39,7 @@ def list_serial_ports() -> list[PortInfo]:
         >>> ports = list_serial_ports()
         >>> for port in ports:
         ...     print(f"{port.device}: {port.description}")
+
     """
     ports = []
     for port in serial.tools.list_ports.comports():
@@ -70,6 +72,7 @@ class SerialConnectionManager:
         >>> if manager.connect():
         ...     line = manager.read_line()
         ...     manager.disconnect()
+
     """
 
     def __init__(
@@ -90,6 +93,7 @@ class SerialConnectionManager:
             bytesize: Number of data bits (default: 8)
             parity: Parity setting (default: None)
             stopbits: Number of stop bits (default: 1)
+
         """
         self._port = port
         self._baudrate = baudrate
@@ -134,6 +138,7 @@ class SerialConnectionManager:
 
         Returns:
             True if connection successful, False otherwise
+
         """
         if self._serial is not None and self._serial.is_open:
             return True
@@ -163,6 +168,7 @@ class SerialConnectionManager:
 
         Returns:
             True if connected, False otherwise
+
         """
         return self._serial is not None and self._serial.is_open
 
@@ -180,6 +186,7 @@ class SerialConnectionManager:
             >>> manager = SerialConnectionManager('/dev/ttyUSB0')
             >>> if not manager.is_connected():
             ...     manager.reconnect(max_retries=3)
+
         """
         self.disconnect()
 
@@ -208,6 +215,7 @@ class SerialConnectionManager:
             >>> line = manager.read_line()
             >>> if line:
             ...     print(line.decode('ascii').strip())
+
         """
         if not self.is_connected():
             return None

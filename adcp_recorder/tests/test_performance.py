@@ -185,7 +185,7 @@ def test_database_concurrency():
         db_manager = DatabaseManager(str(db_path))
         db_manager.initialize_schema()
 
-        def insert_worker(worker_id):
+        def insert_worker(worker_id) -> None:
             try:
                 conn = db_manager.get_connection()
                 for i in range(50):

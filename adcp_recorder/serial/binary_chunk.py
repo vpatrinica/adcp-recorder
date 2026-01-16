@@ -9,6 +9,7 @@ class BinaryChunk:
         data: Raw bytes chunk read from serial port
         start: True for the first chunk of a blob
         end: True for the final chunk of a blob
+
     """
 
     data: bytes

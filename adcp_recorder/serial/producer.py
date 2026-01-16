@@ -36,6 +36,7 @@ class SerialProducer:
         >>> producer.start()
         >>> # ... later ...
         >>> producer.stop()
+
     """
 
     def __init__(
@@ -52,6 +53,7 @@ class SerialProducer:
             queue: Queue to push lines to
             heartbeat_interval: Seconds between heartbeat updates
             max_line_length: Maximum allowed line length (for safety)
+
         """
         self._connection_manager = connection_manager
         self._queue = queue
@@ -172,6 +174,7 @@ class SerialProducer:
 
         Args:
             data: Line data to push (as bytes)
+
         """
         try:
             # Non-blocking put
