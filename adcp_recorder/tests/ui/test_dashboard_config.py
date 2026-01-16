@@ -6,6 +6,10 @@ from unittest.mock import patch
 
 import pytest
 
+# Skip this test module if optional UI dependencies are missing
+pytest.importorskip("yaml")
+pytest.importorskip("pydantic")
+
 from adcp_recorder.ui.config import (
     DASHBOARD_TEMPLATES,
     DashboardConfig,
