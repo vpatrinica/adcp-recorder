@@ -65,7 +65,10 @@ if %errorLevel% equ 0 (
 
 echo(
 echo [3/3] Installing ADCP Dashboard Service...
-set "DASH_PARAMS=run adcp_recorder/ui/dashboard.py --server.port 8501 --server.address 0.0.0.0"
+REM Get the site-packages path for the dashboard module
+for /f "delims=" %%i in ('"%INSTALL_DIR%\venv\Scripts\python.exe" -c "import adcp_recorder.ui.dashboard as d; print(d.__file__)"') do set DASH_PATH=%%i
+REM Disable telemetry prompt that blocks service startup
+set "DASH_PARAMS=run \"!DASH_PATH!\" --server.port 8501 --server.address 0.0.0.0 --browser.gatherUsageStats false --server.headless true"
 servy-cli install --quiet --name="ADCP-Dashboard" --displayName="ADCP Recorder Dashboard" --description="Interactive Streamlit dashboard for ADCP analysis" --path="%INSTALL_DIR%\venv\Scripts\streamlit.exe" --startupDir="%INSTALL_DIR%" --params="!DASH_PARAMS!" --startupType="Automatic" --stdout="%LOG_DIR%\dashboard_stdout.log" --stderr="%LOG_DIR%\dashboard_stderr.log" --enableDateRotation --dateRotationType="Daily"
 
 if %errorLevel% equ 0 (
