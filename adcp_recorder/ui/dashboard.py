@@ -19,7 +19,8 @@ st.title("🌊 ADCP Recorder - Analysis Dashboard")
 @st.cache_resource
 def get_db():
     config = RecorderConfig.load()
-    db_path = config.db_path or (Path(config.output_dir) / "adcp.duckdb")
+    db_dir = Path(config.output_dir) / "db"
+    db_path = config.db_path or (db_dir / "adcp.duckdb")
     return DatabaseManager(str(db_path))
 
 

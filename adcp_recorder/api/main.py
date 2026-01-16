@@ -22,7 +22,8 @@ def get_db():
     global _db_manager
     if _db_manager is None:
         config = RecorderConfig.load()
-        db_path = config.db_path or (Path(config.output_dir) / "adcp.duckdb")
+        db_dir = Path(config.output_dir) / "db"
+        db_path = config.db_path or (db_dir / "adcp.duckdb")
         _db_manager = DatabaseManager(str(db_path))
     return _db_manager
 
