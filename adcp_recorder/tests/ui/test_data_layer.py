@@ -58,7 +58,10 @@ class TestFormatDisplayName:
         """Test basic table name formatting."""
         assert _format_display_name("pnors_df100") == "Pnors Df100"
         assert _format_display_name("raw_lines") == "Raw Lines"
-        assert _format_display_name("echo_data") == "Echo Data"
+        assert (
+            _format_display_name("echo_data") == "Echo Data"
+        )  # Old name fallback or explicit check
+        assert _format_display_name("pnore_data") == "Pnore Data"
 
     def test_small_words_uppercase(self):
         """Test capitalization behavior."""
@@ -137,8 +140,8 @@ class TestSourceCategories:
     def test_category_mapping(self):
         """Test source category mapping."""
         assert SOURCE_CATEGORIES["pnors_df100"] == "Sensor Data"
-        assert SOURCE_CATEGORIES["pnorc_df101"] == "Velocity Data"
-        assert SOURCE_CATEGORIES["echo_data"] == "Wave Data"
+        assert SOURCE_CATEGORIES["pnorc12"] == "Velocity Data"
+        assert SOURCE_CATEGORIES["pnore_data"] == "Wave Data"
         assert SOURCE_CATEGORIES["parse_errors"] == "Errors"
 
 

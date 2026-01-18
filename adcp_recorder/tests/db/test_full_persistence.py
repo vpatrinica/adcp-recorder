@@ -10,10 +10,10 @@ import pytest
 
 from adcp_recorder.db.db import DatabaseManager
 from adcp_recorder.db.operations import (
-    insert_echo_data,
     insert_header_data,
     insert_pnora_data,
     insert_pnorb_data,
+    insert_pnore_data,
     insert_pnorf_data,
     insert_pnori_configuration,
     insert_pnorw_data,
@@ -106,12 +106,11 @@ class TestPersistenceSuccess:
         record_id = insert_header_data(db, sentence, msg.to_dict())
         assert record_id > 0
 
-        # Query from new pnorh_df103 table
-        results = db.execute("SELECT * FROM pnorh_df103").fetchall()
+        # Query from consolidated pnorh table
+        results = db.execute("SELECT * FROM pnorh").fetchall()
         assert len(results) == 1
-        # Minimal PNORH3 doesn't populate num_cells (index 5)
-        # assert results[0][5] == 20
-        assert int(results[0][5]) == 0  # error_code
+        # data_format is at index 2, error_code is at index 6
+        assert int(results[0][6]) == 0  # error_code
 
     def test_pnorw_persistence(self, db):
         sentence = (
@@ -148,12 +147,12 @@ class TestPersistenceSuccess:
         # PNORE now uses energy density spectrum format
         sentence = "$PNORE,102115,090715,1,0.02,0.01,5,1.5,2.5,3.5,4.5,5.5*XX"
         msg = PNORE.from_nmea(sentence)
-        record_id = insert_echo_data(db, sentence, msg.to_dict())
+        record_id = insert_pnore_data(db, sentence, msg.to_dict())
         assert record_id > 0
 
         # Columns: record_id, received_at, sentence_type, original_sentence,
         # measurement_date, measurement_time, spectrum_basis, ...
-        results = db.execute("SELECT * FROM echo_data").fetchall()
+        results = db.execute("SELECT * FROM pnore_data").fetchall()
         assert len(results) == 1
         assert results[0][6] == 1  # spectrum_basis (index 6)
 
@@ -330,7 +329,7 @@ class TestPersistenceConstraints:
         # Test with invalid spectrum_basis
         valid["spectrum_basis"] = 99  # VIOLATION
         with pytest.raises(duckdb.ConstraintException):
-            insert_echo_data(db, "$PNORE...", valid)
+            insert_pnore_data(db, "$PNORE...", valid)
 
     def test_pnorf_constraint(self, db):
         valid = {

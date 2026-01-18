@@ -7,7 +7,7 @@ import pytest
 
 from adcp_recorder.core.enums import CoordinateSystem
 from adcp_recorder.db.db import DatabaseManager
-from adcp_recorder.db.operations import insert_echo_data, insert_pnorw_data
+from adcp_recorder.db.operations import insert_pnore_data, insert_pnorw_data
 from adcp_recorder.parsers.pnorh import PNORH3
 from adcp_recorder.parsers.pnori import PNORI1, PNORI2
 from adcp_recorder.parsers.pnors import PNORS2, PNORS3, PNORS4
@@ -123,8 +123,8 @@ def test_operations_echo_and_wave(tmp_path):
         "energy_densities": [1.0, 2.0, 3.0],
         "checksum": "00",
     }
-    insert_echo_data(conn, "$PNORE,...", echo_data)
-    results = conn.execute("SELECT * FROM echo_data").fetchall()
+    insert_pnore_data(conn, "$PNORE,...", echo_data)
+    results = conn.execute("SELECT * FROM pnore_data").fetchall()
     assert len(results) == 1
 
     # Wave Data
@@ -223,7 +223,7 @@ def test_missing_queries(tmp_path):
     tables = conn.execute("SHOW TABLES").fetchall()
     table_names = [t[0] for t in tables]
 
-    # Check that new separate tables exist
+    # Check that new consolidated tables exist
     assert "pnors_df100" in table_names
     assert "pnorc_df100" in table_names
-    assert "pnorh_df103" in table_names
+    assert "pnorh" in table_names  # Consolidated from pnorh_df103/pnorh_df104

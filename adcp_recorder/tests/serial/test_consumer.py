@@ -373,7 +373,9 @@ class TestSerialConsumer:
         assert conn.execute("SELECT count(*) FROM pnori").fetchone()[0] == 1
         assert conn.execute("SELECT count(*) FROM pnors_df100").fetchone()[0] == 1  # PNORS
         assert conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()[0] == 1  # PNORC
-        assert conn.execute("SELECT count(*) FROM pnorh_df104").fetchone()[0] == 1  # PNORH4
+        assert (
+            conn.execute("SELECT count(*) FROM pnorh WHERE data_format=104").fetchone()[0] == 1
+        )  # PNORH4
         assert conn.execute("SELECT count(*) FROM pnorw_data").fetchone()[0] == 1
         assert conn.execute("SELECT count(*) FROM pnorb_data").fetchone()[0] == 1
         # Note: PNORE/PNORF/PNORWD will fail to parse with old format, so these won't be in DB

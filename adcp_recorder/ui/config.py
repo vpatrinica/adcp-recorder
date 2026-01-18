@@ -99,7 +99,7 @@ class SpectrumPanelConfig(BaseModel):
 class VelocityProfilePanelConfig(BaseModel):
     """Configuration for velocity profile depth plots."""
 
-    data_source: str = Field(default="pnorc_df101")
+    data_source: str = Field(default="pnorc12")
     velocity_columns: list[str] = Field(default_factory=lambda: ["vel1", "vel2", "vel3", "vel4"])
     cell_size: float = Field(default=1.0, description="Cell size in meters")
     blanking_distance: float = Field(default=0.5, description="Blanking distance in m")
@@ -109,7 +109,7 @@ class VelocityProfilePanelConfig(BaseModel):
 class HeatmapPanelConfig(BaseModel):
     """Configuration for heatmap visualizations (e.g., wave energy)."""
 
-    data_source: str = Field(default="echo_data")
+    data_source: str = Field(default="pnore_data")
     x: str = Field(default="start_frequency")
     y: str = Field(default="received_at")
     z: str = Field(default="energy_densities")
@@ -258,7 +258,7 @@ class DashboardConfig(BaseModel):
                     title="Velocity Profile",
                     position=PanelPosition(row=1, col=0, width=1, height=1),
                     config={
-                        "data_source": "pnorc_df101",
+                        "data_source": "pnorc12",
                         "velocity_columns": ["vel1", "vel2", "vel3"],
                         "cell_size": 1.0,
                     },
@@ -269,7 +269,7 @@ class DashboardConfig(BaseModel):
                     title="Wave Energy Spectrum",
                     position=PanelPosition(row=1, col=1, width=1, height=1),
                     config={
-                        "data_source": "echo_data",
+                        "data_source": "pnore_data",
                         "x": "start_frequency",
                         "y": "received_at",
                         "z": "energy_densities",
@@ -369,14 +369,14 @@ DASHBOARD_TEMPLATES = {
                 type=PanelType.TABLE,
                 title="Velocity Data",
                 position=PanelPosition(row=0, col=0),
-                config={"data_source": "pnorc_df101", "limit": 100},
+                config={"data_source": "pnorc12", "limit": 100},
             ),
             PanelConfig(
                 id="velocity_profile",
                 type=PanelType.VELOCITY_PROFILE,
                 title="Depth Profile",
                 position=PanelPosition(row=0, col=1),
-                config={"data_source": "pnorc_df101"},
+                config={"data_source": "pnorc12"},
             ),
         ],
     ),
@@ -397,7 +397,7 @@ DASHBOARD_TEMPLATES = {
                 type=PanelType.HEATMAP,
                 title="Energy Density Spectrum",
                 position=PanelPosition(row=0, col=1, width=2),
-                config={"data_source": "echo_data"},
+                config={"data_source": "pnore_data"},
             ),
             PanelConfig(
                 id="fourier_a1",

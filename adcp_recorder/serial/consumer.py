@@ -16,11 +16,11 @@ import duckdb
 from adcp_recorder.core.nmea import extract_prefix, is_binary_data
 from adcp_recorder.db import (
     DatabaseManager,
-    insert_echo_data,
     insert_header_data,
     insert_parse_error,
     insert_pnora_data,
     insert_pnorb_data,
+    insert_pnore_data,
     insert_pnorf_data,
     insert_pnori_configuration,
     insert_pnorw_data,
@@ -379,7 +379,7 @@ class SerialConsumer:
         elif prefix == "PNORB":
             insert_pnorb_data(conn, sentence, data)
         elif prefix == "PNORE":
-            insert_echo_data(conn, sentence, data)
+            insert_pnore_data(conn, sentence, data)
         elif prefix == "PNORF":
             insert_pnorf_data(conn, sentence, data)
         elif prefix == "PNORWD":
