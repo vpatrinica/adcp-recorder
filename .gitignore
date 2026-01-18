@@ -20,3 +20,5 @@ venv/*
 .eggs/*
 adcp_recorder.egg-info
 adcp_recorder.egg-info/*
+adcp-data
+adcp-data/*

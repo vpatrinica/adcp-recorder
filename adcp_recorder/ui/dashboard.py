@@ -43,6 +43,7 @@ st.set_page_config(
 def get_db() -> DatabaseManager:
     """Initialize database connection (cached)."""
     config = RecorderConfig.load()
+    print(config)
     db_dir = Path(config.output_dir) / "db"
     db_path = config.db_path or (db_dir / "adcp.duckdb")
     return DatabaseManager(str(db_path))

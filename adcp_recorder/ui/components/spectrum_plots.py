@@ -182,7 +182,7 @@ def render_energy_heatmap(
     config = config or {}
 
     # Configuration
-    source_name = config.get("data_source", "echo_data")
+    source_name = config.get("data_source", "pnore_data")
     colorscale = config.get("colorscale", "Viridis")
     time_range = config.get("time_range", "24h")
 

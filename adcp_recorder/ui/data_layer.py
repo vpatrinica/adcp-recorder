@@ -96,21 +96,15 @@ COLUMN_UNITS: dict[str, str] = {
 # Data source categories for organization
 SOURCE_CATEGORIES = {
     "pnori": "Configuration",
-    "pnori1": "Configuration",
-    "pnori2": "Configuration",
+    "pnori12": "Configuration",
     "pnors_df100": "Sensor Data",
-    "pnors_df101": "Sensor Data",
-    "pnors_df102": "Sensor Data",
-    "pnors_df103": "Sensor Data",
-    "pnors_df104": "Sensor Data",
+    "pnors12": "Sensor Data",
+    "pnors34": "Sensor Data",
     "pnorc_df100": "Velocity Data",
-    "pnorc_df101": "Velocity Data",
-    "pnorc_df102": "Velocity Data",
-    "pnorc_df103": "Velocity Data",
-    "pnorc_df104": "Velocity Data",
-    "pnorh_df103": "Header Data",
-    "pnorh_df104": "Header Data",
-    "echo_data": "Wave Data",
+    "pnorc12": "Velocity Data",
+    "pnorc34": "Velocity Data",
+    "pnorh": "Header Data",
+    "pnore_data": "Wave Data",
     "pnorw_data": "Wave Data",
     "pnorb_data": "Wave Data",
     "pnorf_data": "Wave Data",
@@ -497,7 +491,7 @@ class DataLayer:
             # Find the latest measurement that has all components
             latest_query = """
                 SELECT DISTINCT e.measurement_date, e.measurement_time, e.received_at
-                FROM echo_data e
+                FROM pnore_data e
                 JOIN pnorwd_data md ON e.measurement_date = md.measurement_date
                     AND e.measurement_time = md.measurement_time AND md.direction_type = 'MD'
                 JOIN pnorwd_data ds ON e.measurement_date = ds.measurement_date
@@ -515,7 +509,7 @@ class DataLayer:
         energy_data = self.conn.execute(
             """
             SELECT start_frequency, step_frequency, num_frequencies, energy_densities, received_at
-            FROM echo_data
+            FROM pnore_data
             WHERE measurement_date = ? AND measurement_time = ?
             """,
             [date_str, time_str],
