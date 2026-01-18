@@ -128,7 +128,7 @@ def render_time_series(
     )
 
     # Display with Streamlit
-    st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_chart")
+    st.plotly_chart(fig, width="stretch", key=f"{key_prefix}_chart")
 
 
 def _render_series_builder(data_layer: DataLayer, key_prefix: str) -> list[dict[str, Any]]:

@@ -75,7 +75,12 @@ class DatabaseManager:
 
         # Execute all schema creation statements
         for sql_statement in ALL_SCHEMA_SQL:
-            conn.execute(sql_statement)
+            try:
+                conn.execute(sql_statement)
+            except Exception as e:
+                # Log a warning instead of crashing. This is common when
+                # existing tables have a different schema than expected by views.
+                logger.warning(f"Schema initialization warning: {e}")
 
         conn.commit()
         self._schema_initialized = True

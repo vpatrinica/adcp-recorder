@@ -410,6 +410,69 @@ class DataLayer:
 
         return {"depths": depths, "velocities": velocities}
 
+    def query_velocity_profiles(
+        self,
+        source_name: str,
+        velocity_columns: list[str] | None = None,
+        cell_size: float = 1.0,
+        blanking_distance: float = 0.5,
+        timestamps: list[datetime] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Query multiple velocity profiles for overlapping plots."""
+        if not timestamps:
+            return [
+                self.query_velocity_profile(
+                    source_name, velocity_columns, cell_size, blanking_distance
+                )
+            ]
+
+        return [
+            self.query_velocity_profile(
+                source_name, velocity_columns, cell_size, blanking_distance, ts
+            )
+            for ts in timestamps
+        ]
+
+    def query_amplitude_heatmap(
+        self,
+        source_name: str,
+        time_range: str = "24h",
+    ) -> list[dict[str, Any]]:
+        """Query average signal strength (amplitude) for heatmaps."""
+        start_time = self._parse_time_range(time_range)
+
+        # We average across all 4 beams for "Average Signal Strength"
+        query = f"""
+            SELECT
+                received_at,
+                cell_index,
+                (COALESCE(amp1, 0) + COALESCE(amp2, 0) +
+                 COALESCE(amp3, 0) + COALESCE(amp4, 0)) / 4.0 as avg_amp
+            FROM {source_name}
+        """
+        params = []
+        if start_time:
+            query += " WHERE received_at >= ?"
+            params.append(start_time)
+
+        query += " ORDER BY received_at DESC, cell_index ASC LIMIT 20000"
+
+        result = self.conn.execute(query, params).fetchall()
+
+        # Organize by timestamp for heatmap
+        # Group by received_at, extract list of amplitudes
+        from collections import defaultdict
+
+        grouped = defaultdict(list)
+        for ts, _idx, amp in result:
+            grouped[ts].append(amp)
+
+        heatmap_data = []
+        for ts, amps in grouped.items():
+            heatmap_data.append({"received_at": ts, "amplitudes": amps})
+
+        return sorted(heatmap_data, key=lambda x: x["received_at"], reverse=True)
+
     def query_spectrum_data(
         self,
         source_name: str,
@@ -438,6 +501,44 @@ class DataLayer:
         result = self.conn.execute(query, params).fetchall()
         col_names = [d[0] for d in self.conn.description]
         return [dict(zip(col_names, row, strict=False)) for row in result]
+
+    def get_available_bursts(
+        self,
+        time_range: str = "24h",
+        source_name: str = "pnore_data",
+    ) -> list[dict[str, Any]]:
+        """Get a list of available measurement bursts (unique date/time) for wave data.
+
+        Args:
+            time_range: Search within this time range
+            source_name: Data source to check (pnore_data, pnorw_data, etc.)
+
+        Returns:
+            List of dicts with measurement_date, measurement_time, and received_at
+        """
+        start_time = self._parse_time_range(time_range)
+
+        query = f"""
+            SELECT DISTINCT measurement_date, measurement_time, received_at
+            FROM {source_name}
+        """
+        params = []
+        if start_time:
+            query += " WHERE received_at >= ?"
+            params.append(start_time)
+
+        query += " ORDER BY received_at DESC LIMIT 1000"
+
+        result = self.conn.execute(query, params).fetchall()
+        return [
+            {
+                "measurement_date": r[0],
+                "measurement_time": r[1],
+                "received_at": r[2],
+                "label": f"{r[0]} {r[1]}",
+            }
+            for r in result
+        ]
 
     def query_wave_energy(
         self,
@@ -485,8 +586,24 @@ class DataLayer:
 
         # 1. Find the target measurement time
         if timestamp:
-            date_str = timestamp.strftime("%d%m%y")
-            time_str = timestamp.strftime("%H%M%S")
+            query = """
+                SELECT
+                    start_frequency, step_frequency, num_frequencies, energy_densities,
+                    received_at, measurement_date, measurement_time
+                FROM pnore_data
+                WHERE received_at = ?
+            """
+            energy_data = self.conn.execute(query, [timestamp]).fetchone()
+
+            if not energy_data:
+                # Fallback to string matching if received_at fails
+                date_str = timestamp.strftime("%m%d%y")
+                time_str = timestamp.strftime("%H%M%S")
+            else:
+                (start_f, step_f, num_f, energy_densities_json, ts, date_str, time_str) = (
+                    energy_data
+                )
+                energy = json.loads(energy_densities_json)
         else:
             # Find the latest measurement that has all components
             latest_query = """
@@ -503,23 +620,26 @@ class DataLayer:
             if not latest:
                 return {}
             date_str, time_str, _ = latest
+            energy_data = None  # Will fetch below
 
-        # 2. Fetch all components for this measurement
-        # Energy
-        energy_data = self.conn.execute(
-            """
-            SELECT start_frequency, step_frequency, num_frequencies, energy_densities, received_at
-            FROM pnore_data
-            WHERE measurement_date = ? AND measurement_time = ?
-            """,
-            [date_str, time_str],
-        ).fetchone()
-
+        # 2. Fetch Energy if not already fetched
         if not energy_data:
-            return {}
+            energy_data = self.conn.execute(
+                """
+                SELECT
+                    start_frequency, step_frequency, num_frequencies,
+                    energy_densities, received_at
+                FROM pnore_data
+                WHERE measurement_date = ? AND measurement_time = ?
+                """,
+                [date_str, time_str],
+            ).fetchone()
 
-        start_f, step_f, num_f, energy_densities_json, ts = energy_data
-        energy = json.loads(energy_densities_json)
+            if not energy_data:
+                return {}
+
+            start_f, step_f, num_f, energy_densities_json, ts = energy_data
+            energy = json.loads(energy_densities_json)
 
         # Mean Direction
         md_data = self.conn.execute(

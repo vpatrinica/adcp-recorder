@@ -100,49 +100,106 @@ def render_velocity_profile(
             key=f"{key_prefix}_velocities",
         )
 
-    if not selected_velocities:
-        selected_velocities = available_vel_cols[:3]
+    # Burst selection for multi-profile comparison
+    available_bursts = data_layer.get_available_bursts(source_name=source_name)
+    burst_options = {f"{b.strftime('%Y-%m-%d %H:%M:%S')}": b for b in available_bursts}
+
+    selected_burst_labels = st.multiselect(
+        "Select Bursts to Compare",
+        options=list(burst_options.keys()),
+        default=[list(burst_options.keys())[0]] if burst_options else [],
+        key=f"{key_prefix}_bursts",
+        help="Select one or more bursts to overlay their profiles.",
+    )
+
+    selected_timestamps = [burst_options[label] for label in selected_burst_labels]
 
     # Query velocity profile data
     try:
-        profile_data = data_layer.query_velocity_profile(
-            source_name=source_name,
-            velocity_columns=selected_velocities,
-            cell_size=cell_size,
-            blanking_distance=blanking_distance,
-        )
+        if len(selected_timestamps) > 1:
+            # Multi-burst mode: Compare one component across many timestamps
+            comp_to_compare = st.selectbox(
+                "Component to Compare",
+                options=selected_velocities,
+                index=0,
+                key=f"{key_prefix}_comp_compare",
+            )
 
-        depths = profile_data.get("depths", [])
-        velocities = profile_data.get("velocities", {})
+            profiles = data_layer.query_velocity_profiles(
+                source_name=source_name,
+                velocity_columns=[comp_to_compare],
+                cell_size=cell_size,
+                blanking_distance=blanking_distance,
+                timestamps=selected_timestamps,
+            )
+        else:
+            # Single-burst mode: Show all selected components
+            single_ts = selected_timestamps[0] if selected_timestamps else None
+            profiles = [
+                data_layer.query_velocity_profile(
+                    source_name=source_name,
+                    velocity_columns=selected_velocities,
+                    cell_size=cell_size,
+                    blanking_distance=blanking_distance,
+                    timestamp=single_ts,
+                )
+            ]
 
-        if not depths:
+        if not profiles or not any(p.get("depths") for p in profiles):
             st.info("No velocity profile data available.")
             return
 
         # Build the profile plot
         fig = go.Figure()
 
-        for vel_col in selected_velocities:
-            vel_values = velocities.get(vel_col, [])
-            if not vel_values:
-                continue
+        if len(selected_timestamps) > 1:
+            for i, profile in enumerate(profiles):
+                ts = selected_timestamps[i]
+                depths = profile.get("depths", [])
+                vel_vals = profile.get("velocities", {}).get(selected_velocities[0], [])
 
-            color = BEAM_COLORS.get(vel_col, "#888888")
-            label = BEAM_LABELS.get(vel_col, vel_col)
+                if not depths or not vel_vals:
+                    continue
 
-            fig.add_trace(
-                go.Scatter(
-                    x=vel_values,
-                    y=depths,
-                    mode="lines+markers",
-                    name=label,
-                    line=dict(color=color, width=2),
-                    marker=dict(size=6, color=color),
-                    hovertemplate=(
-                        f"{label}<br>Velocity: %{{x:.3f}} m/s<br>Depth: %{{y:.2f}} m<extra></extra>"
+                fig.add_trace(
+                    go.Scatter(
+                        x=vel_vals,
+                        y=depths,
+                        mode="lines",
+                        name=f"Prof {ts.strftime('%H:%M:%S')}",
+                        hovertemplate=(
+                            f"Time: {ts}<br>Velocity: %{{x:.3f}} m/s<br>"
+                            f"Depth: %{{y:.2f}} m<extra></extra>"
+                        ),
+                    )
+                )
+        else:
+            profile = profiles[0]
+            depths = profile.get("depths", [])
+            velocities = profile.get("velocities", {})
+
+            for vel_col in selected_velocities:
+                vel_values = velocities.get(vel_col, [])
+                if not vel_values:
+                    continue
+
+                color = BEAM_COLORS.get(vel_col, "#888888")
+                label = BEAM_LABELS.get(vel_col, vel_col)
+
+                fig.add_trace(
+                    go.Scatter(
+                        x=vel_values,
+                        y=depths,
+                        mode="lines+markers",
+                        name=label,
+                        line=dict(color=color, width=2),
+                        marker=dict(size=6, color=color),
+                        hovertemplate=(
+                            f"{label}<br>Velocity: %{{x:.3f}} m/s<br>"
+                            f"Depth: %{{y:.2f}} m<extra></extra>"
+                        ),
                     ),
-                ),
-            )
+                )
 
         # Update layout for depth profile (inverted Y-axis, depth increases downward)
         fig.update_layout(
@@ -175,7 +232,7 @@ def render_velocity_profile(
         )
 
         # Display
-        st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_chart")
+        st.plotly_chart(fig, width="stretch", key=f"{key_prefix}_chart")
 
         # Metrics
         cols = st.columns(len(selected_velocities))
@@ -248,4 +305,4 @@ def render_velocity_comparison(
         yaxis_title="Depth (m)",
     )
 
-    st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_comparison")
+    st.plotly_chart(fig, width="stretch", key=f"{key_prefix}_comparison")
