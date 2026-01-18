@@ -46,7 +46,7 @@ class TestDirectionalSpectrum:
         ts = datetime(2026, 1, 16, 10, 30, 0)
 
         mock_conn.execute.return_value.fetchone.side_effect = [
-            (0.1, 0.05, 2, json.dumps([5.0, 6.0]), ts),  # Energy
+            (0.1, 0.05, 2, json.dumps([5.0, 6.0]), ts, "160126", "103000"),  # Energy (7 values)
             (json.dumps([45.0, 135.0]),),  # MD
             (json.dumps([5.0, 8.0]),),  # DS
         ]

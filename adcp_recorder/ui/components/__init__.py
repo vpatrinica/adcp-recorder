@@ -1,6 +1,8 @@
 """Reusable Streamlit UI components for dashboard visualizations."""
 
 from adcp_recorder.ui.components.spectrum_plots import (
+    render_amplitude_heatmap,
+    render_directional_spectrum,
     render_energy_heatmap,
     render_fourier_spectrum,
 )
@@ -11,6 +13,8 @@ from adcp_recorder.ui.components.velocity_profile import render_velocity_profile
 __all__ = [
     "render_energy_heatmap",
     "render_fourier_spectrum",
+    "render_directional_spectrum",
+    "render_amplitude_heatmap",
     "render_table_view",
     "render_time_series",
     "render_velocity_profile",

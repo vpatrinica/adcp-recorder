@@ -119,7 +119,7 @@ def render_table_view(
         if data:
             st.dataframe(
                 data,
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
 

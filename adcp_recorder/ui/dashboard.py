@@ -16,6 +16,8 @@ import streamlit as st
 from adcp_recorder.config import RecorderConfig
 from adcp_recorder.db import DatabaseManager
 from adcp_recorder.ui.components import (
+    render_amplitude_heatmap,
+    render_directional_spectrum,
     render_energy_heatmap,
     render_fourier_spectrum,
     render_table_view,
@@ -94,14 +96,14 @@ def main() -> None:
 
     # Quick actions
     with st.sidebar.expander("⚡ Quick Actions"):
-        if st.button("🔄 Refresh Data", use_container_width=True):
+        if st.button("🔄 Refresh Data", width="stretch"):
             st.cache_resource.clear()
             st.rerun()
 
-        if st.button("📊 View Raw Lines", use_container_width=True):
+        if st.button("📊 View Raw Lines", width="stretch"):
             st.session_state["quick_view"] = "raw_lines"
 
-        if st.button("⚠️ View Errors", use_container_width=True):
+        if st.button("⚠️ View Errors", width="stretch"):
             st.session_state["quick_view"] = "parse_errors"
 
     # Footer
@@ -235,6 +237,12 @@ def render_panel(
 
     elif panel.type == PanelType.HEATMAP:
         render_energy_heatmap(data_layer, config, key_prefix)
+
+    elif panel.type == PanelType.AMPLITUDE_HEATMAP:
+        render_amplitude_heatmap(data_layer, config, key_prefix)
+
+    elif panel.type == PanelType.POLAR:
+        render_directional_spectrum(data_layer, config, key_prefix)
 
     else:
         st.warning(f"Unknown panel type: {panel.type}")

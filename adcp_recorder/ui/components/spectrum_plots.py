@@ -61,13 +61,27 @@ def render_fourier_spectrum(
 
     with col3:
         show_all = st.checkbox(
-            "Show All Timestamps",
+            "Show All Records (Layered)",
             value=False,
             key=f"{key_prefix}_show_all",
         )
 
+    # Burst Selection
+    bursts = data_layer.get_available_bursts(time_range=time_range, source_name=source_name)
+    selected_bursts = []
+
+    if bursts:
+        selected_labels = st.multiselect(
+            "Select Bursts to Display",
+            options=[b["label"] for b in bursts],
+            default=[bursts[0]["label"]] if bursts else [],
+            key=f"{key_prefix}_bursts",
+        )
+        selected_bursts = [b for b in bursts if b["label"] in selected_labels]
+
     # Query spectrum data
     try:
+        # If bursts selected, we query specific timestamps or just filter the results
         spectrum_data = data_layer.query_spectrum_data(
             source_name=source_name,
             coefficient=coefficient,
@@ -78,12 +92,26 @@ def render_fourier_spectrum(
             st.info(f"No {coefficient} spectrum data available in the selected time range.")
             return
 
+        # Filter by selected bursts if any
+        if selected_bursts:
+            burst_labels = {b["label"] for b in selected_bursts}
+            spectrum_data = [
+                s
+                for s in spectrum_data
+                if f"{s.get('measurement_date', '')} {s.get('measurement_time', '')}"
+                in burst_labels
+            ]
+
         fig = go.Figure()
 
-        # Limit number of spectra shown
-        max_spectra = len(spectrum_data) if show_all else min(5, len(spectrum_data))
+        # Limit number of spectra shown if not explicit
+        if not selected_bursts:
+            max_spectra = len(spectrum_data) if show_all else min(5, len(spectrum_data))
+            display_data = spectrum_data[:max_spectra]
+        else:
+            display_data = spectrum_data
 
-        for i, record in enumerate(spectrum_data[:max_spectra]):
+        for i, record in enumerate(display_data):
             start_freq = record.get("start_frequency", 0)
             step_freq = record.get("step_frequency", 0.01)
             num_freqs = record.get("num_frequencies", 0)
@@ -158,9 +186,12 @@ def render_fourier_spectrum(
             paper_bgcolor="rgba(0,0,0,0)",
         )
 
-        st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_chart")
+        st.plotly_chart(fig, width="stretch", key=f"{key_prefix}_chart")
 
-        st.caption(f"Showing {max_spectra} of {len(spectrum_data)} spectra in time range")
+        if not selected_bursts:
+            st.caption(f"Showing {max_spectra} of {len(spectrum_data)} spectra in time range")
+        else:
+            st.caption(f"Showing {len(display_data)} selected spectra")
 
     except Exception as e:
         st.error(f"Error loading Fourier spectrum: {e}")
@@ -286,15 +317,21 @@ def render_energy_heatmap(
                 showgrid=False,
             ),
             yaxis=dict(
-                title="Time (record index)",
+                title="Time",
                 showgrid=False,
                 autorange="reversed",
+                tickmode="array",
+                tickvals=list(range(len(timestamps))),
+                ticktext=[
+                    ts.strftime("%H:%M:%S") if hasattr(ts, "strftime") else str(ts)
+                    for ts in timestamps
+                ],
             ),
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
         )
 
-        st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_chart")
+        st.plotly_chart(fig, width="stretch", key=f"{key_prefix}_chart")
 
         st.caption(f"Showing {len(energy_matrix)} energy spectra over {time_range}")
 
@@ -333,7 +370,26 @@ def render_directional_spectrum(
             key=f"{key_prefix}_time_range",
         )
 
-    with col2:
+    # Burst Selection
+    bursts = data_layer.get_available_bursts(time_range=time_range)
+    selected_burst = None
+
+    if bursts:
+        with col2:
+            burst_labels = [b["label"] for b in bursts]
+            selected_label = st.selectbox(
+                "Select Burst",
+                options=burst_labels,
+                index=0,
+                key=f"{key_prefix}_burst",
+            )
+            selected_burst = next(b for b in bursts if b["label"] == selected_label)
+    else:
+        with col2:
+            st.warning("No wave bursts found in this window.")
+            st.caption("Try increasing the **Observation Window** (e.g. to 7d) if data is older.")
+
+    with col3:
         plot_style = st.radio(
             "Visualization Style",
             options=["Bubble Plot", "Heatmap (Reconstructed)"],
@@ -342,37 +398,57 @@ def render_directional_spectrum(
             horizontal=True,
         )
 
-    # Note: Currently query_directional_spectrum fetches the latest available burst
-    # in the database that has both energy and directional components.
+    # Note: query_directional_spectrum can now take a specific timestamp
     try:
-        data = data_layer.query_directional_spectrum(time_range=time_range)
+        ts_param = selected_burst["received_at"] if selected_burst else None
+        data = data_layer.query_directional_spectrum(time_range=time_range, timestamp=ts_param)
 
         if not data:
-            st.info("No directional spectrum data (PNORE + PNORWD) found.")
-            st.caption("Ensure both Wave Energy (PNORE) and Directional (PNORWD) records exist.")
+            st.info("No merged directional spectrum data found.")
+            st.caption(
+                "This requires both Wave Energy (**PNORE**) and Directional Spread (**PNORWD**) "
+                "records with matching date/time. Check the **Select Burst** dropdown."
+            )
             return
 
-        with col3:
-            st.write(f"**Latest Burst:** {data['measurement_date']} {data['measurement_time']}")
-            st.write(
-                f"**Frequency Range:** {min(data['frequencies']):.2f} - "
-                f"{max(data['frequencies']):.2f} Hz"
-            )
+        if data.get("frequencies"):
+            with col3:
+                st.write(
+                    f"**Latest Burst:** {data.get('measurement_date', '')} "
+                    f"{data.get('measurement_time', '')}"
+                )
+                min_f = min(data["frequencies"])
+                max_f = max(data["frequencies"])
+                st.write(
+                    f"**Frequency Range:** {min_f:.2f} - {max_f:.2f} Hz"
+                    if min_f is not None and max_f is not None
+                    else "**Frequency Range:** N/A"
+                )
 
         # Prepare Polar Data
         fig = go.Figure()
 
         # Find peak for normalization and metrics
-        energies = data["energy"]
+        energies = data.get("energy", [])
         if energies:
-            peak_idx = int(np.argmax(energies))
-            peak_f = data["frequencies"][peak_idx]
-            peak_e = energies[peak_idx]
-            peak_d = data["directions"][peak_idx]
+            # Handle possible None values in data
+            clean_energies = [e if e is not None else 0.0 for e in energies]
+            peak_idx = int(np.argmax(clean_energies))
 
-            st.sidebar.metric("Peak Frequency", f"{peak_f:.3f} Hz")
-            st.sidebar.metric("Peak Energy", f"{peak_e:.4f} m²/Hz")
-            st.sidebar.metric("Peak Direction", f"{peak_d:.1f}°")
+            peak_f = data["frequencies"][peak_idx] if peak_idx < len(data["frequencies"]) else None
+            peak_e = clean_energies[peak_idx]
+
+            directions = data.get("directions", [])
+            peak_d = directions[peak_idx] if peak_idx < len(directions) else None
+
+            # Safe formatting for metrics
+            f_label = f"{peak_f:.3f} Hz" if peak_f is not None else "N/A"
+            e_label = f"{peak_e:.4f} m²/Hz" if peak_e is not None else "N/A"
+            d_label = f"{peak_d:.1f}°" if peak_d is not None else "N/A"
+
+            st.sidebar.metric("Peak Frequency", f_label)
+            st.sidebar.metric("Peak Energy", e_label)
+            st.sidebar.metric("Peak Direction", d_label)
 
         if plot_style == "Bubble Plot":
             # Bubble plot: Energy vs Frequency/Direction
@@ -382,7 +458,7 @@ def render_directional_spectrum(
                     theta=data["directions"],
                     mode="markers",
                     marker=dict(
-                        size=[max(5, np.sqrt(e) * 40) for e in energies],
+                        size=[max(5, np.sqrt(e if e is not None else 0.0) * 40) for e in energies],
                         color=energies,
                         colorscale="Viridis",
                         showscale=True,
@@ -390,12 +466,15 @@ def render_directional_spectrum(
                         line=dict(width=1, color="white"),
                     ),
                     text=[
-                        f"Freq: {f:.3f} Hz<br>Dir: {d:.1f}°<br>Energy: {e:.4f}<br>Spread: {s:.1f}°"
+                        (f"Freq: {f:.3f} Hz<br>" if f is not None else "Freq: N/A<br>")
+                        + (f"Dir: {d:.1f}°<br>" if d is not None else "Dir: N/A<br>")
+                        + (f"Energy: {e:.4f}<br>" if e is not None else "Energy: N/A<br>")
+                        + (f"Spread: {s:.1f}°" if s is not None else "Spread: N/A")
                         for f, d, e, s in zip(
-                            data["frequencies"],
-                            data["directions"],
-                            data["energy"],
-                            data["spreads"],
+                            data.get("frequencies", []),
+                            data.get("directions", []),
+                            data.get("energy", []),
+                            data.get("spreads", []),
                             strict=False,
                         )
                     ],
@@ -422,9 +501,11 @@ def render_directional_spectrum(
             intensity_grid = []
 
             for i, f in enumerate(freqs):
-                e_total = data["energy"][i]
-                theta_m = data["directions"][i]
-                sigma = data["spreads"][i]
+                e_total = data["energy"][i] if data["energy"][i] is not None else 0.0
+                theta_m = data["directions"][i] if data["directions"][i] is not None else 0.0
+                sigma = (
+                    data["spreads"][i] if data["spreads"][i] is not None else 20.0
+                )  # Default spread
 
                 # Ensure sigma is positive to avoid div by zero
                 sigma = max(1.0, sigma)
@@ -492,7 +573,83 @@ def render_directional_spectrum(
             paper_bgcolor="rgba(0,0,0,0)",
         )
 
-        st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_chart")
+        st.plotly_chart(fig, width="stretch", key=f"{key_prefix}_chart")
 
     except Exception as e:
         st.error(f"Error rendering directional spectrum: {e}")
+
+
+def render_amplitude_heatmap(
+    data_layer: DataLayer,
+    config: dict[str, Any] | None = None,
+    key_prefix: str = "amplitude_heatmap",
+) -> None:
+    """Render a heatmap of signal strength (amplitude) over time and depth.
+
+    Args:
+        data_layer: DataLayer instance for data access
+        config: Configuration dict with data_source, time_range
+        key_prefix: Unique key prefix for Streamlit session state
+    """
+    config = config or {}
+    source_name = config.get("data_source", "pnorc12")
+    default_time_range = config.get("time_range", "24h")
+
+    # Local time range selector
+    time_range = st.selectbox(
+        "Observation Window",
+        options=["1h", "6h", "24h", "7d", "30d"],
+        index=["1h", "6h", "24h", "7d", "30d"].index(default_time_range)
+        if default_time_range in ["1h", "6h", "24h", "7d", "30d"]
+        else 2,
+        key=f"{key_prefix}_time_range",
+    )
+
+    data = data_layer.query_amplitude_heatmap(source_name, time_range)
+
+    if not data:
+        st.info("No amplitude data found for the selected time range.")
+        return
+
+    # Extract timestamps and amplitude grid
+    timestamps = [d["received_at"] for d in data]
+
+    # We need to ensure all rows have the same length for the heatmap
+    max_cells = max(len(d["amplitudes"]) for d in data)
+
+    # Fill intensity grid: Rows are cells (distance), Columns are time
+    intensity_grid = []
+    for cell_idx in range(max_cells):
+        row = []
+        for d in data:
+            if cell_idx < len(d["amplitudes"]):
+                row.append(d["amplitudes"][cell_idx])
+            else:
+                row.append(None)
+        intensity_grid.append(row)
+
+    # Use cell index for Y-axis
+    y_axis = list(range(max_cells))
+
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=intensity_grid,
+            x=timestamps,
+            y=y_axis,
+            colorscale="Jet",
+            colorbar=dict(title="Counts"),
+            hovertemplate="Time: %{x}<br>Cell: %{y}<br>Amplitude: %{z:.1f}<extra></extra>",
+        )
+    )
+
+    fig.update_layout(
+        title="Average Signal Strength (counts)",
+        xaxis_title="Time",
+        yaxis_title="Cell Index",
+        margin=dict(l=20, r=20, t=40, b=20),
+        height=400,
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+    )
+
+    st.plotly_chart(fig, width="stretch", key=f"{key_prefix}_chart")
