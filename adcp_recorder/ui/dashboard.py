@@ -40,6 +40,18 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# Custom CSS to hide the Deploy button and other elements
+st.markdown(
+    """
+    <style>
+    .stDeployButton {
+        visibility: hidden;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 
 @st.cache_resource
 def get_db() -> DatabaseManager:
@@ -95,20 +107,43 @@ def main() -> None:
     st.sidebar.caption(f"📁 DB: {db.db_path}")
 
     # Quick actions
-    with st.sidebar.expander("⚡ Quick Actions"):
-        if st.button("🔄 Refresh Data", width="stretch"):
+    with st.sidebar.expander("⚡ Quick Actions", expanded=True):
+        if st.button(
+            "🔄 Refresh Data", width=250
+        ):  # use numerical width or "use_container_width=True" in newer streamlit, but stick to compatible args if unsure, or just True
             st.cache_resource.clear()
             st.rerun()
 
-        if st.button("📊 View Raw Lines", width="stretch"):
-            st.session_state["quick_view"] = "raw_lines"
-
-        if st.button("⚠️ View Errors", width="stretch"):
-            st.session_state["quick_view"] = "parse_errors"
+        col_q1, col_q2 = st.columns(2)
+        with col_q1:
+            if st.button("📊 Raw Lines"):
+                st.session_state["quick_view"] = "raw_lines"
+                st.rerun()
+        with col_q2:
+            if st.button("⚠️ Errors"):
+                st.session_state["quick_view"] = "parse_errors"
+                st.rerun()
 
     # Footer
     st.sidebar.divider()
     st.sidebar.caption(f"Last refresh: {datetime.now().strftime('%H:%M:%S')}")
+
+    # Handle quick view requests (Overlay)
+    if st.session_state.get("quick_view"):
+        source = st.session_state["quick_view"]
+        st.divider()
+
+        # Header with Close button
+        col_h1, col_h2 = st.columns([6, 1])
+        with col_h1:
+            st.subheader(f"Quick View: {source}")
+        with col_h2:
+            if st.button("❌ Close", key="close_quick_view"):
+                del st.session_state["quick_view"]
+                st.rerun()
+
+        render_table_view(data_layer, source, key_prefix=f"quick_{source}")
+        st.divider()
 
     # Main content area
     if page_key == "explorer":
@@ -123,13 +158,6 @@ def main() -> None:
     elif page_key.startswith("dashboard:"):
         dashboard_name = page_key.split(":", 1)[1]
         render_saved_dashboard(data_layer, dashboard_name)
-
-    # Handle quick view requests
-    if "quick_view" in st.session_state:
-        source = st.session_state.pop("quick_view")
-        st.divider()
-        st.subheader(f"Quick View: {source}")
-        render_table_view(data_layer, source, key_prefix=f"quick_{source}")
 
 
 def render_saved_dashboard(data_layer: DataLayer, dashboard_name: str) -> None:

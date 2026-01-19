@@ -360,18 +360,45 @@ def render_directional_spectrum(
     # Controls
     col1, col2, col3 = st.columns([1, 1, 1])
 
+    start_time = None
+    end_time = None
+
     with col1:
         time_range = st.selectbox(
             "Observation Window",
-            options=["1h", "6h", "24h", "7d"],
-            index=["1h", "6h", "24h", "7d"].index(time_range)
+            options=["1h", "6h", "24h", "7d", "Custom"],
+            index=["1h", "6h", "24h", "7d", "Custom"].index(time_range)
             if time_range in ["1h", "6h", "24h", "7d"]
             else 2,
             key=f"{key_prefix}_time_range",
         )
 
+        if time_range == "Custom":
+            sd = st.date_input("Start", key=f"{key_prefix}_sd")
+            st_val = st.time_input("Start Time", key=f"{key_prefix}_st")
+            ed = st.date_input("End", key=f"{key_prefix}_ed")
+            et_val = st.time_input("End Time", key=f"{key_prefix}_et")
+
+            if sd and ed:
+                from datetime import datetime
+
+                start_time = datetime.combine(sd, st_val)
+                end_time = datetime.combine(ed, et_val)
+        else:
+            # For standard ranges, we let data_layer parse it, OR we parse it here to filter bursts?
+            # get_available_bursts takes time_range str.
+            pass
+
     # Burst Selection
-    bursts = data_layer.get_available_bursts(time_range=time_range)
+    # Note: We need to update get_available_bursts to support explicit start/end times
+    # For now, if Custom, we might need to rely on a future update to DataLayer or pass a dummy 'all' and filter?
+    # Let's assume we will update DataLayer to accept start_time/end_time kwargs.
+
+    bursts = data_layer.get_available_bursts(
+        time_range=time_range if time_range != "Custom" else "all",
+        start_time=start_time,
+        end_time=end_time,
+    )
     selected_burst = None
 
     if bursts:

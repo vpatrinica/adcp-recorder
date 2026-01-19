@@ -54,6 +54,10 @@ def render_table_view(
                 default=[c for c in default_columns if c in available_columns],
                 key=f"{key_prefix}_columns",
             )
+            # Ensure mandatory columns for filtering are always included
+            for mandatory in ["record_type", "raw_sentence"]:
+                if mandatory in available_columns and mandatory not in selected_columns:
+                    selected_columns.append(mandatory)
 
     if not selected_columns:
         selected_columns = available_columns[:5]
@@ -67,7 +71,7 @@ def render_table_view(
         with st.expander("🔍 Filters", expanded=False):
             filter_cols = st.columns(3)
 
-            for i, col_name in enumerate(selected_columns[:6]):  # Limit filter options
+            for i, col_name in enumerate(selected_columns):  # Show filter for all selected columns
                 col_meta = source.get_column(col_name)
                 if not col_meta:
                     continue
@@ -79,32 +83,72 @@ def render_table_view(
                             key=f"{key_prefix}_filter_{col_name}",
                         )
                         if filter_val:
-                            st.session_state[filters_key][col_name] = ("contains", filter_val)
-                        elif col_name in st.session_state[filters_key]:
-                            del st.session_state[filters_key][col_name]
+                            st.session_state[f"{key_prefix}_filter_{col_name}"] = (
+                                "contains",
+                                filter_val,
+                            )
+                        elif f"{key_prefix}_filter_{col_name}" in st.session_state:
+                            del st.session_state[f"{key_prefix}_filter_{col_name}"]
 
     # Time range filter for timestamped sources
     time_range = "24h"
+    start_time = None
+    end_time = None
+
     if source.has_timestamp:
         time_range = st.selectbox(
             "Time range",
-            options=["1h", "6h", "24h", "7d", "30d", "all"],
+            options=["1h", "6h", "24h", "7d", "30d", "all", "Custom"],
             index=2,
             key=f"{key_prefix}_time_range",
         )
 
-    # Query data
-    try:
-        start_time = None
-        if time_range != "all":
+        if time_range == "Custom":
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                start_date = st.date_input("Start Date", key=f"{key_prefix}_start_date")
+            with c2:
+                start_time_val = st.time_input("Start Time", key=f"{key_prefix}_start_time")
+            with c3:
+                end_date = st.date_input("End Date", key=f"{key_prefix}_end_date")
+            with c4:
+                end_time_val = st.time_input("End Time", key=f"{key_prefix}_end_time")
+
+            if start_date and end_date:
+                from datetime import datetime
+
+                start_time = datetime.combine(start_date, start_time_val)
+                end_time = datetime.combine(end_date, end_time_val)
+        elif time_range != "all":
             start_time = data_layer._parse_time_range(time_range)
 
+    # Query data
+    print("start query")
+    try:
         data = data_layer.query_data(
             source_name=source_name,
             columns=selected_columns,
             start_time=start_time,
+            end_time=end_time,
             limit=int(limit),
         )
+        # Apply client‑side filters stored in session_state
+        if data:
+            filtered = []
+            print("start filtering")
+            for row in data:
+                keep = True
+                for col in selected_columns:
+                    filter_key = f"{key_prefix}_filter_{col}"
+                    if filter_key in st.session_state:
+                        op, val = st.session_state[filter_key]
+                        print(op, " ", val)
+                        if op == "contains" and val.lower() not in str(row.get(col, "")).lower():
+                            keep = False
+                            break
+                if keep:
+                    filtered.append(row)
+            data = filtered
 
         # Display metrics
         col1, col2, col3 = st.columns(3)
