@@ -506,26 +506,40 @@ class DataLayer:
         self,
         time_range: str = "24h",
         source_name: str = "pnore_data",
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
     ) -> list[dict[str, Any]]:
         """Get a list of available measurement bursts (unique date/time) for wave data.
 
         Args:
-            time_range: Search within this time range
+            time_range: Search within this time range (used if start_time not provided)
             source_name: Data source to check (pnore_data, pnorw_data, etc.)
+            start_time: Explicit start time filter
+            end_time: Explicit end time filter
 
         Returns:
             List of dicts with measurement_date, measurement_time, and received_at
         """
-        start_time = self._parse_time_range(time_range)
+        if not start_time:
+            start_time = self._parse_time_range(time_range)
 
         query = f"""
             SELECT DISTINCT measurement_date, measurement_time, received_at
             FROM {source_name}
         """
         params = []
+        conditions = []
+
         if start_time:
-            query += " WHERE received_at >= ?"
+            conditions.append("received_at >= ?")
             params.append(start_time)
+
+        if end_time:
+            conditions.append("received_at <= ?")
+            params.append(end_time)
+
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
 
         query += " ORDER BY received_at DESC LIMIT 1000"
 

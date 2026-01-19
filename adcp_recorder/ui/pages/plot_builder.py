@@ -165,19 +165,53 @@ def _render_save_panel_ui(plot_type: PanelType) -> None:
             st.info("No dashboards available. Create one in Dashboard Editor first.")
             target_dashboard = None
 
-        if st.button("Add to Dashboard", key="save_panel_btn"):
             if target_dashboard and panel_id:
                 try:
                     # Load dashboard and add panel
                     dashboard = DashboardConfig.load(target_dashboard)
 
-                    # Create panel config (simplified - in real use would capture current settings)
+                    # Reconstruct configuration from session state
+                    saved_config = {}
+
+                    if plot_type == PanelType.TIME_SERIES:
+                        # Reconstruct series config
+                        prefix = "pb_ts"
+                        num_series = st.session_state.get(f"{prefix}_num_series", 1)
+                        series_list = []
+
+                        for i in range(num_series):
+                            s_source = st.session_state.get(f"{prefix}_source_{i}")
+                            s_y = st.session_state.get(f"{prefix}_y_{i}")
+                            s_label = st.session_state.get(f"{prefix}_label_{i}")
+                            s_color = st.session_state.get(f"{prefix}_color_{i}")
+
+                            if s_source and s_y:
+                                series_list.append(
+                                    {
+                                        "source": s_source,
+                                        "x": "received_at",
+                                        "y": s_y,
+                                        "label": s_label or s_y,
+                                        "color": s_color,
+                                    }
+                                )
+
+                        saved_config["series"] = series_list
+                        saved_config["time_range"] = st.session_state.get(
+                            f"{prefix}_time_range", "24h"
+                        )
+
+                    elif plot_type == PanelType.VELOCITY_PROFILE:
+                        # Add similar reconstruction if needed, or default to current
+                        saved_config = {}  # Velocity profile state capture if needed
+
+                    # Create panel config
                     panel = PanelConfig(
                         id=panel_id,
                         type=plot_type,
                         title=panel_title,
                         position=PanelPosition(row=0, col=0),
-                        config={},
+                        config=saved_config,
                     )
 
                     dashboard.add_panel(panel)
