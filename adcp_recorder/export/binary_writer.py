@@ -13,7 +13,7 @@ from pathlib import Path
 class BinaryBlobWriter:
     def __init__(self, base_path: str):
         self.base_path = base_path
-        self.binary_dir = os.path.join(self.base_path, "errors_binary")
+        self.binary_dir = os.path.join(self.base_path, "errors", "binary")
         Path(self.binary_dir).mkdir(parents=True, exist_ok=True)
         self._current_file = None
         self._current_filepath = None
@@ -76,6 +76,7 @@ class BinaryBlobWriter:
             self._identifier = 0
 
         return path
+
 
     def close(self) -> None:
         """Close the writer and any open files."""

@@ -108,9 +108,9 @@ def main() -> None:
 
     # Quick actions
     with st.sidebar.expander("⚡ Quick Actions", expanded=True):
-        if st.button(
-            "🔄 Refresh Data", width=250
-        ):  # use numerical width or "use_container_width=True" in newer streamlit, but stick to compatible args if unsure, or just True
+        if st.button("🔄 Refresh Data", width=250):
+            # use numerical width or "use_container_width=True" in newer streamlit,
+            # but stick to compatible args if unsure, or just True
             st.cache_resource.clear()
             st.rerun()
 
