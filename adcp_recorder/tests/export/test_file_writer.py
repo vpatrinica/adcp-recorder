@@ -112,7 +112,7 @@ class TestFileWriter:
         writer.write_error("Something went wrong")
 
         date_str = datetime.now().strftime("%d%m%y")
-        error_file = os.path.join(export_dir, "errors", "SYSTEM", f"ERRORR_{date_str}.nmea")
+        error_file = os.path.join(export_dir, "errors", "nmea", f"ERROR_{date_str}.nmea")
 
         assert os.path.exists(error_file)
         with open(error_file) as f:
@@ -140,7 +140,7 @@ class TestFileWriter:
         writer.write_invalid_record("PNORI", "bad_data")
 
         date_str = datetime.now().strftime("%d%m%y")
-        error_file = os.path.join(export_dir, "errors", "PNORI", f"ERRORR_{date_str}.nmea")
+        error_file = os.path.join(export_dir, "errors", "nmea", f"PNORI_error_{date_str}.nmea")
 
         assert os.path.exists(error_file)
         with open(error_file) as f:

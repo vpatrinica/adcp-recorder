@@ -406,6 +406,7 @@ class TestSerialConsumer:
         db = DatabaseManager(db_path)
         router = MessageRouter()
         mock_file_writer = Mock()
+        mock_file_writer.base_path = "."
 
         consumer = SerialConsumer(queue, db, router, file_writer=mock_file_writer)
 

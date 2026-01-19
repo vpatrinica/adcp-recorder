@@ -165,8 +165,8 @@ def test_full_pipeline_e2e(temp_recorder_dir):
         # Helper to check file existence and content
         def verify_export_file(prefix, partial_content, is_error=False) -> None:
             if is_error:
-                expected_filename = f"ERRORR_{error_today_str}.nmea"
-                file_path = temp_recorder_dir / "errors" / prefix / expected_filename
+                expected_filename = f"ERROR_{error_today_str}.nmea"
+                file_path = temp_recorder_dir / "errors" / "nmea" / expected_filename
             else:
                 expected_filename = f"{prefix}_{today_str}.nmea"
                 file_path = temp_recorder_dir / "nmea" / prefix / expected_filename

@@ -2,7 +2,6 @@
 include README.md
 include LICENSE
 include CHANGELOG.md
-include PYPI_TODO.md
 include pyproject.toml
 
 # Include documentation

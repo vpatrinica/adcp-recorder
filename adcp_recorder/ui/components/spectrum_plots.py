@@ -391,7 +391,8 @@ def render_directional_spectrum(
 
     # Burst Selection
     # Note: We need to update get_available_bursts to support explicit start/end times
-    # For now, if Custom, we might need to rely on a future update to DataLayer or pass a dummy 'all' and filter?
+    # For now, if Custom, we might need to rely on a future update to DataLayer
+    # or pass a dummy 'all' and filter?
     # Let's assume we will update DataLayer to accept start_time/end_time kwargs.
 
     bursts = data_layer.get_available_bursts(

@@ -1,0 +1,135 @@
+2026-01-16 11:10:53.981 Uncaught app execution
+Traceback (most recent call last):
+  File "C:\Program Files\ADCP-Recorder\venv\Lib\site-packages\streamlit\runtime\scriptrunner\exec_code.py", line 129, in exec_func_with_error_handling
+    result = func()
+  File "C:\Program Files\ADCP-Recorder\venv\Lib\site-packages\streamlit\runtime\scriptrunner\script_runner.py", line 670, in code_to_exec
+    _mpa_v1(self._main_script_path)
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\ADCP-Recorder\venv\Lib\site-packages\streamlit\runtime\scriptrunner\script_runner.py", line 166, in _mpa_v1
+    page.run()
+    ~~~~~~~~^^
+  File "C:\Program Files\ADCP-Recorder\venv\Lib\site-packages\streamlit\navigation\page.py", line 310, in run
+    exec(code, module.__dict__)  # noqa: S102
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\ADCP-Recorder\venv\Lib\site-packages\adcp_recorder\ui\dashboard.py", line 243, in <module>
+    main()
+    ~~~~^^
+  File "C:\Program Files\ADCP-Recorder\venv\Lib\site-packages\adcp_recorder\ui\dashboard.py", line 60, in main
+    db = get_db()
+  File "C:\Program Files\ADCP-Recorder\venv\Lib\site-packages\streamlit\runtime\caching\cache_utils.py", line 281, in __call__
+    return self._get_or_create_cached_value(args, kwargs, spinner_message)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\ADCP-Recorder\venv\Lib\site-packages\streamlit\runtime\caching\cache_utils.py", line 326, in _get_or_create_cached_value
+    return self._handle_cache_miss(cache, value_key, func_args, func_kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\ADCP-Recorder\venv\Lib\site-packages\streamlit\runtime\caching\cache_utils.py", line 385, in _handle_cache_miss
+    computed_value = self._info.func(*func_args, **func_kwargs)
+  File "C:\Program Files\ADCP-Recorder\venv\Lib\site-packages\adcp_recorder\ui\dashboard.py", line 48, in get_db
+    return DatabaseManager(str(db_path))
+  File "C:\Program Files\ADCP-Recorder\venv\Lib\site-packages\adcp_recorder\db\db.py", line 49, in __init__
+    self.initialize_schema()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Program Files\ADCP-Recorder\venv\Lib\site-packages\adcp_recorder\db\db.py", line 74, in initialize_schema
+    conn = self.get_connection()
+  File "C:\Program Files\ADCP-Recorder\venv\Lib\site-packages\adcp_recorder\db\db.py", line 62, in get_connection
+    self._thread_local.conn = duckdb.connect(self.db_path)
+                              ~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+_duckdb.IOException: IO Error: Cannot open file "c:\adcp_data\db\adcp.duckdb": Der Prozess kann nicht auf die Datei zugreifen, da sie von einem anderen Prozess verwendet wird.
+File is already open in 
+C:\Users\tempadmin\AppData\Local\Programs\Python\Python313\python.exe (PID 4640)
+2026-01-16 11:11:52.985 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:12:20.855 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:12:30.786 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:12:36.722 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:13:02.640 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:13:10.955 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:13:34.599 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:13:37.678 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:13:40.022 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:13:43.660 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:14:08.216 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:14:21.438 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:14:33.763 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:14:44.018 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:14:54.253 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:14:59.307 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:15:03.655 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:15:14.069 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:15:21.968 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:15:59.309 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:16:15.020 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:16:15.050 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:17:47.121 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:17:49.381 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:17:49.417 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:17:49.447 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:17:49.467 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:19:59.647 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:20:35.055 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:20:35.071 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:20:35.091 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-01-16 11:20:35.111 Please replace `use_container_width` with `width`.
+`use_container_width` will be removed after 2025-12-31.
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.

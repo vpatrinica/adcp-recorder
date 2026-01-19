@@ -111,13 +111,20 @@ class FileWriter:
             return
 
         try:
-            # Create errors directory for prefix
-            error_dir = os.path.join(self.base_path, "errors", prefix)
+            date_str = self._current_date.strftime("%d%m%y")
+            error_dir = os.path.join(self.base_path, "errors", "nmea")
             os.makedirs(error_dir, exist_ok=True)
 
-            # File name format: ERRORR_YYYYMMDD.nmea
-            date_str = self._current_date.strftime("%d%m%y")
-            filename = os.path.join(error_dir, f"ERRORR_{date_str}.nmea")
+            # Consolidate BINARY and unknown prefixes into ERROR_{date}.nmea
+            # Known prefixes (PNORI, PNORS, etc.) use {prefix}_error_{date}.nmea
+            known_prefixes = {
+                "PNORI", "PNORS", "PNORC", "PNORH", "PNORW",
+                "PNORB", "PNORE", "PNORF", "PNORWD", "PNORA",
+            }
+            if prefix == "BINARY" or prefix not in known_prefixes:
+                filename = os.path.join(error_dir, f"ERROR_{date_str}.nmea")
+            else:
+                filename = os.path.join(error_dir, f"{prefix}_error_{date_str}.nmea")
 
             # Append to file
             with open(filename, "a", encoding="utf-8", buffering=1) as f:
