@@ -190,17 +190,27 @@ class TestSerialServiceCoverage:
 
     def test_supervisor_entry_point(self):
         """Cover __name__ == '__main__' block in supervisor.py."""
-        # Patch time.sleep to Break the infinite loop in supervisor.run()
-        # The run() method catches exceptions and calls sys.exit(1)
+        # Patch AdcpRecorder to avoid starting real threads
+        # Make start() raise an exception so the supervisor crashes and exits
         # Remove from sys.modules to avoid RuntimeWarning when runpy executes it
         import sys
 
-        if "adcp_recorder.service.supervisor" in sys.modules:
-            del sys.modules["adcp_recorder.service.supervisor"]
-        if "adcp_recorder.service" in sys.modules:
-            del sys.modules["adcp_recorder.service"]
+        # Clean up all related modules for fresh import
+        modules_to_remove = [
+            k
+            for k in list(sys.modules.keys())
+            if k.startswith("adcp_recorder.service") or k.startswith("adcp_recorder.core")
+        ]
+        for mod in modules_to_remove:
+            del sys.modules[mod]
 
-        with patch("time.sleep", side_effect=Exception("Break Loop")):
+        with (
+            patch("adcp_recorder.core.recorder.AdcpRecorder") as mock_recorder_cls,
+            patch("adcp_recorder.config.RecorderConfig.load"),
+        ):
+            mock_instance = mock_recorder_cls.return_value
+            mock_instance.start.side_effect = RuntimeError("Force exit")
+
             with pytest.raises(SystemExit) as excinfo:
                 runpy.run_module("adcp_recorder.service.supervisor", run_name="__main__")
             assert excinfo.value.code == 1
