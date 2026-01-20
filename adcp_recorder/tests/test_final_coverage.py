@@ -276,19 +276,107 @@ def test_migration_main_inplace(tmp_path):
         assert kwargs["in_place"] is True
 
 
+@pytest.mark.filterwarnings(
+    "ignore:'adcp_recorder.db.migration' found in sys.modules:RuntimeWarning"
+)
 def test_migration_main_block():
     """Test the if __name__ == '__main__': block using runpy using --help."""
     # Remove from sys.modules to avoid RuntimeWarning when runpy executes it
     import sys
 
-    if "adcp_recorder.db.migration" in sys.modules:
-        del sys.modules["adcp_recorder.db.migration"]
-    if "adcp_recorder.db" in sys.modules:
-        # Be careful not to delete parent if other tests need it, but runpy needs it gone
-        del sys.modules["adcp_recorder.db"]
+    # Clean up all db-related modules for a fresh import
+    modules_to_remove = [k for k in list(sys.modules.keys()) if k.startswith("adcp_recorder.db")]
+    for mod in modules_to_remove:
+        del sys.modules[mod]
 
     # We pass --help so it runs arguments parsing and exits with 0
     with patch("sys.argv", ["adcp_recorder/db/migration.py", "--help"]):
         with pytest.raises(SystemExit) as excinfo:
             runpy.run_module("adcp_recorder.db.migration", run_name="__main__")
         assert excinfo.value.code == 0
+
+
+# --- Config Coverage Tests ---
+
+
+def test_config_get_default_config_dir_windows():
+    """Test get_default_config_dir on Windows platform (lines 59-63)."""
+    import importlib
+    import sys
+
+    # Remove cached modules to get fresh import
+    modules_to_remove = [k for k in sys.modules.keys() if k.startswith("adcp_recorder.config")]
+    for mod in modules_to_remove:
+        del sys.modules[mod]
+
+    # Now patch before importing
+    with patch.dict("os.environ", {"PROGRAMDATA": "C:\\ProgramData"}, clear=False):
+        with patch("sys.platform", "win32"):
+            # Import fresh - this will use the patched sys.platform
+            import adcp_recorder.config as config_module
+
+            # Reload to ensure we use the patched value
+            config_module = importlib.reload(config_module)
+
+            # Now call the method
+            config_dir = config_module.RecorderConfig.get_default_config_dir()
+            # Should use ProgramData on Windows
+            assert "ADCP-Recorder" in str(config_dir)
+            assert "ProgramData" in str(config_dir)
+
+
+def test_config_get_default_config_dir_windows_fallback():
+    """Test get_default_config_dir on Windows with fallback path."""
+    import importlib
+    import os
+    import sys
+
+    # Remove cached modules to get fresh import
+    modules_to_remove = [
+        k for k in list(sys.modules.keys()) if k.startswith("adcp_recorder.config")
+    ]
+    for mod in modules_to_remove:
+        del sys.modules[mod]
+
+    # Remove PROGRAMDATA to test fallback
+    env_without_programdata = {k: v for k, v in os.environ.items() if k != "PROGRAMDATA"}
+
+    with patch.dict("os.environ", env_without_programdata, clear=True):
+        with patch("sys.platform", "win32"):
+            # Import fresh - this will use the patched sys.platform
+            import adcp_recorder.config as config_module
+
+            # Reload to ensure we use the patched value
+            config_module = importlib.reload(config_module)
+
+            # Now call the method
+            config_dir = config_module.RecorderConfig.get_default_config_dir()
+            # Should fallback to C:\ProgramData
+            assert "ADCP-Recorder" in str(config_dir)
+            assert "ProgramData" in str(config_dir)
+
+
+# --- Migration Column Check Exception Test ---
+
+
+def test_migrate_pnorw_fields_column_check_exception_handling(mock_duckdb_conn):
+    """Test migrate_pnorw_fields exception during column check (lines 324-325)."""
+
+    # Table exists
+    def execute_side_effect(query, *args, **kwargs):
+        m = MagicMock()
+        if "information_schema.tables" in query:
+            m.fetchone.return_value = [1]
+            return m
+        if "information_schema.columns" in query:
+            # This triggers lines 324-325
+            raise Exception("Column check failed")
+        return m
+
+    mock_duckdb_conn.execute.side_effect = execute_side_effect
+
+    from adcp_recorder.db.migration import migrate_pnorw_fields
+
+    # Should return 0 since old_schema becomes False due to exception
+    count = migrate_pnorw_fields(mock_duckdb_conn)
+    assert count == 0

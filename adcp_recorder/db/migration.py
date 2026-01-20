@@ -4,14 +4,14 @@ This module provides functions to migrate databases from the old schema
 (with separate tables for each data format) to the new consolidated schema.
 
 Migration mappings:
-- echo_data → pnore_data (rename)
-- pnori1, pnori2 → pnori12 (consolidate with data_format)
-- pnors_df101, pnors_df102 → pnors12 (consolidate)
-- pnors_df103, pnors_df104 → pnors34 (consolidate)
-- pnorc_df101, pnorc_df102 → pnorc12 (consolidate)
-- pnorc_df103, pnorc_df104 → pnorc34 (consolidate)
-- pnorh_df103, pnorh_df104 → pnorh (consolidate)
-- pnorw_data → pnorw_data (field mapping update)
+- echo_data -> pnore_data (rename)
+- pnori1, pnori2 -> pnori12 (consolidate with data_format)
+- pnors_df101, pnors_df102 -> pnors12 (consolidate)
+- pnors_df103, pnors_df104 -> pnors34 (consolidate)
+- pnorc_df101, pnorc_df102 -> pnorc12 (consolidate)
+- pnorc_df103, pnorc_df104 -> pnorc34 (consolidate)
+- pnorh_df103, pnorh_df104 -> pnorh (consolidate)
+- pnorw_data -> pnorw_data (field mapping update)
 """
 
 import logging
@@ -462,13 +462,13 @@ def migrate_database(
         create_new_schema(conn)
 
         # Migrate data
-        stats["echo_data→pnore_data"] = migrate_echo_data_to_pnore(conn)
-        stats["pnori1/2→pnori12"] = migrate_pnori_consolidated(conn)
-        stats["pnors_df101/102→pnors12"] = migrate_pnors_df101_102(conn)
-        stats["pnors_df103/104→pnors34"] = migrate_pnors_df103_104(conn)
-        stats["pnorc_df101/102→pnorc12"] = migrate_pnorc_df101_102(conn)
-        stats["pnorc_df103/104→pnorc34"] = migrate_pnorc_df103_104(conn)
-        stats["pnorh_df103/104→pnorh"] = migrate_pnorh_consolidated(conn)
+        stats["echo_data->pnore_data"] = migrate_echo_data_to_pnore(conn)
+        stats["pnori1/2->pnori12"] = migrate_pnori_consolidated(conn)
+        stats["pnors_df101/102->pnors12"] = migrate_pnors_df101_102(conn)
+        stats["pnors_df103/104->pnors34"] = migrate_pnors_df103_104(conn)
+        stats["pnorc_df101/102->pnorc12"] = migrate_pnorc_df101_102(conn)
+        stats["pnorc_df103/104->pnorc34"] = migrate_pnorc_df103_104(conn)
+        stats["pnorh_df103/104->pnorh"] = migrate_pnorh_consolidated(conn)
         stats["pnorw_data (field update)"] = migrate_pnorw_fields(conn)
 
         # Report existing table counts
