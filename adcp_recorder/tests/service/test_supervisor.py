@@ -28,15 +28,10 @@ def test_supervisor_init_starts_recorder(mock_recorder, service_supervisor):
     config = RecorderConfig()
     supervisor = service_supervisor(config)
 
-    # Recorder is running first check, then not running
-    with (
-        patch(
-            "adcp_recorder.service.supervisor.AdcpRecorder.is_running", new_callable=PropertyMock
-        ) as mock_is_running,
-        patch("time.sleep"),
-    ):
-        mock_is_running.side_effect = [True, False]
+    # Set up is_running to return True first, then False to exit the loop
+    type(mock_recorder).is_running = PropertyMock(side_effect=[True, False])
 
+    with patch("time.sleep"):
         supervisor.run()
 
         mock_recorder.start.assert_called_once()
