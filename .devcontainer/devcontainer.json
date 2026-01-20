@@ -11,7 +11,11 @@
                 "charliermarsh.ruff"
             ]
         }
-    }
+    },
+    "runArgs": [
+        "--memory=4g",
+        "--memory-swap=4g"
+    ]
     //not used so far
     //,"postCreateCommand": "uv venv --clear .venv && source .venv/bin/activate && uv pip install . && uv pip install 'adcp-recorder[analysis]'"
 }

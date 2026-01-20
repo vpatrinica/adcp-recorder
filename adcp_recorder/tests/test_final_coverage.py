@@ -1,22 +1,16 @@
-import logging
 import runpy
-import sys
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
-import duckdb
 
-from adcp_recorder.serial.consumer import SerialConsumer, BinaryChunk
 from adcp_recorder.db.migration import (
+    copy_existing_tables,
     get_old_table_exists,
     get_table_row_count,
-    migrate_pnorw_fields,
-    copy_existing_tables,
     migrate_database,
-    verify_migration,
+    migrate_pnorw_fields,
 )
-
+from adcp_recorder.serial.consumer import BinaryChunk, SerialConsumer
 
 # --- CLI and Service Main Execution Tests ---
 
@@ -109,9 +103,6 @@ def test_consumer_loop_outer_exception_handling():
             for call in mock_logger.error.call_args_list
         )
         assert found
-
-
-from unittest.mock import PropertyMock
 
 
 # --- DB Migration Coverage Tests ---
@@ -227,7 +218,10 @@ def test_migration_main_verification(tmp_path):
         patch(
             "adcp_recorder.db.migration.verify_migration", return_value={"table": 10}
         ) as mock_verify,
-        patch("sys.argv", ["migration.py", str(source), "--verify", "--target", "tgt.db"]),
+        patch(
+            "sys.argv",
+            ["migration.py", str(source), "--verify", "--target", "adcp_recorder/tests/tgt.db"],
+        ),
     ):
         from adcp_recorder.db.migration import main
 

@@ -1,11 +1,10 @@
+import itertools
+import runpy
 import signal
 import threading
 import time
 from queue import Empty, Queue
 from unittest.mock import MagicMock, PropertyMock, patch
-
-import itertools
-import runpy
 
 import pytest
 
@@ -172,12 +171,14 @@ class TestSerialServiceCoverage:
 
         consumer = SerialConsumer(queue, db_manager, router)
 
-        def stop_loop(*args, **kwargs):
+        def side_effect(*args, **kwargs):
+            if not getattr(side_effect, "called", False):
+                side_effect.called = True
+                raise Exception("Generic Queue Error")
             consumer._running = False
             raise Empty
 
-        # Raise generic exception on get(), then stop on next call
-        queue.get.side_effect = [Exception("Generic Queue Error"), stop_loop]
+        queue.get.side_effect = side_effect
         consumer._running = True
 
         with patch("adcp_recorder.serial.consumer.logger") as mock_logger:

@@ -1,6 +1,5 @@
 """Tests for ORM models."""
 
-
 import pytest
 from sqlmodel import Session, SQLModel, create_engine, select
 
