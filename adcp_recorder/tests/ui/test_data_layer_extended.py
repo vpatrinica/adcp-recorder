@@ -1,13 +1,13 @@
 """Comprehensive coverage tests for DataLayer reaching 100%."""
 
-import duckdb
-import pytest
-import json
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
-from adcp_recorder.ui.data_layer import DataLayer, ColumnType, ColumnMetadata, DataSource
+import duckdb
+import pytest
+
 from adcp_recorder.db.schema import ALL_SCHEMA_SQL
+from adcp_recorder.ui.data_layer import ColumnMetadata, ColumnType, DataLayer, DataSource
 
 
 @pytest.fixture
@@ -52,7 +52,8 @@ class TestDataLayerCompleteCoverage:
 
         now = datetime.now()
         real_conn.execute(
-            "INSERT INTO pnors_df100 (record_id, measurement_date, measurement_time, original_sentence, received_at) "
+            "INSERT INTO pnors_df100 (record_id, measurement_date, measurement_time, "
+            "original_sentence, received_at) "
             "VALUES (1, '010123', '120000', 'test', ?)",
             [now],
         )
@@ -81,7 +82,8 @@ class TestDataLayerCompleteCoverage:
 
         now = datetime(2023, 1, 1, 12, 0, 0)
         real_conn.execute(
-            "INSERT INTO pnorc_df100 (record_id, measurement_date, measurement_time, cell_index, original_sentence) "
+            "INSERT INTO pnorc_df100 (record_id, measurement_date, measurement_time, "
+            "cell_index, original_sentence) "
             "VALUES (1, '010123', '120000', 1, 'test')"
         )
         res = data_layer.query_velocity_profile("pnorc_df100", timestamp=now)
@@ -96,7 +98,8 @@ class TestDataLayerCompleteCoverage:
         now = datetime.now()
         real_conn.execute(
             "INSERT INTO pnorf_data (record_id, received_at, sentence_type, original_sentence, "
-            "coefficient_flag, measurement_date, measurement_time, spectrum_basis, num_frequencies, coefficients) "
+            "coefficient_flag, measurement_date, measurement_time, spectrum_basis, "
+            "num_frequencies, coefficients) "
             "VALUES (1, ?, 'PNORF', 'test', 'A1', '010123', '120000', 1, 1, '[0]')",
             [now],
         )
@@ -105,7 +108,8 @@ class TestDataLayerCompleteCoverage:
 
         real_conn.execute(
             "INSERT INTO pnore_data (record_id, received_at, sentence_type, original_sentence, "
-            "measurement_date, measurement_time, spectrum_basis, start_frequency, step_frequency, num_frequencies, energy_densities) "
+            "measurement_date, measurement_time, spectrum_basis, start_frequency, "
+            "step_frequency, num_frequencies, energy_densities) "
             "VALUES (2, ?, 'PNORE', 'test', '010123', '120000', 1, 0.5, 0.1, 1, '[1]')",
             [now],
         )
@@ -117,7 +121,8 @@ class TestDataLayerCompleteCoverage:
         now = datetime.now()
         real_conn.execute(
             "INSERT INTO pnore_data (record_id, received_at, sentence_type, original_sentence, "
-            "measurement_date, measurement_time, spectrum_basis, start_frequency, step_frequency, num_frequencies, energy_densities) "
+            "measurement_date, measurement_time, spectrum_basis, start_frequency, "
+            "step_frequency, num_frequencies, energy_densities) "
             "VALUES (3, ?, 'PNORE', 'test', '010123', '120000', 1, 0.5, 0.1, 1, '[1]')",
             [now],
         )
@@ -197,7 +202,8 @@ class TestDataLayerCompleteCoverage:
         now = datetime.now()
         real_conn.execute(
             "INSERT INTO pnore_data (record_id, received_at, sentence_type, original_sentence, "
-            "measurement_date, measurement_time, spectrum_basis, num_frequencies, energy_densities) "
+            "measurement_date, measurement_time, spectrum_basis, num_frequencies, "
+            "energy_densities) "
             "VALUES (10, ?, 'PNORE', 'test', '010123', '120000', 1, 1, '[0]')",
             [now],
         )
@@ -213,7 +219,8 @@ class TestDataLayerCompleteCoverage:
         now = datetime(2023, 1, 1, 12, 0, 0)
         real_conn.execute(
             "INSERT INTO pnore_data (record_id, received_at, sentence_type, original_sentence, "
-            "measurement_date, measurement_time, spectrum_basis, start_frequency, step_frequency, num_frequencies, energy_densities) "
+            "measurement_date, measurement_time, spectrum_basis, start_frequency, "
+            "step_frequency, num_frequencies, energy_densities) "
             "VALUES (11, ?, 'PNORE', 'test', '010123', '120000', 1, 0.5, 0.1, 1, '[1]')",
             [now + timedelta(milliseconds=1)],  # Different received_at
         )
@@ -228,7 +235,8 @@ class TestDataLayerCompleteCoverage:
         # Aggregation fallback
         now = datetime.now()
         real_conn.execute(
-            "INSERT INTO pnors_df100 (record_id, measurement_date, measurement_time, original_sentence, received_at, temperature) "
+            "INSERT INTO pnors_df100 (record_id, measurement_date, measurement_time, "
+            "original_sentence, received_at, temperature) "
             "VALUES (20, '010123', '120000', 'test', ?, 25.0)",
             [now],
         )

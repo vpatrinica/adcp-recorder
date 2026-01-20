@@ -68,7 +68,7 @@ class RecorderConfig:
         config_path = cls.get_config_path()
 
         if not config_path.exists():
-            return cls()
+            return cls._apply_env_overrides(cls())
 
         try:
             with open(config_path) as f:

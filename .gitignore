@@ -26,3 +26,5 @@ errors
 errors/*
 adcp-data
 adcp-data/* 
+adcp_recorder/tests/tgt.db
+tgt.db

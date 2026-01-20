@@ -1,10 +1,9 @@
-import pytest
-import sys
 import json
 import runpy
 from unittest.mock import MagicMock, patch
+
+import pytest
 from click.testing import CliRunner
-from pathlib import Path
 
 from adcp_recorder.cli.main import cli
 from adcp_recorder.config import RecorderConfig
@@ -364,9 +363,13 @@ class TestCoreCoverage:
 
     def test_cli_entry_point(self):
         """Cover __name__ == '__main__' block in cli/main.py."""
-        with patch("sys.argv", ["adcp-recorder"]):
-            with patch("adcp_recorder.cli.main.cli") as mock_cli:
-                mock_cli.side_effect = SystemExit(0)
-                with pytest.raises(SystemExit) as excinfo:
-                    runpy.run_module("adcp_recorder.cli.main", run_name="__main__")
-                assert excinfo.value.code == 0
+        import sys
+
+        # Remove from sys.modules to avoid RuntimeWarning when runpy executes it
+        if "adcp_recorder.cli.main" in sys.modules:
+            del sys.modules["adcp_recorder.cli.main"]
+
+        with patch("sys.argv", ["adcp-recorder", "--help"]):
+            with pytest.raises(SystemExit) as excinfo:
+                runpy.run_module("adcp_recorder.cli.main", run_name="__main__")
+            assert excinfo.value.code == 0

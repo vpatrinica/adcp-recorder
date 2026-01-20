@@ -1,17 +1,17 @@
 import pytest
+
 from adcp_recorder.parsers.pnora import PNORA
 from adcp_recorder.parsers.pnorc import PNORC, PNORC1, PNORC2, PNORC3, PNORC4
-from adcp_recorder.parsers.pnorh import PNORH3, PNORH4, _validate_common_header
-from adcp_recorder.parsers.pnors import PNORS1, PNORS2, PNORS3, PNORS4
 from adcp_recorder.parsers.pnore import PNORE
 from adcp_recorder.parsers.pnorf import PNORF
+from adcp_recorder.parsers.pnorh import PNORH3, _validate_common_header
+from adcp_recorder.parsers.pnors import PNORS1, PNORS2, PNORS3, PNORS4
 from adcp_recorder.parsers.pnorwd import PNORWD
 from adcp_recorder.parsers.utils import (
+    parse_optional_float,
     validate_date_yy_mm_dd,
     validate_hex_string,
     validate_time_string,
-    validate_range,
-    parse_optional_float,
 )
 
 
@@ -142,8 +142,10 @@ class TestParserCoverage:
         # We need to bypass from_nmea validation to hit __post_init__ or construct manually
         # But from_nmea also checks length.
         # Lines 38 is inside __post_init__.
-        # We can trigger it by manually instantiating or finding a case where from_nmea passes but __post_init__ fails.
-        # However, from_nmea implementation in PNORE/PNORF/PNORWD creates the list based on num_freq, so it usually matches.
+        # We can trigger it by manually instantiating or finding a case where
+        # from_nmea passes but __post_init__ fails.
+        # However, from_nmea implementation in PNORE/PNORF/PNORWD creates the list
+        # based on num_freq, so it usually matches.
         # The only way it doesn't match is if we instantiate directly.
         with pytest.raises(ValueError, match="Missing energy density values"):
             PNORE(
@@ -208,7 +210,7 @@ class TestParserCoverage:
         assert parse_optional_float("1.5") == 1.5
 
         # validate_date_mm_dd_yy
-        from adcp_recorder.parsers.utils import validate_date_mm_dd_yy, parse_tagged_field
+        from adcp_recorder.parsers.utils import parse_tagged_field, validate_date_mm_dd_yy
 
         with pytest.raises(ValueError, match="Invalid date format"):
             validate_date_mm_dd_yy("123")

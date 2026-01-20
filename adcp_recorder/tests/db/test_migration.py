@@ -1,8 +1,6 @@
 """Unit tests for database migration logic."""
 
-import os
 from datetime import datetime
-from pathlib import Path
 
 import duckdb
 import pytest
@@ -31,46 +29,86 @@ def old_db_path(tmp_path):
 
     # PNORI family
     conn.execute(
-        "CREATE TABLE pnori1 (config_id BIGINT PRIMARY KEY, received_at TIMESTAMP, original_sentence TEXT, instrument_type_name VARCHAR, instrument_type_code TINYINT, head_id VARCHAR, beam_count TINYINT, cell_count SMALLINT, blanking_distance DECIMAL, cell_size DECIMAL, coord_system_name VARCHAR, coord_system_code TINYINT, checksum VARCHAR)"
+        "CREATE TABLE pnori1 (config_id BIGINT PRIMARY KEY, received_at TIMESTAMP, "
+        "original_sentence TEXT, instrument_type_name VARCHAR, instrument_type_code TINYINT, "
+        "head_id VARCHAR, beam_count TINYINT, cell_count SMALLINT, blanking_distance DECIMAL, "
+        "cell_size DECIMAL, coord_system_name VARCHAR, coord_system_code TINYINT, checksum VARCHAR)"
     )
     conn.execute(
-        "CREATE TABLE pnori2 (config_id BIGINT PRIMARY KEY, received_at TIMESTAMP, original_sentence TEXT, instrument_type_name VARCHAR, instrument_type_code TINYINT, head_id VARCHAR, beam_count TINYINT, cell_count SMALLINT, blanking_distance DECIMAL, cell_size DECIMAL, coord_system_name VARCHAR, coord_system_code TINYINT, checksum VARCHAR)"
+        "CREATE TABLE pnori2 (config_id BIGINT PRIMARY KEY, received_at TIMESTAMP, "
+        "original_sentence TEXT, instrument_type_name VARCHAR, instrument_type_code TINYINT, "
+        "head_id VARCHAR, beam_count TINYINT, cell_count SMALLINT, blanking_distance DECIMAL, "
+        "cell_size DECIMAL, coord_system_name VARCHAR, coord_system_code TINYINT, checksum VARCHAR)"
     )
 
     # PNORS family
     conn.execute(
-        "CREATE TABLE pnors_df101 (record_id BIGINT PRIMARY KEY, received_at TIMESTAMP, original_sentence TEXT, measurement_date VARCHAR, measurement_time VARCHAR, error_code VARCHAR, status_code VARCHAR, battery DECIMAL, sound_speed DECIMAL, heading_std_dev DECIMAL, heading DECIMAL, pitch DECIMAL, pitch_std_dev DECIMAL, roll DECIMAL, roll_std_dev DECIMAL, pressure DECIMAL, pressure_std_dev DECIMAL, temperature DECIMAL, checksum VARCHAR)"
+        "CREATE TABLE pnors_df101 (record_id BIGINT PRIMARY KEY, received_at TIMESTAMP, "
+        "original_sentence TEXT, measurement_date VARCHAR, measurement_time VARCHAR, "
+        "error_code VARCHAR, status_code VARCHAR, battery DECIMAL, sound_speed DECIMAL, "
+        "heading_std_dev DECIMAL, heading DECIMAL, pitch DECIMAL, pitch_std_dev DECIMAL, "
+        "roll DECIMAL, roll_std_dev DECIMAL, pressure DECIMAL, pressure_std_dev DECIMAL, "
+        "temperature DECIMAL, checksum VARCHAR)"
     )
     conn.execute(
-        "CREATE TABLE pnors_df102 (record_id BIGINT PRIMARY KEY, received_at TIMESTAMP, original_sentence TEXT, measurement_date VARCHAR, measurement_time VARCHAR, error_code VARCHAR, status_code VARCHAR, battery DECIMAL, sound_speed DECIMAL, heading_std_dev DECIMAL, heading DECIMAL, pitch DECIMAL, pitch_std_dev DECIMAL, roll DECIMAL, roll_std_dev DECIMAL, pressure DECIMAL, pressure_std_dev DECIMAL, temperature DECIMAL, checksum VARCHAR)"
+        "CREATE TABLE pnors_df102 (record_id BIGINT PRIMARY KEY, received_at TIMESTAMP, "
+        "original_sentence TEXT, measurement_date VARCHAR, measurement_time VARCHAR, "
+        "error_code VARCHAR, status_code VARCHAR, battery DECIMAL, sound_speed DECIMAL, "
+        "heading_std_dev DECIMAL, heading DECIMAL, pitch DECIMAL, pitch_std_dev DECIMAL, "
+        "roll DECIMAL, roll_std_dev DECIMAL, pressure DECIMAL, pressure_std_dev DECIMAL, "
+        "temperature DECIMAL, checksum VARCHAR)"
     )
     conn.execute(
-        "CREATE TABLE pnors_df103 (record_id BIGINT PRIMARY KEY, received_at TIMESTAMP, original_sentence TEXT, measurement_date VARCHAR, measurement_time VARCHAR, battery DECIMAL, sound_speed DECIMAL, heading DECIMAL, pitch DECIMAL, roll DECIMAL, pressure DECIMAL, temperature DECIMAL, checksum VARCHAR)"
+        "CREATE TABLE pnors_df103 (record_id BIGINT PRIMARY KEY, received_at TIMESTAMP, "
+        "original_sentence TEXT, measurement_date VARCHAR, measurement_time VARCHAR, "
+        "battery DECIMAL, sound_speed DECIMAL, heading DECIMAL, pitch DECIMAL, roll DECIMAL, "
+        "pressure DECIMAL, temperature DECIMAL, checksum VARCHAR)"
     )
     conn.execute(
-        "CREATE TABLE pnors_df104 (record_id BIGINT PRIMARY KEY, received_at TIMESTAMP, original_sentence TEXT, measurement_date VARCHAR, measurement_time VARCHAR, battery DECIMAL, sound_speed DECIMAL, heading DECIMAL, pitch DECIMAL, roll DECIMAL, pressure DECIMAL, temperature DECIMAL, checksum VARCHAR)"
+        "CREATE TABLE pnors_df104 (record_id BIGINT PRIMARY KEY, received_at TIMESTAMP, "
+        "original_sentence TEXT, measurement_date VARCHAR, measurement_time VARCHAR, "
+        "battery DECIMAL, sound_speed DECIMAL, heading DECIMAL, pitch DECIMAL, roll DECIMAL, "
+        "pressure DECIMAL, temperature DECIMAL, checksum VARCHAR)"
     )
 
     # PNORC family
     conn.execute(
-        "CREATE TABLE pnorc_df101 (record_id BIGINT PRIMARY KEY, received_at TIMESTAMP, original_sentence TEXT, measurement_date VARCHAR, measurement_time VARCHAR, cell_index SMALLINT, cell_distance DECIMAL, vel1 DECIMAL, vel2 DECIMAL, vel3 DECIMAL, vel4 DECIMAL, amp1 DECIMAL, amp2 DECIMAL, amp3 DECIMAL, amp4 DECIMAL, corr1 SMALLINT, corr2 SMALLINT, corr3 SMALLINT, corr4 SMALLINT, checksum VARCHAR)"
+        "CREATE TABLE pnorc_df101 (record_id BIGINT PRIMARY KEY, received_at TIMESTAMP, "
+        "original_sentence TEXT, measurement_date VARCHAR, measurement_time VARCHAR, "
+        "cell_index SMALLINT, cell_distance DECIMAL, vel1 DECIMAL, vel2 DECIMAL, "
+        "vel3 DECIMAL, vel4 DECIMAL, amp1 DECIMAL, amp2 DECIMAL, amp3 DECIMAL, amp4 DECIMAL, "
+        "corr1 SMALLINT, corr2 SMALLINT, corr3 SMALLINT, corr4 SMALLINT, checksum VARCHAR)"
     )
     conn.execute(
-        "CREATE TABLE pnorc_df102 (record_id BIGINT PRIMARY KEY, received_at TIMESTAMP, original_sentence TEXT, measurement_date VARCHAR, measurement_time VARCHAR, cell_index SMALLINT, cell_distance DECIMAL, vel1 DECIMAL, vel2 DECIMAL, vel3 DECIMAL, vel4 DECIMAL, amp1 DECIMAL, amp2 DECIMAL, amp3 DECIMAL, amp4 DECIMAL, corr1 SMALLINT, corr2 SMALLINT, corr3 SMALLINT, corr4 SMALLINT, checksum VARCHAR)"
+        "CREATE TABLE pnorc_df102 (record_id BIGINT PRIMARY KEY, received_at TIMESTAMP, "
+        "original_sentence TEXT, measurement_date VARCHAR, measurement_time VARCHAR, "
+        "cell_index SMALLINT, cell_distance DECIMAL, vel1 DECIMAL, vel2 DECIMAL, "
+        "vel3 DECIMAL, vel4 DECIMAL, amp1 DECIMAL, amp2 DECIMAL, amp3 DECIMAL, amp4 DECIMAL, "
+        "corr1 SMALLINT, corr2 SMALLINT, corr3 SMALLINT, corr4 SMALLINT, checksum VARCHAR)"
     )
     conn.execute(
-        "CREATE TABLE pnorc_df103 (record_id BIGINT PRIMARY KEY, received_at TIMESTAMP, original_sentence TEXT, measurement_date VARCHAR, measurement_time VARCHAR, cell_index SMALLINT, cell_distance DECIMAL, speed DECIMAL, direction DECIMAL, checksum VARCHAR)"
+        "CREATE TABLE pnorc_df103 (record_id BIGINT PRIMARY KEY, received_at TIMESTAMP, "
+        "original_sentence TEXT, measurement_date VARCHAR, measurement_time VARCHAR, "
+        "cell_index SMALLINT, cell_distance DECIMAL, speed DECIMAL, direction DECIMAL, "
+        "checksum VARCHAR)"
     )
     conn.execute(
-        "CREATE TABLE pnorc_df104 (record_id BIGINT PRIMARY KEY, received_at TIMESTAMP, original_sentence TEXT, measurement_date VARCHAR, measurement_time VARCHAR, cell_index SMALLINT, cell_distance DECIMAL, speed DECIMAL, direction DECIMAL, checksum VARCHAR)"
+        "CREATE TABLE pnorc_df104 (record_id BIGINT PRIMARY KEY, received_at TIMESTAMP, "
+        "original_sentence TEXT, measurement_date VARCHAR, measurement_time VARCHAR, "
+        "cell_index SMALLINT, cell_distance DECIMAL, speed DECIMAL, direction DECIMAL, "
+        "checksum VARCHAR)"
     )
 
     # PNORH family
     conn.execute(
-        "CREATE TABLE pnorh_df103 (record_id BIGINT PRIMARY KEY, received_at TIMESTAMP, original_sentence TEXT, measurement_date VARCHAR, measurement_time VARCHAR, error_code INTEGER, status_code CHAR(8), checksum VARCHAR)"
+        "CREATE TABLE pnorh_df103 (record_id BIGINT PRIMARY KEY, received_at TIMESTAMP, "
+        "original_sentence TEXT, measurement_date VARCHAR, measurement_time VARCHAR, "
+        "error_code INTEGER, status_code CHAR(8), checksum VARCHAR)"
     )
     conn.execute(
-        "CREATE TABLE pnorh_df104 (record_id BIGINT PRIMARY KEY, received_at TIMESTAMP, original_sentence TEXT, measurement_date VARCHAR, measurement_time VARCHAR, error_code INTEGER, status_code CHAR(8), checksum VARCHAR)"
+        "CREATE TABLE pnorh_df104 (record_id BIGINT PRIMARY KEY, received_at TIMESTAMP, "
+        "original_sentence TEXT, measurement_date VARCHAR, measurement_time VARCHAR, "
+        "error_code INTEGER, status_code CHAR(8), checksum VARCHAR)"
     )
 
     conn.execute("""
@@ -186,11 +224,13 @@ def old_db_path(tmp_path):
 
     conn.execute("INSERT INTO raw_lines VALUES (1, ?, 'raw1', 'OK', 'PNORI', true, null)", [t])
     conn.execute(
-        "INSERT INTO echo_data VALUES (1, ?, 'echo1', '190126', '234500', 1, 0.5, 0.1, 10, '[1.0, 2.0]', 'AB')",
+        "INSERT INTO echo_data VALUES (1, ?, 'echo1', '190126', '234500', 1, 0.5, 0.1, 10, "
+        "'[1.0, 2.0]', 'AB')",
         [t],
     )
     conn.execute(
-        "INSERT INTO pnorw_data VALUES (1, ?, 'PNORW', 'pnorw1', '190126', '234500', 1, 1, 1.2, 2.0, 5.0, 6.0, 5.5, 180.0, 10.0, 90.0, 0, 'GH')",
+        "INSERT INTO pnorw_data VALUES (1, ?, 'PNORW', 'pnorw1', '190126', '234500', 1, 1, 1.2, "
+        "2.0, 5.0, 6.0, 5.5, 180.0, 10.0, 90.0, 0, 'GH')",
         [t],
     )
 
