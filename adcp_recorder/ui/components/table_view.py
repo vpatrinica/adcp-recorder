@@ -54,10 +54,11 @@ def render_table_view(
                 default=[c for c in default_columns if c in available_columns],
                 key=f"{key_prefix}_columns",
             )
-            # Ensure mandatory columns for filtering are always included
-            for mandatory in ["record_type", "raw_sentence"]:
-                if mandatory in available_columns and mandatory not in selected_columns:
-                    selected_columns.append(mandatory)
+
+    # Ensure mandatory columns for filtering are always included
+    for mandatory in ["record_type", "raw_sentence"]:
+        if mandatory in available_columns and mandatory not in selected_columns:
+            selected_columns.append(mandatory)
 
     if not selected_columns:
         selected_columns = available_columns[:5]
@@ -78,17 +79,18 @@ def render_table_view(
 
                 with filter_cols[i % 3]:
                     if col_meta.column_type.value == "text":
+                        # Use a separate key prefix for the widget vs the stored state logic
+                        # to avoid Streamlit overwriting our tuple state with a string
+                        widget_key = f"{key_prefix}_filter_widget_{col_name}"
                         filter_val = st.text_input(
                             f"Filter {col_name}",
-                            key=f"{key_prefix}_filter_{col_name}",
+                            key=widget_key,
                         )
+                        state_key = f"{key_prefix}_filter_state_{col_name}"
                         if filter_val:
-                            st.session_state[f"{key_prefix}_filter_{col_name}"] = (
-                                "contains",
-                                filter_val,
-                            )
-                        elif f"{key_prefix}_filter_{col_name}" in st.session_state:
-                            del st.session_state[f"{key_prefix}_filter_{col_name}"]
+                            st.session_state[state_key] = ("contains", filter_val)
+                        elif state_key in st.session_state:
+                            del st.session_state[state_key]
 
     # Time range filter for timestamped sources
     time_range = "24h"
@@ -123,7 +125,6 @@ def render_table_view(
             start_time = data_layer._parse_time_range(time_range)
 
     # Query data
-    print("start query")
     try:
         data = data_layer.query_data(
             source_name=source_name,
@@ -135,17 +136,22 @@ def render_table_view(
         # Apply client‑side filters stored in session_state
         if data:
             filtered = []
-            print("start filtering")
             for row in data:
                 keep = True
                 for col in selected_columns:
-                    filter_key = f"{key_prefix}_filter_{col}"
-                    if filter_key in st.session_state:
-                        op, val = st.session_state[filter_key]
-                        print(op, " ", val)
-                        if op == "contains" and val.lower() not in str(row.get(col, "")).lower():
-                            keep = False
-                            break
+                    state_key = f"{key_prefix}_filter_state_{col}"
+                    if state_key in st.session_state:
+                        state = st.session_state[state_key]
+                        if (
+                            isinstance(state, (tuple, list))
+                            and len(state) == 2
+                            and state[0] == "contains"
+                        ):
+                            # op, val = state
+                            val = state[1]
+                            if val.lower() not in str(row.get(col, "")).lower():
+                                keep = False
+                                break
                 if keep:
                     filtered.append(row)
             data = filtered

@@ -174,7 +174,7 @@ class DataLayer:
             try:
                 views_query = """
                     SELECT view_name FROM duckdb_views()
-                    WHERE view_name LIKE 'view_%'
+                    WHERE schema_name = 'main'
                 """
                 views = self.conn.execute(views_query).fetchall()
                 for (view_name,) in views:

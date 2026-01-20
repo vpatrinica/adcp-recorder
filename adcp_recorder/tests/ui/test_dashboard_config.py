@@ -81,6 +81,12 @@ class TestPanelConfig:
         assert isinstance(typed, TablePanelConfig)
         assert typed.data_source == "pnors_df100"
 
+    def test_panel_config_unknown_type(self):
+        """Test error on unknown panel type."""
+        panel = PanelConfig.model_construct(id="test", type="UNKNOWN")
+        with pytest.raises(ValueError, match="Unknown panel type"):
+            panel.get_typed_config()
+
 
 class TestLayoutConfig:
     """Tests for layout configuration."""
@@ -194,6 +200,53 @@ class TestDashboardConfig:
                 assert len(dashboards) == 2
                 assert "dash1" in dashboards
                 assert "dash2" in dashboards
+
+    def test_get_config_dir(self):
+        """Test getting the configuration directory."""
+        # This will call RecorderConfig.get_default_config_dir()
+        config_dir = DashboardConfig.get_config_dir()
+        assert config_dir.name == "dashboards"
+        assert ".adcp-recorder" in str(config_dir)
+
+    def test_list_dashboards_missing_dir(self):
+        """Test listing dashboards when directory doesn't exist."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bad_dir = Path(tmpdir) / "nonexistent"
+            with patch.object(DashboardConfig, "get_config_dir", return_value=bad_dir):
+                assert DashboardConfig.list_dashboards() == []
+
+    def test_load_missing_file(self):
+        """Test error when loading nonexistent dashboard."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch.object(DashboardConfig, "get_config_dir", return_value=Path(tmpdir)):
+                with pytest.raises(FileNotFoundError):
+                    DashboardConfig.load("nonexistent")
+
+    def test_load_or_default(self):
+        """Test load_or_default fallback."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch.object(DashboardConfig, "get_config_dir", return_value=Path(tmpdir)):
+                # Fallback to default
+                dash = DashboardConfig.load_or_default("new_dash")
+                assert dash.name == "new_dash"
+
+                # Load existing
+                dash.save("new_dash")
+                loaded = DashboardConfig.load_or_default("new_dash")
+                assert loaded.name == "new_dash"
+
+    def test_delete_success_and_failure(self):
+        """Test deleting dashboards."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch.object(DashboardConfig, "get_config_dir", return_value=Path(tmpdir)):
+                dash = DashboardConfig(name="To Delete")
+                # Failure case
+                assert dash.delete() is False
+
+                # Success case
+                dash.save()
+                assert dash.delete() is True
+                assert dash.delete() is False
 
 
 class TestDashboardTemplates:

@@ -72,11 +72,8 @@ class BinaryBlobWriter:
             path = self._current_filepath
             self._current_file = None
             self._current_filepath = None
-            self._timestamp = None
-            self._identifier = 0
 
         return path
-
 
     def close(self) -> None:
         """Close the writer and any open files."""

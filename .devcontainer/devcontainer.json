@@ -1,0 +1,17 @@
+{
+    "name": "Antigravity Trixie 3.14 (uv)",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "remoteUser": "vscode",
+    "customizations": {
+        "antigravity": {
+            "extensions": [
+                "ms-python.python",
+                "charliermarsh.ruff"
+            ]
+        }
+    }
+    //not used so far
+    //,"postCreateCommand": "uv venv --clear .venv && source .venv/bin/activate && uv pip install . && uv pip install 'adcp-recorder[analysis]'"
+}

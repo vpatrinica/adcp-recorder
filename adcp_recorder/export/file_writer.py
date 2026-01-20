@@ -118,8 +118,16 @@ class FileWriter:
             # Consolidate BINARY and unknown prefixes into ERROR_{date}.nmea
             # Known prefixes (PNORI, PNORS, etc.) use {prefix}_error_{date}.nmea
             known_prefixes = {
-                "PNORI", "PNORS", "PNORC", "PNORH", "PNORW",
-                "PNORB", "PNORE", "PNORF", "PNORWD", "PNORA",
+                "PNORI",
+                "PNORS",
+                "PNORC",
+                "PNORH",
+                "PNORW",
+                "PNORB",
+                "PNORE",
+                "PNORF",
+                "PNORWD",
+                "PNORA",
             }
             if prefix == "BINARY" or prefix not in known_prefixes:
                 filename = os.path.join(error_dir, f"ERROR_{date_str}.nmea")
