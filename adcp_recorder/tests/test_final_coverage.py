@@ -356,6 +356,32 @@ def test_config_get_default_config_dir_windows_fallback():
             assert "ProgramData" in str(config_dir)
 
 
+def test_config_get_default_config_dir_linux():
+    """Test get_default_config_dir on Linux platform (line 63)."""
+    import importlib
+    import sys
+
+    # Remove cached modules to get fresh import
+    modules_to_remove = [
+        k for k in list(sys.modules.keys()) if k.startswith("adcp_recorder.config")
+    ]
+    for mod in modules_to_remove:
+        del sys.modules[mod]
+
+    # Patch to ensure not Windows
+    with patch("sys.platform", "linux"):
+        # Import fresh
+        import adcp_recorder.config as config_module
+
+        # Reload to ensure we use the patched value
+        config_module = importlib.reload(config_module)
+
+        # Now call the method
+        config_dir = config_module.RecorderConfig.get_default_config_dir()
+        # Should use home directory with CONFIG_DIR_NAME
+        assert ".adcp-recorder" in str(config_dir)
+
+
 # --- Migration Column Check Exception Test ---
 
 
