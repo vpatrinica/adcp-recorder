@@ -15,6 +15,7 @@ Migration mappings:
 """
 
 import logging
+import sys
 from pathlib import Path
 
 import duckdb
@@ -558,7 +559,7 @@ def verify_migration(db_path: str | Path) -> dict[str, int]:
     return counts
 
 
-if __name__ == "__main__":
+def main():
     import argparse
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -599,4 +600,8 @@ if __name__ == "__main__":
 
     except MigrationError as e:
         print(f"Migration failed: {e}")
-        exit(1)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

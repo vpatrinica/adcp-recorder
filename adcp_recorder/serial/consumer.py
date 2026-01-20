@@ -195,6 +195,9 @@ class SerialConsumer:
                     if not self._running:
                         break
                     continue
+                except Exception as e:
+                    logger.error(f"Unexpected error getting from queue: {e}", exc_info=True)
+                    continue
                 # Binary chunk streaming handling
                 try:
                     if isinstance(item, BinaryChunk):
@@ -241,7 +244,10 @@ class SerialConsumer:
                 except Exception as e:
                     logger.error(f"Consumer loop processing error: {e}", exc_info=True)
 
-                self._update_heartbeat()
+                try:
+                    self._update_heartbeat()
+                except Exception as e:
+                    logger.error(f"Heartbeat update failed: {e}")
         finally:
             with contextlib.suppress(Exception):
                 self._binary_writer.finish_blob()

@@ -95,8 +95,8 @@ def test_binary_blob_streaming(tmp_path):
     producer.stop()
     consumer.stop()
 
-    # verify errors_binary has a .dat file
-    bin_dir = os.path.join(base, "errors_binary")
+    # verify errors/binary has a .dat file
+    bin_dir = os.path.join(base, "errors", "binary")
     files = []
     if os.path.isdir(bin_dir):
         files = [f for f in os.listdir(bin_dir) if f.endswith(".dat")]

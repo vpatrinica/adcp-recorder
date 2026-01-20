@@ -74,8 +74,6 @@ def batch_insert_raw_lines(conn: duckdb.DuckDBPyConnection, records: list[dict[s
 
     # Pre-fetch IDs to avoid nextval() overhead in executemany loop
     count = len(records)
-    if count == 0:
-        return 0
 
     ids_result = conn.execute(f"SELECT nextval('raw_lines_seq') FROM range({count})").fetchall()
 
@@ -1196,8 +1194,8 @@ def expand_energy_densities(
             received_at,
             measurement_date,
             measurement_time,
-            UNNEST(energy_densities) as energy,
-            start_frequency + (generate_subscripts(energy_densities, 1) - 1)
+            UNNEST(energy_densities::DOUBLE[]) as energy,
+            start_frequency + (generate_subscripts(energy_densities::DOUBLE[], 1) - 1)
                 * step_frequency as frequency
         FROM pnore_data
         ORDER BY received_at DESC, frequency ASC
@@ -1224,8 +1222,8 @@ def expand_coefficients(conn: duckdb.DuckDBPyConnection, limit: int = 100) -> li
             coefficient_flag,
             measurement_date,
             measurement_time,
-            UNNEST(coefficients) as coefficient_value,
-            start_frequency + (generate_subscripts(coefficients, 1) - 1)
+            UNNEST(coefficients::DOUBLE[]) as coefficient_value,
+            start_frequency + (generate_subscripts(coefficients::DOUBLE[], 1) - 1)
                 * step_frequency as frequency
         FROM pnorf_data
         ORDER BY received_at DESC, coefficient_flag, frequency ASC
@@ -1253,8 +1251,9 @@ def expand_pnorwd_values(conn: duckdb.DuckDBPyConnection, limit: int = 100) -> l
             direction_type,
             measurement_date,
             measurement_time,
-            UNNEST(values) as direction_value,
-            start_frequency + (generate_subscripts(values, 1) - 1) * step_frequency as frequency
+            UNNEST(values::DOUBLE[]) as direction_value,
+            start_frequency + (generate_subscripts(values::DOUBLE[], 1) - 1)
+                * step_frequency as frequency
         FROM pnorwd_data
         ORDER BY received_at DESC, direction_type, frequency ASC
         LIMIT ?
