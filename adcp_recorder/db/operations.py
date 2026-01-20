@@ -228,7 +228,7 @@ def query_raw_lines(
 
     """
     where_clauses = []
-    params = []
+    params: list[Any] = []
 
     if start_time is not None:
         where_clauses.append("received_at >= ?")
@@ -300,7 +300,7 @@ def query_parse_errors(
 
     """
     where_clauses = []
-    params = []
+    params: list[Any] = []
 
     if start_time is not None:
         where_clauses.append("received_at >= ?")
@@ -475,7 +475,7 @@ def query_pnori_configurations(
     """
 
     conditions = []
-    params = []
+    params: list[Any] = []
 
     if head_id:
         conditions.append("head_id = ?")
@@ -541,7 +541,7 @@ def insert_sensor_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         ) RETURNING record_id;
         """
-        params = (
+        params_df100 = (
             original_sentence,
             data["date"],
             data["time"],
@@ -558,6 +558,7 @@ def insert_sensor_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
             data.get("analog2"),
             data.get("checksum"),
         )
+        result = conn.execute(query, params_df100).fetchone()
     elif sentence_type in ("PNORS1", "PNORS2"):
         # DF101/102 consolidated into pnors12
         data_format = 101 if sentence_type == "PNORS1" else 102
@@ -574,7 +575,7 @@ def insert_sensor_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
             ?, ?, ?, ?
         ) RETURNING record_id;
         """
-        params = (
+        params_df101 = (
             data_format,
             original_sentence,
             data["date"],
@@ -594,6 +595,7 @@ def insert_sensor_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
             data.get("temperature"),
             data.get("checksum"),
         )
+        result = conn.execute(query, params_df101).fetchone()
     elif sentence_type in ("PNORS3", "PNORS4"):
         # DF103/104 consolidated into pnors34
         data_format = 103 if sentence_type == "PNORS3" else 104
@@ -606,7 +608,7 @@ def insert_sensor_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
             ?, ?, ?, ?, ?, ?, ?, ?
         ) RETURNING record_id;
         """
-        params = (
+        params_df103 = (
             data_format,
             original_sentence,
             data["date"],
@@ -620,12 +622,12 @@ def insert_sensor_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
             data.get("temperature"),
             data.get("checksum"),
         )
+        result = conn.execute(query, params_df103).fetchone()
     else:
         raise ValueError(f"Unknown sensor sentence type: {sentence_type}")
 
-    result = conn.execute(query, params).fetchone()
     conn.commit()
-    return result[0]
+    return result[0] if result else -1
 
 
 def insert_velocity_data(
@@ -648,7 +650,7 @@ def insert_velocity_data(
             ?, ?, ?, ?, ?, ?, ?, ?, ?
         ) RETURNING record_id;
         """
-        params = (
+        params_df100 = (
             original_sentence,
             data["date"],
             data["time"],
@@ -670,6 +672,7 @@ def insert_velocity_data(
             data["corr4"],
             data.get("checksum"),
         )
+        result = conn.execute(query, params_df100).fetchone()
     elif sentence_type in ("PNORC1", "PNORC2"):
         # DF101/102 consolidated into pnorc12
         data_format = 101 if sentence_type == "PNORC1" else 102
@@ -684,7 +687,7 @@ def insert_velocity_data(
             ?, ?, ?, ?, ?, ?, ?, ?, ?
         ) RETURNING record_id;
         """
-        params = (
+        params_df101 = (
             data_format,
             original_sentence,
             data["date"],
@@ -705,6 +708,7 @@ def insert_velocity_data(
             data["corr4"],
             data.get("checksum"),
         )
+        result = conn.execute(query, params_df101).fetchone()
     elif sentence_type in ("PNORC3", "PNORC4"):
         # DF103/104 consolidated into pnorc34
         data_format = 103 if sentence_type == "PNORC3" else 104
@@ -717,7 +721,7 @@ def insert_velocity_data(
             ?, ?, ?, ?, ?
         ) RETURNING record_id;
         """
-        params = (
+        params_df103 = (
             data_format,
             original_sentence,
             data["date"],
@@ -728,12 +732,12 @@ def insert_velocity_data(
             data["direction"],
             data.get("checksum"),
         )
+        result = conn.execute(query, params_df103).fetchone()
     else:
         raise ValueError(f"Unknown velocity sentence type: {sentence_type}")
 
-    result = conn.execute(query, params).fetchone()
     conn.commit()
-    return result[0]
+    return result[0] if result else -1
 
 
 def insert_header_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, data: dict) -> int:
@@ -765,7 +769,7 @@ def insert_header_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
 
     result = conn.execute(query, params).fetchone()
     conn.commit()
-    return result[0]
+    return result[0] if result else -1
 
 
 def insert_pnore_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, data: dict) -> int:
@@ -813,7 +817,7 @@ def insert_pnore_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
 
     result = conn.execute(query, params).fetchone()
     conn.commit()
-    return result[0]
+    return result[0] if result else -1
 
 
 def insert_pnorw_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, data: dict) -> int:
@@ -871,7 +875,7 @@ def insert_pnorw_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
     )
     result = conn.execute(query, params).fetchone()
     conn.commit()
-    return result[0]
+    return result[0] if result else -1
 
 
 def insert_pnorb_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, data: dict) -> int:
@@ -927,7 +931,7 @@ def insert_pnorb_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
 
     result = conn.execute(query, params).fetchone()
     conn.commit()
-    return result[0]
+    return result[0] if result else -1
 
 
 def insert_pnorf_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, data: dict) -> int:
@@ -977,7 +981,7 @@ def insert_pnorf_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
     )
     result = conn.execute(query, params).fetchone()
     conn.commit()
-    return result[0]
+    return result[0] if result else -1
 
 
 def insert_pnorwd_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, data: dict) -> int:
@@ -1027,7 +1031,7 @@ def insert_pnorwd_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
     )
     result = conn.execute(query, params).fetchone()
     conn.commit()
-    return result[0]
+    return result[0] if result else -1
 
 
 def insert_pnora_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, data: dict) -> int:
@@ -1062,7 +1066,7 @@ def insert_pnora_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
     )
     result = conn.execute(query, params).fetchone()
     conn.commit()
-    return result[0]
+    return result[0] if result else -1
 
 
 def query_sensor_data(conn: duckdb.DuckDBPyConnection, limit: int = 100) -> list[dict[str, Any]]:

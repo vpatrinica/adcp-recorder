@@ -53,7 +53,7 @@ class AdcpRecorder:
         self.db_manager = DatabaseManager(self.db_path)
 
         # Shared Queue
-        self.queue = Queue(maxsize=1000)
+        self.queue: Queue = Queue(maxsize=1000)
 
         # Setup Connection Manager and Producer
         self.connection_manager = SerialConnectionManager(

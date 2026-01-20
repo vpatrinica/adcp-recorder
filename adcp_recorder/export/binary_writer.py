@@ -8,6 +8,7 @@ identifier when multiple blobs start in the same second.
 import os
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import BinaryIO
 
 
 class BinaryBlobWriter:
@@ -15,10 +16,10 @@ class BinaryBlobWriter:
         self.base_path = base_path
         self.binary_dir = os.path.join(self.base_path, "errors", "binary")
         Path(self.binary_dir).mkdir(parents=True, exist_ok=True)
-        self._current_file = None
-        self._current_filepath = None
-        self._timestamp = None
-        self._identifier = 0
+        self._current_file: BinaryIO | None = None
+        self._current_filepath: str | None = None
+        self._timestamp: str | None = None
+        self._identifier: int = 0
 
     def _next_filepath(self) -> str:
         now = datetime.now(UTC)

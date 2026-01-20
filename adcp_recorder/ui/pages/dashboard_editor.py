@@ -1,5 +1,7 @@
 """Dashboard Editor page - Create and manage dashboard configurations."""
 
+from typing import Any
+
 import streamlit as st
 
 from adcp_recorder.ui.config import (
@@ -297,7 +299,7 @@ def _render_add_panel_form(dashboard: DashboardConfig, dashboard_name: str) -> N
         position_col = st.number_input("Column", min_value=0, value=0, key="new_pos_col")
 
     # Type-specific configuration
-    config = {}
+    config: dict[str, Any] = {}
     panel_type_enum = PanelType(panel_type)
 
     if panel_type_enum == PanelType.TABLE:

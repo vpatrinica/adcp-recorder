@@ -1,6 +1,7 @@
 """Spectrum visualization components for Fourier coefficients and wave energy."""
 
 import json
+from datetime import datetime
 from typing import Any
 
 import numpy as np
@@ -323,7 +324,7 @@ def render_energy_heatmap(
                 tickmode="array",
                 tickvals=list(range(len(timestamps))),
                 ticktext=[
-                    ts.strftime("%H:%M:%S") if hasattr(ts, "strftime") else str(ts)
+                    ts.strftime("%H:%M:%S") if isinstance(ts, datetime) else str(ts)
                     for ts in timestamps
                 ],
             ),
@@ -518,11 +519,9 @@ def render_directional_spectrum(
 
             # For each frequency bin, calculate the distribution
             freqs = np.array(data["frequencies"])
-            # Calculate dr for bar heights (frequency steps)
+            dr: float = 0.01
             if len(freqs) > 1:
-                dr = np.mean(np.diff(freqs))
-            else:
-                dr = 0.01
+                dr = float(np.mean(np.diff(freqs)))
 
             # Build a 2D intensity grid
             # Shape: (len(freqs), len(theta_bins))
@@ -550,7 +549,7 @@ def render_directional_spectrum(
 
                 intensity_grid.append(dist)
 
-            intensity_grid = np.array(intensity_grid)
+            intensity_arr = np.array(intensity_grid)
 
             # Render as go.Barpolar segments to create a heatmap appearance
             # To be efficient, we merge segments or use Heatmap if possible.
@@ -562,7 +561,7 @@ def render_directional_spectrum(
                         theta=theta_bins,
                         base=[f - dr / 2] * len(theta_bins),
                         marker=dict(
-                            color=intensity_grid[i],
+                            color=intensity_arr[i],
                             colorscale="Viridis",
                             # showscale only for the first trace
                             showscale=(i == 0),

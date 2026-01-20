@@ -102,7 +102,10 @@ def render_velocity_profile(
 
     # Burst selection for multi-profile comparison
     available_bursts = data_layer.get_available_bursts(source_name=source_name)
-    burst_options = {f"{b.strftime('%Y-%m-%d %H:%M:%S')}": b for b in available_bursts}
+    burst_options = {
+        f"{b['received_at'].strftime('%Y-%m-%d %H:%M:%S')}": b["received_at"]
+        for b in available_bursts
+    }
 
     selected_burst_labels = st.multiselect(
         "Select Bursts to Compare",

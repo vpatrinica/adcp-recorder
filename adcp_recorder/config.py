@@ -2,13 +2,18 @@ import json
 import logging
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar
 
 CONFIG_DIR_NAME = ".adcp-recorder"
 CONFIG_FILE_NAME = "config.json"
 LOGGER = logging.getLogger(__name__)
+
+
+def get_default_output_dir() -> str:
+    """Returns the default data output directory."""
+    return os.environ.get("ADCP_RECORDER_OUTPUT_DIR", str(Path.home() / "adcp_data"))
 
 
 @dataclass
@@ -18,7 +23,7 @@ class RecorderConfig:
     serial_port: str = "/dev/ttyUSB0"
     baudrate: int = 9600
     timeout: float = 1.0
-    output_dir: str = str(Path.home() / "adcp_data")
+    output_dir: str = field(default_factory=get_default_output_dir)
     log_level: str = "INFO"
 
     # Database settings

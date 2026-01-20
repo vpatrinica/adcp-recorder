@@ -34,11 +34,11 @@ class MigrationError(Exception):
 def get_old_table_exists(conn: duckdb.DuckDBPyConnection, table_name: str) -> bool:
     """Check if table exists in the database."""
     try:
-        result = conn.execute(
+        res = conn.execute(
             "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ?",
             [table_name],
         ).fetchone()
-        return result[0] > 0
+        return res[0] > 0 if res else False
     except Exception:
         return False
 
@@ -46,8 +46,8 @@ def get_old_table_exists(conn: duckdb.DuckDBPyConnection, table_name: str) -> bo
 def get_table_row_count(conn: duckdb.DuckDBPyConnection, table_name: str) -> int:
     """Get row count for a table."""
     try:
-        result = conn.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()
-        return result[0]
+        res = conn.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()
+        return res[0] if res else 0
     except Exception:
         return 0
 

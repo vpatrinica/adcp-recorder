@@ -9,7 +9,7 @@ import logging
 import threading
 import time
 from queue import Empty, Queue
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 import duckdb
 
@@ -36,6 +36,20 @@ from adcp_recorder.serial.binary_chunk import BinaryChunk
 logger = logging.getLogger(__name__)
 
 
+@runtime_checkable
+class NMEAParser(Protocol):
+    """Protocol for NMEA message parsers."""
+
+    @classmethod
+    def from_nmea(cls, sentence: str) -> Any:
+        """Parse NMEA sentence into a message object."""
+        ...
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert message object to dictionary."""
+        ...
+
+
 class MessageRouter:
     """Routes NMEA sentences to appropriate parsers.
 
@@ -44,9 +58,9 @@ class MessageRouter:
 
     def __init__(self):
         """Initialize message router with empty registry."""
-        self._parsers: dict[str, type] = {}
+        self._parsers: dict[str, type[NMEAParser]] = {}
 
-    def register_parser(self, prefix: str, parser_class: type) -> None:
+    def register_parser(self, prefix: str, parser_class: type[NMEAParser]) -> None:
         """Register a parser for a message type.
 
         Args:

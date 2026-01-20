@@ -9,6 +9,7 @@ Implements parsers for:
 """
 
 from dataclasses import dataclass, field
+from typing import Any
 
 from .utils import (
     parse_tagged_field,
@@ -308,7 +309,7 @@ class PNORC2:
         if fields[0] != "$PNORC2":
             raise ValueError(f"Invalid prefix: {fields[0]}")
 
-        data = {}
+        data: dict[str, Any] = {}
         seen_tags = set()
         for field_str in fields[1:]:
             tag, val = parse_tagged_field(field_str)
@@ -420,7 +421,7 @@ class PNORC3:
         if fields[0] != "$PNORC3":
             raise ValueError(f"Invalid prefix: {fields[0]}")
 
-        data = {}
+        data: dict[str, Any] = {}
         for field_str in fields[1:]:
             tag, val = parse_tagged_field(field_str)
             if tag not in cls.TAG_IDS:
