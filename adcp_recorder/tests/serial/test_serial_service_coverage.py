@@ -192,6 +192,14 @@ class TestSerialServiceCoverage:
         """Cover __name__ == '__main__' block in supervisor.py."""
         # Patch time.sleep to Break the infinite loop in supervisor.run()
         # The run() method catches exceptions and calls sys.exit(1)
+        # Remove from sys.modules to avoid RuntimeWarning when runpy executes it
+        import sys
+
+        if "adcp_recorder.service.supervisor" in sys.modules:
+            del sys.modules["adcp_recorder.service.supervisor"]
+        if "adcp_recorder.service" in sys.modules:
+            del sys.modules["adcp_recorder.service"]
+
         with patch("time.sleep", side_effect=Exception("Break Loop")):
             with pytest.raises(SystemExit) as excinfo:
                 runpy.run_module("adcp_recorder.service.supervisor", run_name="__main__")

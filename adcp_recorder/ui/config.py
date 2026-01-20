@@ -8,7 +8,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, ClassVar
 
-import yaml
+import yaml  # type: ignore
 from pydantic import BaseModel, Field, field_validator
 
 

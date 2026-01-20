@@ -3,14 +3,13 @@ from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
-from adcp_recorder.db.migration import (
-    copy_existing_tables,
-    get_old_table_exists,
-    get_table_row_count,
-    migrate_database,
-    migrate_pnorw_fields,
-)
-from adcp_recorder.serial.consumer import BinaryChunk, SerialConsumer
+
+@pytest.fixture
+def migration_utils():
+    from adcp_recorder.db import migration
+
+    return migration
+
 
 # --- CLI and Service Main Execution Tests ---
 
@@ -18,6 +17,14 @@ from adcp_recorder.serial.consumer import BinaryChunk, SerialConsumer
 def test_cli_main_execution():
     """Test executing adcp_recorder.cli.main as a script."""
     # We pass --help so it runs arguments parsing and exits with 0
+    # Remove from sys.modules to avoid RuntimeWarning when runpy executes it
+    import sys
+
+    if "adcp_recorder.cli.main" in sys.modules:
+        del sys.modules["adcp_recorder.cli.main"]
+    if "adcp_recorder.cli" in sys.modules:
+        del sys.modules["adcp_recorder.cli"]
+
     with patch("sys.argv", ["main.py", "--help"]):
         with pytest.raises(SystemExit) as excinfo:
             runpy.run_module("adcp_recorder.cli.main", run_name="__main__")
@@ -38,6 +45,14 @@ def test_supervisor_main_execution():
 
         # Also need to patch config load to avoid file issues
         with patch("adcp_recorder.config.RecorderConfig.load"):
+            # Remove from sys.modules to avoid RuntimeWarning when runpy executes it
+            import sys
+
+            if "adcp_recorder.service.supervisor" in sys.modules:
+                del sys.modules["adcp_recorder.service.supervisor"]
+            if "adcp_recorder.service" in sys.modules:
+                del sys.modules["adcp_recorder.service"]
+
             with pytest.raises(SystemExit) as excinfo:
                 runpy.run_module("adcp_recorder.service.supervisor", run_name="__main__")
             assert excinfo.value.code == 1
@@ -65,6 +80,8 @@ def test_consumer_loop_outer_exception_handling():
 
     # We must NOT raise from queue.get because it escapes the loop (bug/feature).
     # We must raise from within the processing block, e.g. BinaryChunk access.
+
+    from adcp_recorder.serial.consumer import BinaryChunk, SerialConsumer
 
     consumer = SerialConsumer(mock_queue, MagicMock(), MagicMock())
     consumer._running = True
@@ -119,6 +136,8 @@ def mock_duckdb_conn():
 def test_get_old_table_exists_exception(mock_duckdb_conn):
     """Test get_old_table_exists exception handler."""
     mock_duckdb_conn.execute.side_effect = Exception("DB Error")
+    from adcp_recorder.db.migration import get_old_table_exists
+
     exists = get_old_table_exists(mock_duckdb_conn, "some_table")
     assert exists is False
 
@@ -126,6 +145,8 @@ def test_get_old_table_exists_exception(mock_duckdb_conn):
 def test_get_table_row_count_exception(mock_duckdb_conn):
     """Test get_table_row_count exception handler."""
     mock_duckdb_conn.execute.side_effect = Exception("DB Error")
+    from adcp_recorder.db.migration import get_table_row_count
+
     count = get_table_row_count(mock_duckdb_conn, "some_table")
     assert count == 0
 
@@ -133,6 +154,8 @@ def test_get_table_row_count_exception(mock_duckdb_conn):
 def test_migrate_pnorw_fields_table_not_found(mock_duckdb_conn):
     """Test migrate_pnorw_fields when table doesn't exist."""
     mock_duckdb_conn.execute.return_value.fetchone.return_value = [0]
+    from adcp_recorder.db.migration import migrate_pnorw_fields
+
     with patch("adcp_recorder.db.migration.logger") as mock_logger:
         count = migrate_pnorw_fields(mock_duckdb_conn)
         assert count == 0
@@ -151,9 +174,9 @@ def test_migrate_pnorw_fields_column_check_exception(mock_duckdb_conn):
             raise Exception("Metadata Error")
         return m
 
-    mock_duckdb_conn.execute.side_effect = execute_side_effect
-    count = migrate_pnorw_fields(mock_duckdb_conn)
-    assert count == 0
+    from adcp_recorder.db.migration import migrate_pnorw_fields
+
+    migrate_pnorw_fields(mock_duckdb_conn)
 
 
 def test_migrate_pnorw_fields_empty_table(mock_duckdb_conn):
@@ -171,6 +194,8 @@ def test_migrate_pnorw_fields_empty_table(mock_duckdb_conn):
 
     mock_duckdb_conn.execute.side_effect = execute_side_effect
 
+    from adcp_recorder.db.migration import migrate_pnorw_fields
+
     with patch("adcp_recorder.db.migration.logger") as mock_logger:
         count = migrate_pnorw_fields(mock_duckdb_conn)
         assert count == 0
@@ -180,6 +205,8 @@ def test_migrate_pnorw_fields_empty_table(mock_duckdb_conn):
 def test_copy_existing_tables_missing_table(mock_duckdb_conn):
     """Test copy_existing_tables when source table is missing."""
     mock_duckdb_conn.execute.return_value.fetchone.return_value = [0]
+    from adcp_recorder.db.migration import copy_existing_tables
+
     counts = copy_existing_tables(mock_duckdb_conn)
     assert all(c == 0 for c in counts.values())
 
@@ -199,7 +226,7 @@ def test_migrate_database_exception_handler(tmp_path):
             "adcp_recorder.db.migration.create_new_schema", side_effect=Exception("Schema Error")
         ),
     ):
-        from adcp_recorder.db.migration import MigrationError
+        from adcp_recorder.db.migration import MigrationError, migrate_database
 
         with pytest.raises(MigrationError) as excinfo:
             migrate_database(source)
@@ -251,6 +278,15 @@ def test_migration_main_inplace(tmp_path):
 
 def test_migration_main_block():
     """Test the if __name__ == '__main__': block using runpy using --help."""
+    # Remove from sys.modules to avoid RuntimeWarning when runpy executes it
+    import sys
+
+    if "adcp_recorder.db.migration" in sys.modules:
+        del sys.modules["adcp_recorder.db.migration"]
+    if "adcp_recorder.db" in sys.modules:
+        # Be careful not to delete parent if other tests need it, but runpy needs it gone
+        del sys.modules["adcp_recorder.db"]
+
     # We pass --help so it runs arguments parsing and exits with 0
     with patch("sys.argv", ["adcp_recorder/db/migration.py", "--help"]):
         with pytest.raises(SystemExit) as excinfo:

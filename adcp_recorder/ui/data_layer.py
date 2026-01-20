@@ -219,7 +219,8 @@ class DataLayer:
 
         # Get record count
         try:
-            count = self.conn.execute(f"SELECT COUNT(*) FROM {source_name}").fetchone()[0]
+            res = self.conn.execute(f"SELECT COUNT(*) FROM {source_name}").fetchone()
+            count = res[0] if res else 0
         except Exception:
             count = 0
 
@@ -490,7 +491,7 @@ class DataLayer:
             FROM {source_name}
             WHERE coefficient_flag = ?
         """
-        params = [coefficient]
+        params: list[Any] = [coefficient]
 
         if start_time:
             query += " AND received_at >= ?"

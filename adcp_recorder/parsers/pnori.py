@@ -8,7 +8,7 @@ Implements parsers for:
 
 import re
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from adcp_recorder.core.enums import CoordinateSystem, InstrumentType
 from adcp_recorder.core.nmea import compute_checksum
@@ -157,7 +157,7 @@ class PNORI:
 
         return sentence
 
-    def to_dict(self) -> dict[str, any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for database insertion.
 
         Returns:
@@ -281,7 +281,7 @@ class PNORI1:
 
         return sentence
 
-    def to_dict(self) -> dict[str, any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for database insertion.
 
         Returns:
@@ -465,7 +465,7 @@ class PNORI2:
 
         return sentence
 
-    def to_dict(self) -> dict[str, any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for database insertion.
 
         Returns:

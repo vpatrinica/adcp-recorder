@@ -3,7 +3,7 @@
 import contextlib
 import logging
 import os
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -36,11 +36,11 @@ class ParquetWriter:
         """Ensure base directory for Parquet files exists."""
         os.makedirs(self.base_path, exist_ok=True)
 
-    def _get_partition_path(self, prefix: str, date: datetime.date) -> Path:
+    def _get_partition_path(self, prefix: str, record_date: date) -> Path:
         """Get the partitioned directory path for a record type and date."""
         # Partitioning by record type and then by date
         # Format: base/prefix/date=YYYY-MM-DD/
-        partition_dir = self.base_path / prefix / f"date={date.isoformat()}"
+        partition_dir = self.base_path / prefix / f"date={record_date.isoformat()}"
         os.makedirs(partition_dir, exist_ok=True)
         return partition_dir
 
@@ -80,7 +80,7 @@ class ParquetWriter:
 
             try:
                 # Group by date for partitioning
-                records_by_date: dict[datetime.date, list[dict[str, Any]]] = {}
+                records_by_date: dict[date, list[dict[str, Any]]] = {}
                 for rec in buffer:
                     ts = rec.get("recorded_at")
                     date = ts.date() if isinstance(ts, datetime) else datetime.now().date()
@@ -96,10 +96,10 @@ class ParquetWriter:
                 logger.error(f"Failed to flush Parquet records for {p}: {e}")
 
     def _write_to_parquet(
-        self, prefix: str, date: datetime.date, records: list[dict[str, Any]]
+        self, prefix: str, record_date: date, records: list[dict[str, Any]]
     ) -> None:
         """Actually write a batch of records to a Parquet file."""
-        partition_dir = self._get_partition_path(prefix, date)
+        partition_dir = self._get_partition_path(prefix, record_date)
 
         # Filename: {prefix}_{timestamp}.parquet
         filename = f"{prefix}_{datetime.now().strftime('%H%M%S_%f')}.parquet"

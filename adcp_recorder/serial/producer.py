@@ -127,7 +127,7 @@ class SerialProducer:
 
             # Check for binary data
             if is_binary_data(line_bytes):
-                logger.warning(f"Binary data detected: {line_bytes[:50]}")
+                logger.warning(f"Binary data detected: {line_bytes[:50]!r}")
                 # Enter blob mode and stream binary chunks to the consumer
                 if not self._blob_mode:
                     self._blob_mode = True
@@ -143,7 +143,7 @@ class SerialProducer:
             try:
                 line_str = line_bytes.decode("ascii").strip()
             except UnicodeDecodeError:
-                logger.warning(f"Failed to decode ASCII: {line_bytes[:50]}")
+                logger.warning(f"Failed to decode ASCII: {line_bytes[:50]!r}")
                 # Treat as binary (enter blob mode)
                 if not self._blob_mode:
                     self._blob_mode = True
@@ -169,11 +169,11 @@ class SerialProducer:
 
         logger.info("Producer read loop exiting")
 
-    def _push_to_queue(self, data: bytes) -> None:
+    def _push_to_queue(self, data: bytes | BinaryChunk) -> None:
         """Push data to queue, dropping oldest if full.
 
         Args:
-            data: Line data to push (as bytes)
+            data: Line data to push (as bytes or BinaryChunk)
 
         """
         try:

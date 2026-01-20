@@ -217,20 +217,21 @@ class SerialConnectionManager:
             ...     print(line.decode('ascii').strip())
 
         """
-        if not self.is_connected():
+        serial_conn = self._serial
+        if serial_conn is None or not serial_conn.is_open:
             return None
 
         try:
             # Temporarily override timeout if specified
             if timeout is not None:
-                old_timeout = self._serial.timeout
-                self._serial.timeout = timeout
+                old_timeout = serial_conn.timeout
+                serial_conn.timeout = timeout
 
-            line = self._serial.readline()
+            line = serial_conn.readline()
 
             # Restore original timeout
             if timeout is not None:
-                self._serial.timeout = old_timeout
+                serial_conn.timeout = old_timeout
 
             return line if line else None
 
