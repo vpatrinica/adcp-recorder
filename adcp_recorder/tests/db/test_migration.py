@@ -244,13 +244,13 @@ def test_full_migration(old_db_path):
 
     stats = migrate_database(old_db_path, target_path)
 
-    assert stats["echo_data→pnore_data"] == 1
-    assert stats["pnori1/2→pnori12"] == 2
-    assert stats["pnors_df101/102→pnors12"] == 2
-    assert stats["pnors_df103/104→pnors34"] == 2
-    assert stats["pnorc_df101/102→pnorc12"] == 2
-    assert stats["pnorc_df103/104→pnorc34"] == 2
-    assert stats["pnorh_df103/104→pnorh"] == 2
+    assert stats["echo_data->pnore_data"] == 1
+    assert stats["pnori1/2->pnori12"] == 2
+    assert stats["pnors_df101/102->pnors12"] == 2
+    assert stats["pnors_df103/104->pnors34"] == 2
+    assert stats["pnorc_df101/102->pnorc12"] == 2
+    assert stats["pnorc_df103/104->pnorc34"] == 2
+    assert stats["pnorh_df103/104->pnorh"] == 2
     assert stats["pnorw_data (field update)"] == 1
 
     # Verify tables in new database
@@ -289,7 +289,7 @@ def test_migration_empty_tables(tmp_path):
     target_path = tmp_path / "empty_migrated.duckdb"
     stats = migrate_database(db_path, target_path)
 
-    assert stats["echo_data→pnore_data"] == 0
+    assert stats["echo_data->pnore_data"] == 0
     verification = verify_migration(target_path)
     assert verification["pnore_data"] == 0
 
@@ -313,4 +313,4 @@ def test_migration_already_migrated(tmp_path):
 
     stats = migrate_database(db_path, in_place=True)
     # Should not crash and should skip migrations
-    assert stats.get("echo_data→pnore_data", 0) == 0
+    assert stats.get("echo_data->pnore_data", 0) == 0
