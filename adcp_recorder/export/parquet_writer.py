@@ -98,12 +98,21 @@ class ParquetWriter:
     def _write_to_parquet(
         self, prefix: str, record_date: date, records: list[dict[str, Any]]
     ) -> None:
-        """Actually write a batch of records to a Parquet file."""
+        """Actually write a batch of records to a Parquet file.
+
+        Uses atomic write signaling: writes to a temporary .writing file first,
+        then renames to the final .parquet file. This ensures readers never see
+        incomplete files.
+        """
         partition_dir = self._get_partition_path(prefix, record_date)
 
         # Filename: {prefix}_{timestamp}.parquet
-        filename = f"{prefix}_{datetime.now().strftime('%H%M%S_%f')}.parquet"
-        file_path = partition_dir / filename
+        timestamp_str = datetime.now().strftime("%H%M%S_%f")
+        final_filename = f"{prefix}_{timestamp_str}.parquet"
+        temp_filename = f"{prefix}_{timestamp_str}.parquet.writing"
+
+        final_path = partition_dir / final_filename
+        temp_path = partition_dir / temp_filename
 
         # Ensure all records have record_type for consistency
         for r in records:
@@ -115,10 +124,22 @@ class ParquetWriter:
             import polars as pl
 
             df = pl.DataFrame(records)
-            df.write_parquet(str(file_path))
-            logger.debug(f"Wrote {len(records)} records to {file_path}")
+
+            # Write to temporary file first
+            df.write_parquet(str(temp_path))
+
+            # Atomic rename to final path (atomic on POSIX systems)
+            os.rename(temp_path, final_path)
+
+            logger.debug(f"Wrote {len(records)} records to {final_path}")
         except Exception as e:
             logger.error(f"Polars Parquet write error: {prefix}: {e}")
+            # Clean up temp file if it exists
+            if temp_path.exists():
+                try:
+                    temp_path.unlink()
+                except OSError:
+                    pass
             raise
 
     def close(self) -> None:
