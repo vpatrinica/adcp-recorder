@@ -504,10 +504,11 @@ class DataLayer:
 
         start_time = self._parse_time_range(time_range)
 
+        ts_col = source.timestamp_column
         # We average across all 4 beams for "Average Signal Strength"
         query = f"""
             SELECT
-                received_at,
+                {ts_col},
                 cell_index,
                 (COALESCE(amp1, 0) + COALESCE(amp2, 0) +
                  COALESCE(amp3, 0) + COALESCE(amp4, 0)) / 4.0 as avg_amp
@@ -515,10 +516,10 @@ class DataLayer:
         """
         params = []
         if start_time:
-            query += " WHERE received_at >= ?"
+            query += f" WHERE {ts_col} >= ?"
             params.append(start_time)
 
-        query += " ORDER BY received_at DESC, cell_index ASC LIMIT 20000"
+        query += f" ORDER BY {ts_col} DESC, cell_index ASC LIMIT 20000"
 
         result = self.conn.execute(query, params).fetchall()
 
@@ -549,6 +550,7 @@ class DataLayer:
 
         start_time = self._parse_time_range(time_range)
 
+        ts_col = source.timestamp_column
         query = f"""
             SELECT
                 measurement_date, measurement_time,
@@ -560,10 +562,10 @@ class DataLayer:
         params: list[Any] = [coefficient]
 
         if start_time:
-            query += " AND received_at >= ?"
+            query += f" AND {ts_col} >= ?"
             params.append(start_time)
 
-        query += " ORDER BY received_at DESC LIMIT 100"
+        query += f" ORDER BY {ts_col} DESC LIMIT 100"
 
         try:
             result = self.conn.execute(query, params).fetchall()
@@ -599,25 +601,26 @@ class DataLayer:
 
         real_source_name = source.name
 
+        ts_col = source.timestamp_column
         query = f"""
-            SELECT DISTINCT measurement_date, measurement_time, received_at
+            SELECT DISTINCT measurement_date, measurement_time, {ts_col}
             FROM {real_source_name}
         """
         params = []
         conditions = []
 
         if start_time:
-            conditions.append("received_at >= ?")
+            conditions.append(f"{ts_col} >= ?")
             params.append(start_time)
 
         if end_time:
-            conditions.append("received_at <= ?")
+            conditions.append(f"{ts_col} <= ?")
             params.append(end_time)
 
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
 
-        query += " ORDER BY received_at DESC LIMIT 1000"
+        query += f" ORDER BY {ts_col} DESC LIMIT 1000"
 
         try:
             result = self.conn.execute(query, params).fetchall()
@@ -645,9 +648,10 @@ class DataLayer:
 
         start_time = self._parse_time_range(time_range)
 
+        ts_col = source.timestamp_column
         query = f"""
             SELECT
-                received_at,
+                {ts_col},
                 start_frequency, step_frequency, num_frequencies,
                 energy_densities
             FROM {source.name}
@@ -655,10 +659,10 @@ class DataLayer:
         params = []
 
         if start_time:
-            query += " WHERE received_at >= ?"
+            query += f" WHERE {ts_col} >= ?"
             params.append(start_time)
 
-        query += " ORDER BY received_at DESC LIMIT 500"
+        query += f" ORDER BY {ts_col} DESC LIMIT 500"
 
         try:
             result = self.conn.execute(query, params).fetchall()
@@ -689,17 +693,18 @@ class DataLayer:
         try:
             # 1. Find the target measurement time
             if timestamp:
+                ts_col = source_pnore.timestamp_column
                 query = f"""
                     SELECT
                         start_frequency, step_frequency, num_frequencies, energy_densities,
-                        received_at, measurement_date, measurement_time
+                        {ts_col}, measurement_date, measurement_time
                     FROM {name_pnore}
-                    WHERE received_at = ?
+                    WHERE {ts_col} = ?
                 """
                 energy_data = self.conn.execute(query, [timestamp]).fetchone()
 
                 if not energy_data:
-                    # Fallback to string matching if received_at fails
+                    # Fallback to string matching if timestamp fails
                     date_str = timestamp.strftime("%m%d%y")
                     time_str = timestamp.strftime("%H%M%S")
                 else:
@@ -708,15 +713,16 @@ class DataLayer:
                     )
                     energy = json.loads(energy_densities_json)
             else:
+                ts_col = source_pnore.timestamp_column
                 # Find the latest measurement that has all components
                 latest_query = f"""
-                    SELECT DISTINCT e.measurement_date, e.measurement_time, e.received_at
+                    SELECT DISTINCT e.measurement_date, e.measurement_time, e.{ts_col}
                     FROM {name_pnore} e
                     JOIN {name_pnorwd} md ON e.measurement_date = md.measurement_date
                         AND e.measurement_time = md.measurement_time AND md.direction_type = 'MD'
                     JOIN {name_pnorwd} ds ON e.measurement_date = ds.measurement_date
                         AND e.measurement_time = ds.measurement_time AND ds.direction_type = 'DS'
-                    ORDER BY e.received_at DESC
+                    ORDER BY e.{ts_col} DESC
                     LIMIT 1
                 """
                 latest = self.conn.execute(latest_query).fetchone()
