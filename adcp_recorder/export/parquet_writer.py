@@ -56,8 +56,18 @@ class ParquetWriter:
             self._buffers[prefix] = []
 
         # Add timestamp if not present
-        if "recorded_at" not in record:
-            record["recorded_at"] = datetime.now()
+        if "received_at" not in record:
+            record["received_at"] = datetime.now()
+
+        # Add measurement_id for optimized joins if date and time are present
+        if "measurement_date" in record and "measurement_time" in record:
+            try:
+                date_str = str(record["measurement_date"])
+                time_str = str(record["measurement_time"])
+                if len(date_str) == 6 and len(time_str) == 6:
+                    record["measurement_id"] = int(date_str + time_str)
+            except (ValueError, TypeError):
+                pass
 
         self._buffers[prefix].append(record)
 
@@ -82,7 +92,7 @@ class ParquetWriter:
                 # Group by date for partitioning
                 records_by_date: dict[date, list[dict[str, Any]]] = {}
                 for rec in buffer:
-                    ts = rec.get("recorded_at")
+                    ts = rec.get("received_at")
                     date = ts.date() if isinstance(ts, datetime) else datetime.now().date()
                     if date not in records_by_date:
                         records_by_date[date] = []
@@ -123,7 +133,8 @@ class ParquetWriter:
             # Use polars to write Parquet directly - more efficient and no pandas dependency
             import polars as pl
 
-            df = pl.DataFrame(records)
+            # Use from_dicts with large infer_schema_length to avoid schema mismatch issues
+            df = pl.from_dicts(records, infer_schema_length=10000)
 
             # Write to temporary file first
             df.write_parquet(str(temp_path))

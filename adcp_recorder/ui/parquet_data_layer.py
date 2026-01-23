@@ -551,7 +551,137 @@ class ParquetDataLayer(DataLayer):
             except Exception as e:
                 logger.error(f"Failed to create view {view_name}: {e}")
 
+        # Create joined views if possible
+        self._create_joined_views()
+
         return result
+
+    def _create_joined_views(self) -> None:
+        """Create joined views (like wave_measurement_full) from parquet views."""
+        # Map of joined view names to their SQL definitions
+        # These are adapted from db/schema.py to use pq_ prefixed views
+        # and support both 'received_at' and 'recorded_at' (via COALESCE or metadata)
+
+        # Check which base views are loaded
+        loaded = self._loaded_views
+
+        # Wave Measurement View
+        if "pq_pnorw" in loaded and "pq_pnore" in loaded:
+            cond = self._get_join_condition("pq_pnorw", "pq_pnore", "w", "e")
+            try:
+                self._conn.execute(f"""
+                    CREATE OR REPLACE VIEW wave_measurement AS
+                    SELECT
+                        w.*,
+                        e.energy_densities,
+                        e.start_frequency AS energy_start_freq,
+                        e.step_frequency AS energy_step_freq,
+                        e.num_frequencies AS energy_num_freq
+                    FROM pq_pnorw w
+                    LEFT JOIN pq_pnore e ON {cond};
+                """)
+                self._loaded_views.add("wave_measurement")
+            except Exception as e:
+                logger.debug(f"Failed to create wave_measurement: {e}")
+
+        # Full Wave Measurement View
+        if all(v in loaded for v in ("pq_pnorw", "pq_pnore", "pq_pnorb", "pq_pnorf", "pq_pnorwd")):
+            cond_e = self._get_join_condition("pq_pnorw", "pq_pnore", "w", "e")
+            cond_b = self._get_join_condition("pq_pnorw", "pq_pnorb", "w", "b")
+            cond_f = self._get_join_condition("pq_pnorw", "pq_pnorf", "w", "f")
+            cond_wd = self._get_join_condition("pq_pnorw", "pq_pnorwd", "w", "wd")
+            try:
+                self._conn.execute(f"""
+                    CREATE OR REPLACE VIEW wave_measurement_full AS
+                    SELECT
+                        w.*,
+                        e.energy_densities,
+                        e.start_frequency AS energy_start_freq,
+                        e.step_frequency AS energy_step_freq,
+                        b.hmo AS band_hm0,
+                        b.tp AS band_tp,
+                        b.main_dir AS band_main_dir,
+                        f.coefficients,
+                        f.coefficient_flag,
+                        wd.values AS directional_values,
+                        wd.direction_type
+                    FROM pq_pnorw w
+                    LEFT JOIN pq_pnore e ON {cond_e}
+                    LEFT JOIN pq_pnorb b ON {cond_b}
+                    LEFT JOIN pq_pnorf f ON {cond_f}
+                    LEFT JOIN pq_pnorwd wd ON {cond_wd};
+                """)
+                self._loaded_views.add("wave_measurement_full")
+            except Exception as e:
+                logger.debug(f"Failed to create wave_measurement_full: {e}")
+
+        # Current Profile Views (simplified mappings for parquet)
+        if "pq_pnors" in loaded and "pq_pnorc" in loaded:
+            cond = self._get_join_condition("pq_pnors", "pq_pnorc", "s", "c")
+            try:
+                self._conn.execute(f"""
+                    CREATE OR REPLACE VIEW current_profile_df100 AS
+                    SELECT s.*, c.cell_index, c.vel1, c.vel2, c.vel3, c.vel4, c.speed, c.direction
+                    FROM pq_pnors s
+                    JOIN pq_pnorc c ON {cond};
+                """)
+                self._loaded_views.add("current_profile_df100")
+            except Exception as e:
+                logger.debug(f"Failed to create current_profile_df100: {e}")
+
+        if "pq_pnors12" in loaded and "pq_pnorc12" in loaded:
+            cond = self._get_join_condition("pq_pnors12", "pq_pnorc12", "s", "c")
+            try:
+                self._conn.execute(f"""
+                    CREATE OR REPLACE VIEW current_profile_12 AS
+                    SELECT s.*, c.cell_index, c.cell_distance, c.vel1, c.vel2, c.vel3, c.vel4
+                    FROM pq_pnors12 s
+                    JOIN pq_pnorc12 c ON {cond};
+                """)
+                self._loaded_views.add("current_profile_12")
+            except Exception as e:
+                logger.debug(f"Failed to create current_profile_12: {e}")
+
+        if all(v in loaded for v in ("pq_pnorh", "pq_pnors34", "pq_pnorc34")):
+            cond_s = self._get_join_condition("pq_pnorh", "pq_pnors34", "h", "s")
+            cond_c = self._get_join_condition("pq_pnorh", "pq_pnorc34", "h", "c")
+            try:
+                self._conn.execute(f"""
+                    CREATE OR REPLACE VIEW current_profile_34 AS
+                    SELECT
+                        h.record_id AS header_id,
+                        h.data_format,
+                        h.received_at,
+                        h.measurement_date,
+                        h.measurement_time,
+                        h.error_code, h.status_code,
+                        s.heading, s.pitch, s.roll, s.pressure, s.temperature,
+                        c.cell_index, c.cell_distance, c.speed, c.direction
+                    FROM pq_pnorh h
+                    JOIN pq_pnors34 s ON {cond_s}
+                    JOIN pq_pnorc34 c ON {cond_c};
+                """)
+                self._loaded_views.add("current_profile_34")
+            except Exception as e:
+                logger.debug(f"Failed to create current_profile_34: {e}")
+
+    def _get_join_condition(
+        self, left_view: str, right_view: str, left_alias: str, right_alias: str
+    ) -> str:
+        """Get the optimized join condition between two parquet views."""
+        try:
+            cols_left = {c[0] for c in self._conn.execute(f"DESCRIBE {left_view}").fetchall()}
+            cols_right = {c[0] for c in self._conn.execute(f"DESCRIBE {right_view}").fetchall()}
+
+            if "measurement_id" in cols_left and "measurement_id" in cols_right:
+                return f"{left_alias}.measurement_id = {right_alias}.measurement_id"
+        except Exception:
+            pass
+
+        return (
+            f"{left_alias}.measurement_date = {right_alias}.measurement_date "
+            f"AND {left_alias}.measurement_time = {right_alias}.measurement_time"
+        )
 
     def get_loaded_views(self) -> list[str]:
         """Get list of currently loaded view names."""
@@ -599,6 +729,10 @@ class ParquetDataLayer(DataLayer):
         match = re.match(r"(pnor[a-z]+)", source_name.lower())
         if match:
             base_type = match.group(1)
+            # Special case for wave tables which often have _data suffix in schema but not in parquet prefix
+            if base_type.endswith("data"):
+                base_type = base_type[:-4]
+
             pq_name = f"pq_{base_type}"
             if pq_name in self._loaded_views:
                 return pq_name
