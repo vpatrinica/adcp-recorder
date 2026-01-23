@@ -470,7 +470,7 @@ class TestParquetDataLayer:
         """Test query on non-loaded view raises error."""
         layer = ParquetDataLayer(temp_data_dir)
 
-        with pytest.raises(ValueError, match="View not loaded"):
+        with pytest.raises(ValueError, match="Unknown data source"):
             layer.query("pq_nonexistent")
         layer.close()
 
@@ -479,7 +479,9 @@ class TestParquetDataLayer:
         layer = ParquetDataLayer(temp_data_dir)
         layer.load_data()
 
-        result = layer.query_time_series("pq_pnors", "received_at", ["temperature"])
+        result = layer.query_time_series(
+            source_name="pq_pnors", y_columns=["temperature"], x_column="received_at"
+        )
         assert len(result["x"]) == 3
         assert len(result["series"]["temperature"]) == 3
         layer.close()
@@ -1035,21 +1037,20 @@ class TestCoverageEdgeCases:
         layer.close()
 
     def test_query_time_series_not_loaded(self, temp_data_dir):
-        """Test query_time_series raises error for unloaded view."""
+        """Test query_time_series returns empty for unloaded view."""
         layer = ParquetDataLayer(temp_data_dir)
         # Don't load data
 
-        with pytest.raises(ValueError, match="View not loaded"):
-            layer.query_time_series("pq_pnors", "received_at", ["temperature"])
+        result = layer.query_time_series("pq_pnors", ["temperature"], "24h", "received_at")
+        assert result == {"x": [], "series": {"temperature": []}}
         layer.close()
 
     def test_get_column_info_not_loaded(self, temp_data_dir):
-        """Test get_column_info raises error for unloaded view."""
+        """Test get_column_info returns empty for unloaded view."""
         layer = ParquetDataLayer(temp_data_dir)
         # Don't load data
 
-        with pytest.raises(ValueError, match="View not loaded"):
-            layer.get_column_info("pq_pnors")
+        assert layer.get_column_info("pq_pnors") == []
         layer.close()
 
     def test_execute_sql_empty_result(self, temp_data_dir):
@@ -1233,7 +1234,9 @@ class TestParquetDataLayerWaveAnalysis:
         layer.load_data()
 
         # Mock connection to raise Exception
-        layer._conn = MagicMock()
+        layer.conn = MagicMock()
+        layer.conn.execute.side_effect = Exception("DB Error")
+        layer._conn = layer.conn
         layer._conn.execute.side_effect = Exception("DB Error")
 
         assert layer.get_available_bursts(source_name="pnore_data") == []
@@ -1263,8 +1266,9 @@ class TestParquetDataLayerErrorPaths:
     def test_close_error_handling(self):
         """Test that close() handles DuckDB errors gracefully."""
         layer = ParquetDataLayer()
-        layer._conn = MagicMock()
-        layer._conn.close.side_effect = Exception("Close error")
+        layer.conn = MagicMock()
+        layer.conn.close.side_effect = Exception("Close error")
+        layer._conn = layer.conn
         # Should not raise
         layer.close()
 
@@ -1272,8 +1276,9 @@ class TestParquetDataLayerErrorPaths:
         """Test that _clear_views handles errors during DROP VIEW."""
         layer = ParquetDataLayer()
         layer._loaded_views.add("test_view")
-        layer._conn = MagicMock()
-        layer._conn.execute.side_effect = Exception("Drop error")
+        layer.conn = MagicMock()
+        layer.conn.execute.side_effect = Exception("Drop error")
+        layer._conn = layer.conn
         # Should not raise
         layer._clear_views()
         assert len(layer._loaded_views) == 0
@@ -1288,8 +1293,9 @@ class TestParquetDataLayerErrorPaths:
         date_dir.mkdir(parents=True)
         (date_dir / "test.parquet").touch()
 
-        layer._conn = MagicMock()
-        layer._conn.execute.side_effect = Exception("Create view error")
+        layer.conn = MagicMock()
+        layer.conn.execute.side_effect = Exception("Create view error")
+        layer._conn = layer.conn
 
         result = layer.load_data()
         assert result == {}  # Empty result due to error
@@ -1326,8 +1332,9 @@ class TestParquetDataLayerErrorPaths:
         layer = ParquetDataLayer(wave_data_dir)
         layer.load_data()
 
-        layer._conn = MagicMock()
-        layer._conn.execute.side_effect = Exception("Stats error")
+        layer.conn = MagicMock()
+        layer.conn.execute.side_effect = Exception("Stats error")
+        layer._conn = layer.conn
 
         stats = layer.get_column_stats("pq_pnors", "temperature")
         assert stats == {}
@@ -1338,11 +1345,12 @@ class TestParquetDataLayerErrorPaths:
         layer = ParquetDataLayer(wave_data_dir)
         layer.load_data()
 
-        layer._conn = MagicMock()
-        layer._conn.execute.side_effect = Exception("Query error")
+        layer.conn = MagicMock()
+        layer.conn.execute.side_effect = Exception("Query error")
+        layer._conn = layer.conn
 
         result = layer.query_time_series("pq_pnors", y_columns=["temperature"])
-        assert result == {"x": [], "series": {}}
+        assert result == {"x": [], "series": {"temperature": []}}
         layer.close()
 
 
@@ -1375,11 +1383,20 @@ class TestParquetFileDiscoveryEdgeCases:
 
         discovery = ParquetFileDiscovery(tmp_path)
 
-        with unittest.mock.patch("pathlib.Path.stat") as mock_stat:
-            mock_stat.side_effect = OSError("Stat error")
+        # Capture original stat to use for non-target files
+        original_stat = Path.stat
+
+        def side_effect(self, *args, **kwargs):
+            # Only fail for the specific test file
+            if str(self) == str(test_file):
+                raise OSError("Stat error")
+            return original_stat(self, *args, **kwargs)
+
+        with unittest.mock.patch("pathlib.Path.stat", side_effect=side_effect, autospec=True):
             result = discovery.scan()
-            # PNORS should be there but without the file
+            # PNORS should be there (directory traversal worked)
             assert "PNORS" in result.record_types
+            # But the file list is empty because stat failed for the file
             assert len(result.record_types["PNORS"][date(2026, 1, 1)]) == 0
 
     def test_scan_invalid_dates(self, tmp_path):
@@ -1452,8 +1469,9 @@ class TestMiscCoverage:
         layer = ParquetDataLayer()
         # Use a query that doesn't return rows (though DuckDB usually has description)
         # Mocking description to be None
-        layer._conn = MagicMock()
-        layer._conn.description = None
+        layer.conn = MagicMock()
+        layer.conn.description = None
+        layer._conn = layer.conn
         assert layer.execute_sql("INSERT INTO ...") == []
         layer.close()
 
@@ -1517,6 +1535,7 @@ class TestMiscCoverage:
         # Mock connection to fail for stats query
         mock_conn = MagicMock()
         mock_conn.execute.side_effect = Exception("Stats error")
+        layer.conn = mock_conn  # Update inherited conn too
         layer._conn = mock_conn
         # Must return metadata for stats to proceed
         with unittest.mock.patch.object(layer, "get_source_metadata") as mock_meta:
@@ -1527,11 +1546,13 @@ class TestMiscCoverage:
             assert layer.get_column_stats("pq_test", "col") == {}
 
         # 786: resolve_source_name returns None in query_data
-        with pytest.raises(ValueError, match="Unknown data source"):
-            layer.query_data("unknown")
+        assert layer.query_data("unknown") == []
 
         # 908, 916: empty result/y_columns in query_time_series
-        assert layer.query_time_series(source_name=None) == {"x": [], "series": {}}
+        assert layer.query_time_series(source_name="unknown", y_columns=[]) == {
+            "x": [],
+            "series": {},
+        }
         layer.load_data()  # Ensure some views loaded or mock it
         layer._loaded_views.add("pq_test")
         assert layer.query_time_series(source_name="pq_test", y_columns=[]) == {

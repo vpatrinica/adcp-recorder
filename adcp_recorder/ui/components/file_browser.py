@@ -12,7 +12,7 @@ try:
     import streamlit as st
 
     HAS_STREAMLIT = True
-except ImportError:
+except ImportError:  # pragma: no cover
     HAS_STREAMLIT = False
     st = None  # type: ignore
 

@@ -124,6 +124,8 @@ def main() -> None:
     )
 
     # Determine which data layer to use
+    data_layer: DataLayer
+
     if data_source == "Parquet Files":
         try:
             config = RecorderConfig.load()
