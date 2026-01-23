@@ -9,7 +9,7 @@ This is a multi-page application providing:
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 import streamlit as st
 
@@ -24,6 +24,7 @@ from adcp_recorder.ui.components import (
     render_time_series,
     render_velocity_profile,
 )
+from adcp_recorder.ui.components.file_browser import render_file_browser
 from adcp_recorder.ui.config import DashboardConfig, PanelType
 from adcp_recorder.ui.data_layer import DataLayer
 from adcp_recorder.ui.pages import (
@@ -31,6 +32,25 @@ from adcp_recorder.ui.pages import (
     render_data_explorer,
     render_plot_builder,
 )
+from adcp_recorder.ui.parquet_data_layer import ParquetDataLayer
+
+
+class DataLayerProtocol(Protocol):
+    """Protocol for data layer compatibility."""
+
+    def query(
+        self,
+        view_name: str,
+        columns: list[str] | None = None,
+        limit: int = 100,
+        order_by: str | None = None,
+        order_desc: bool = True,
+    ) -> list[dict[str, Any]]: ...
+
+    def get_column_info(self, view_name: str) -> list[tuple[str, str]]: ...
+
+    def execute_sql(self, sql: str) -> list[dict[str, Any]]: ...
+
 
 # Page configuration
 st.set_page_config(
@@ -69,17 +89,130 @@ def get_data_layer(_db: DatabaseManager) -> DataLayer:
     return DataLayer(_db.get_connection())
 
 
+def get_parquet_layer(config: RecorderConfig | None = None) -> ParquetDataLayer:
+    """Get or create the ParquetDataLayer from session state."""
+    if "parquet_layer" not in st.session_state:
+        st.session_state.parquet_layer = ParquetDataLayer()
+    layer = st.session_state.parquet_layer
+
+    # Set default path from config if not already set
+    if config and "parquet_default_set" not in st.session_state:
+        default_dir = config.output_dir
+        if default_dir:
+            st.session_state.parquet_data_dir = default_dir
+            st.session_state.parquet_default_set = True
+
+    return layer
+
+
 def main() -> None:
     """Run the main dashboard entry point."""
-    # Initialize database and data layer
-    db = get_db()
-    data_layer = get_data_layer(db)
-
     # Sidebar navigation
     st.sidebar.title("🌊 ADCP Dashboard")
     st.sidebar.caption("Advanced Data Visualization")
 
+    # Data Source Selector
+    st.sidebar.divider()
+    st.sidebar.subheader("📁 Data Source")
+
+    data_source = st.sidebar.radio(
+        "Select data source:",
+        options=["Parquet Files", "DuckDB (configured)"],
+        index=0,  # Default to Parquet Files
+        key="data_source_selector",
+        label_visibility="collapsed",
+    )
+
+    # Determine which data layer to use
+    if data_source == "Parquet Files":
+        try:
+            config = RecorderConfig.load()
+            parquet_layer = get_parquet_layer(config)
+
+            # Auto-load data on first visit to parquet mode
+            if "parquet_auto_loaded" not in st.session_state:
+                st.session_state.parquet_auto_loaded = False
+
+            # Show file browser - collapsed by default
+            with st.sidebar.expander("📂 Parquet File Browser", expanded=False):
+                render_file_browser(parquet_layer, key="sidebar_browser")
+
+                # Show loaded views info
+                if parquet_layer.get_loaded_views():
+                    st.success(f"✓ Loaded: {', '.join(parquet_layer.get_loaded_views())}")
+
+                # Show any writer faults
+                faults = parquet_layer.get_writer_faults()
+                if faults:
+                    st.warning(f"⚠️ {len(faults)} file(s) stuck in writing state")
+
+            # Auto-load data if not already done and directory is set
+            if (
+                not st.session_state.parquet_auto_loaded
+                and "parquet_data_dir" in st.session_state
+                and st.session_state.parquet_data_dir
+            ):
+                try:
+                    parquet_layer.set_data_directory(st.session_state.parquet_data_dir)
+                    structure = parquet_layer.get_file_structure()
+                    if structure and structure.record_types:
+                        parquet_layer.load_data()  # Load all available data
+                        st.session_state.parquet_auto_loaded = True
+                except Exception as load_err:
+                    st.sidebar.warning(f"⚠️ Could not auto-load data: {load_err}")
+
+            # Use parquet layer for data access
+            data_layer = parquet_layer
+        except Exception as e:
+            st.sidebar.error("❌ Parquet Data Error")
+            st.error(
+                f"""
+                ### 📁 Parquet Data Access Error
+
+                Could not access the Parquet data files. This usually happens when:
+
+                1. **File is locked** - Another application may be writing to the files
+                2. **Directory not found** - Check that the data directory exists
+                3. **Permission denied** - Check file permissions
+
+                **Error details:** `{e}`
+
+                **Suggestion:** Check that no other processes are writing to the files,
+                or try switching to a different data directory.
+                """
+            )
+            # Fallback to empty parquet layer
+            parquet_layer = ParquetDataLayer()
+            data_layer = parquet_layer
+    else:
+        # Only initialize DuckDB connection when DuckDB mode is selected
+        try:
+            db = get_db()
+            duckdb_layer = get_data_layer(db)
+            data_layer = duckdb_layer
+            st.sidebar.caption(f"📁 DB: {db.db_path}")
+        except Exception as e:
+            st.sidebar.error("❌ DuckDB Connection Failed")
+            st.error(
+                f"""
+                ### 🔒 Database Connection Error
+
+                Could not connect to the DuckDB database. This usually happens when:
+
+                1. **Another process is using the database** - Check for running scripts
+                2. **Database file is locked** - Try restarting or killing stale processes
+                3. **Database doesn't exist** - Make sure the recorder has created data
+
+                **Error details:** `{e}`
+
+                **Suggestion:** Switch to **Parquet Files** mode in the sidebar,
+                which doesn't require database locking.
+                """
+            )
+            st.stop()
+
     # Navigation menu
+    st.sidebar.divider()
     pages = {
         "📊 Data Explorer": "explorer",
         "📈 Plot Builder": "plot_builder",
@@ -89,7 +222,6 @@ def main() -> None:
     # Add saved dashboards to navigation
     saved_dashboards = DashboardConfig.list_dashboards()
     if saved_dashboards:
-        st.sidebar.divider()
         st.sidebar.subheader("📋 My Dashboards")
         for dash_name in saved_dashboards:
             pages[f"  📊 {dash_name}"] = f"dashboard:{dash_name}"
@@ -101,12 +233,6 @@ def main() -> None:
     )
 
     page_key = pages.get(selected, "explorer")
-
-    # Database info
-    st.sidebar.divider()
-    st.sidebar.caption(f"📁 DB: {db.db_path}")
-
-    # Quick actions
     with st.sidebar.expander("⚡ Quick Actions", expanded=True):
         if st.button("🔄 Refresh Data", width=250):
             # use numerical width or "use_container_width=True" in newer streamlit,

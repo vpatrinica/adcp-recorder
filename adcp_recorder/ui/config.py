@@ -32,6 +32,7 @@ class TimeRange(str, Enum):
     HOURS_24 = "24h"
     DAYS_7 = "7d"
     DAYS_30 = "30d"
+    ALL = "all"
     CUSTOM = "custom"
 
 
@@ -371,22 +372,56 @@ DASHBOARD_TEMPLATES = {
     ),
     "velocity_analysis": DashboardConfig(
         name="Velocity Analysis",
-        description="Current velocity profiling and analysis",
-        layout=LayoutConfig(columns=2, rows=2),
+        description="Current velocity profiling and analysis with sensor data",
+        layout=LayoutConfig(columns=3, rows=3),
         panels=[
+            PanelConfig(
+                id="sensor_table",
+                type=PanelType.TABLE,
+                title="Sensor Data (PNORS)",
+                position=PanelPosition(row=0, col=0),
+                config={"data_source": "pnors_data", "limit": 50, "time_range": "24h"},
+            ),
+            PanelConfig(
+                id="sensor12_table",
+                type=PanelType.TABLE,
+                title="Sensor Data 12 (PNORS12)",
+                position=PanelPosition(row=0, col=1),
+                config={"data_source": "pnors12", "limit": 50, "time_range": "24h"},
+            ),
+            PanelConfig(
+                id="sensor34_table",
+                type=PanelType.TABLE,
+                title="Sensor Data 34 (PNORS34)",
+                position=PanelPosition(row=0, col=2),
+                config={"data_source": "pnors34", "limit": 50, "time_range": "24h"},
+            ),
             PanelConfig(
                 id="velocity_table",
                 type=PanelType.TABLE,
-                title="Velocity Data",
-                position=PanelPosition(row=0, col=0),
-                config={"data_source": "pnorc12", "limit": 100},
+                title="Velocity Data (PNORC)",
+                position=PanelPosition(row=1, col=0),
+                config={"data_source": "pnorc12", "limit": 100, "time_range": "24h"},
             ),
             PanelConfig(
                 id="velocity_profile",
                 type=PanelType.VELOCITY_PROFILE,
                 title="Depth Profile",
-                position=PanelPosition(row=0, col=1),
-                config={"data_source": "pnorc12"},
+                position=PanelPosition(row=1, col=1, width=2),
+                config={"data_source": "pnorc12", "time_range": "24h"},
+            ),
+            PanelConfig(
+                id="temp_pressure",
+                type=PanelType.TIME_SERIES,
+                title="Temperature & Pressure",
+                position=PanelPosition(row=2, col=0, width=3),
+                config={
+                    "series": [
+                        {"source": "pnors_data", "y": "temperature", "label": "Temp (°C)"},
+                        {"source": "pnors_data", "y": "pressure", "label": "Pressure (dbar)"},
+                    ],
+                    "time_range": "24h",
+                },
             ),
         ],
     ),

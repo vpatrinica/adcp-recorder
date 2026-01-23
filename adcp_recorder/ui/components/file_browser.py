@@ -242,8 +242,12 @@ def render_file_browser(
     # Store in session state
     st.session_state.parquet_data_dir = data_dir
 
-    # Update data layer if directory changed
-    data_layer.set_data_directory(data_dir)
+    # Only update data layer if directory actually changed
+    # This prevents clearing loaded views on every render
+    current_dir_key = f"{key}_current_data_dir"
+    if current_dir_key not in st.session_state or st.session_state[current_dir_key] != data_dir:
+        data_layer.set_data_directory(data_dir)
+        st.session_state[current_dir_key] = data_dir
 
     # Get file structure
     structure = data_layer.get_file_structure()
@@ -278,19 +282,34 @@ def render_file_browser(
     # Load data button
     if st.button("📥 Load Selected Data", key=f"{key}_load", type="primary"):
         with st.spinner("Loading Parquet files..."):
-            result = data_layer.load_data(
-                record_types=selected_types,
-                start_date=start_date,
-                end_date=end_date,
-            )
-
-            if result:
-                st.success(
-                    f"Loaded {len(result)} views: "
-                    + ", ".join(f"{k} ({v} rows)" for k, v in result.items())
+            try:
+                result = data_layer.load_data(
+                    record_types=selected_types,
+                    start_date=start_date,
+                    end_date=end_date,
                 )
-            else:
-                st.warning("No data loaded. Check your selection.")
+
+                if result:
+                    st.success(
+                        f"Loaded {len(result)} views: "
+                        + ", ".join(f"{k} ({v} rows)" for k, v in result.items())
+                    )
+                else:
+                    st.warning("No data loaded. Check your selection.")
+            except Exception as e:
+                error_msg = str(e).lower()
+                if "lock" in error_msg or "busy" in error_msg:
+                    st.error(
+                        "🔒 **File is locked** - Another process may be writing data. "
+                        "Wait a moment and try again."
+                    )
+                elif "permission" in error_msg or "access" in error_msg:
+                    st.error(
+                        "🚫 **Permission denied** - Cannot access some files. "
+                        "Check file permissions."
+                    )
+                else:
+                    st.error(f"❌ **Load failed:** {e}")
 
     return FileSelection(
         data_directory=data_dir,

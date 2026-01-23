@@ -50,9 +50,9 @@ def render_time_series(
     with col1:
         time_range = st.selectbox(
             "Time Range",
-            options=["1h", "6h", "24h", "7d", "30d"],
-            index=["1h", "6h", "24h", "7d", "30d"].index(time_range)
-            if time_range in ["1h", "6h", "24h", "7d", "30d"]
+            options=["1h", "6h", "24h", "7d", "30d", "all"],
+            index=["1h", "6h", "24h", "7d", "30d", "all"].index(time_range)
+            if time_range in ["1h", "6h", "24h", "7d", "30d", "all"]
             else 2,
             key=f"{key_prefix}_time_range",
         )
@@ -219,6 +219,6 @@ def render_time_range_selector(
     key: str = "time_range",
 ) -> str:
     """Standalone time range selector widget."""
-    options = ["1h", "6h", "24h", "7d", "30d"]
+    options = ["1h", "6h", "24h", "7d", "30d", "all"]
     idx = options.index(default) if default in options else 2
     return st.selectbox("Time Range", options=options, index=idx, key=key)
