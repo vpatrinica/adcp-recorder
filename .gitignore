@@ -24,7 +24,7 @@ test_output
 test_output/*
 errors
 errors/*
-adcp-data
+.adcp-data 
 adcp-data/* 
 adcp_recorder/tests/tgt.db
 tgt.db

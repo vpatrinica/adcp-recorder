@@ -165,13 +165,15 @@ def _render_save_panel_ui(plot_type: PanelType) -> None:
             st.info("No dashboards available. Create one in Dashboard Editor first.")
             target_dashboard = None
 
+        # Save button
+        if st.button("💾 Save Panel", key="save_panel_btn", disabled=not target_dashboard):
             if target_dashboard and panel_id:
                 try:
                     # Load dashboard and add panel
                     dashboard = DashboardConfig.load(target_dashboard)
 
                     # Reconstruct configuration from session state
-                    saved_config = {}
+                    saved_config: dict = {}
 
                     if plot_type == PanelType.TIME_SERIES:
                         # Reconstruct series config
@@ -202,8 +204,32 @@ def _render_save_panel_ui(plot_type: PanelType) -> None:
                         )
 
                     elif plot_type == PanelType.VELOCITY_PROFILE:
-                        # Add similar reconstruction if needed, or default to current
-                        saved_config = {}  # Velocity profile state capture if needed
+                        prefix = "pb_vp"
+                        saved_config["data_source"] = st.session_state.get(
+                            f"{prefix}_source", "pnorc12"
+                        )
+                        saved_config["time_range"] = st.session_state.get(
+                            f"{prefix}_time_range", "24h"
+                        )
+
+                    elif plot_type == PanelType.SPECTRUM:
+                        prefix = "pb_fourier"
+                        saved_config["coefficient"] = st.session_state.get(f"{prefix}_coeff", "A1")
+                        saved_config["time_range"] = st.session_state.get(
+                            f"{prefix}_time_range", "24h"
+                        )
+
+                    elif plot_type == PanelType.HEATMAP:
+                        prefix = "pb_heatmap"
+                        saved_config["time_range"] = st.session_state.get(
+                            f"{prefix}_time_range", "24h"
+                        )
+
+                    elif plot_type == PanelType.POLAR:
+                        prefix = "pb_polar"
+                        saved_config["time_range"] = st.session_state.get(
+                            f"{prefix}_time_range", "24h"
+                        )
 
                     # Create panel config
                     panel = PanelConfig(
@@ -217,7 +243,9 @@ def _render_save_panel_ui(plot_type: PanelType) -> None:
                     dashboard.add_panel(panel)
                     dashboard.save()
 
-                    st.success(f"Panel added to {target_dashboard}!")
+                    st.success(f"✅ Panel '{panel_title}' added to {target_dashboard}!")
+                except ValueError as e:
+                    st.error(f"Panel ID already exists: {e}")
                 except Exception as e:
                     st.error(f"Failed to save panel: {e}")
             else:

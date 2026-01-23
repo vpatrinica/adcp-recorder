@@ -5,6 +5,9 @@ import streamlit as st
 from adcp_recorder.ui.components.table_view import render_table_view
 from adcp_recorder.ui.data_layer import DataLayer
 
+# Placeholder for missing unit - can be changed later (e.g., to "N/A" or "-")
+MISSING_UNIT_PLACEHOLDER = ""
+
 
 def render_data_explorer(data_layer: DataLayer) -> None:
     """Render the Data Explorer page.
@@ -100,7 +103,11 @@ def render_data_explorer(data_layer: DataLayer) -> None:
                         if stats:
                             with stat_cols[i % 4]:
                                 col_meta = source_meta.get_column(col_name)
-                                unit = col_meta.unit if col_meta else ""
+                                unit = (
+                                    col_meta.unit
+                                    if col_meta and col_meta.unit
+                                    else MISSING_UNIT_PLACEHOLDER
+                                )
                                 st.markdown(f"**{col_name}**")
                                 st.text(f"Min: {stats.get('min', 'N/A'):.2f} {unit}")
                                 st.text(f"Max: {stats.get('max', 'N/A'):.2f} {unit}")

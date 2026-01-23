@@ -3,6 +3,9 @@
     "build": {
         "dockerfile": "Dockerfile"
     },
+    "forwardPorts": [
+        8501
+    ],
     "remoteUser": "vscode",
     "customizations": {
         "antigravity": {
@@ -14,7 +17,7 @@
     },
     "runArgs": [
         "--memory=16g",
-        "--memory-swap=8g"
+        "--memory-swap=24g"
     ]
     //not used so far
     //,"postCreateCommand": "uv venv --clear .venv && source .venv/bin/activate && uv pip install . && uv pip install 'adcp-recorder[analysis]'"

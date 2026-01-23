@@ -53,9 +53,9 @@ def render_fourier_spectrum(
     with col2:
         time_range = st.selectbox(
             "Time Range",
-            options=["1h", "6h", "24h", "7d"],
-            index=["1h", "6h", "24h", "7d"].index(time_range)
-            if time_range in ["1h", "6h", "24h", "7d"]
+            options=["1h", "6h", "24h", "7d", "30d", "all"],
+            index=["1h", "6h", "24h", "7d", "30d", "all"].index(time_range)
+            if time_range in ["1h", "6h", "24h", "7d", "30d", "all"]
             else 2,
             key=f"{key_prefix}_time_range",
         )
@@ -224,9 +224,9 @@ def render_energy_heatmap(
     with col1:
         time_range = st.selectbox(
             "Time Range",
-            options=["1h", "6h", "24h", "7d"],
-            index=["1h", "6h", "24h", "7d"].index(time_range)
-            if time_range in ["1h", "6h", "24h", "7d"]
+            options=["1h", "6h", "24h", "7d", "30d", "all"],
+            index=["1h", "6h", "24h", "7d", "30d", "all"].index(time_range)
+            if time_range in ["1h", "6h", "24h", "7d", "30d", "all"]
             else 2,
             key=f"{key_prefix}_time_range",
         )
@@ -367,9 +367,9 @@ def render_directional_spectrum(
     with col1:
         time_range = st.selectbox(
             "Observation Window",
-            options=["1h", "6h", "24h", "7d", "Custom"],
-            index=["1h", "6h", "24h", "7d", "Custom"].index(time_range)
-            if time_range in ["1h", "6h", "24h", "7d"]
+            options=["1h", "6h", "24h", "7d", "30d", "all", "Custom"],
+            index=["1h", "6h", "24h", "7d", "30d", "all", "Custom"].index(time_range)
+            if time_range in ["1h", "6h", "24h", "7d", "30d", "all", "Custom"]
             else 2,
             key=f"{key_prefix}_time_range",
         )
@@ -625,9 +625,9 @@ def render_amplitude_heatmap(
     # Local time range selector
     time_range = st.selectbox(
         "Observation Window",
-        options=["1h", "6h", "24h", "7d", "30d"],
-        index=["1h", "6h", "24h", "7d", "30d"].index(default_time_range)
-        if default_time_range in ["1h", "6h", "24h", "7d", "30d"]
+        options=["1h", "6h", "24h", "7d", "30d", "all"],
+        index=["1h", "6h", "24h", "7d", "30d", "all"].index(default_time_range)
+        if default_time_range in ["1h", "6h", "24h", "7d", "30d", "all"]
         else 2,
         key=f"{key_prefix}_time_range",
     )
