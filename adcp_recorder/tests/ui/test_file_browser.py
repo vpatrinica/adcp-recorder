@@ -4,39 +4,32 @@ Tests cover directory selector, record type selector, date range picker,
 and file tree rendering functionality.
 """
 
-import importlib.util
-import sys
 from datetime import date, timedelta
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
+# Standard import
+from adcp_recorder.ui.components.file_browser import (
+    FileSelection,
+    get_selection_summary,
+    render_date_range_selector,
+    render_directory_selector,
+    render_file_browser,
+    render_file_tree,
+    render_record_type_selector,
+)
+from adcp_recorder.ui.parquet_data_layer import ParquetDirectory
 
 
-# Import file_browser directly without going through components/__init__.py
-# This avoids numpy import conflicts with coverage instrumentation
-def _import_file_browser():
-    """Import file_browser module directly to avoid __init__.py chain."""
-    spec = importlib.util.spec_from_file_location(
-        "file_browser",
-        Path(__file__).parent.parent.parent / "ui" / "components" / "file_browser.py",
-    )
-    if spec is None or spec.loader is None:
-        raise ImportError("Could not load file_browser module")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["file_browser_direct"] = module
-    spec.loader.exec_module(module)
-    return module
+class MockSessionState(dict):
+    """Mock session state allowing attribute access."""
 
+    def __getattr__(self, key):
+        if key in self:
+            return self[key]
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{key}'")
 
-_fb = _import_file_browser()
-FileSelection = _fb.FileSelection
-get_selection_summary = _fb.get_selection_summary
-render_date_range_selector = _fb.render_date_range_selector
-render_directory_selector = _fb.render_directory_selector
-render_record_type_selector = _fb.render_record_type_selector
-
-from adcp_recorder.ui.parquet_data_layer import ParquetDirectory, ParquetFileInfo  # noqa: E402
+    def __setattr__(self, key, value):
+        self[key] = value
 
 
 class TestFileSelection:
@@ -105,212 +98,255 @@ class TestGetSelectionSummary:
 
 
 class TestRenderDirectorySelector:
-    """Tests for render_directory_selector without Streamlit."""
+    """Tests for render_directory_selector."""
 
-    def test_returns_default_when_no_streamlit(self):
-        """Test that default path is returned when Streamlit is not available."""
-        # The function should return default_path when HAS_STREAMLIT is False
-        # We patch HAS_STREAMLIT to ensure consistent behavior
-        with patch.object(_fb, "HAS_STREAMLIT", False):
-            result = render_directory_selector(default_path="/default/path")
-            assert result == "/default/path"
-
-    def test_returns_empty_default(self):
-        """Test with empty default path."""
-        with patch.object(_fb, "HAS_STREAMLIT", False):
-            result = render_directory_selector()
-            assert result == ""
-
-
-class TestRenderRecordTypeSelector:
-    """Tests for render_record_type_selector without Streamlit."""
-
-    def test_returns_all_types_when_no_streamlit(self):
-        """Test that all types are returned when Streamlit is not available."""
-        with patch.object(_fb, "HAS_STREAMLIT", False):
-            types = ["PNORS", "PNORC", "PNORI"]
-            result = render_record_type_selector(types)
-            assert result == types
-
-    def test_returns_empty_list_for_empty_input(self):
-        """Test with empty types list."""
-        with patch.object(_fb, "HAS_STREAMLIT", False):
-            result = render_record_type_selector([])
-            assert result == []
-
-
-class TestRenderDateRangeSelector:
-    """Tests for render_date_range_selector without Streamlit."""
-
-    def test_returns_date_range_when_no_streamlit(self):
-        """Test that date range is returned when Streamlit is not available."""
-        today = date.today()
-        yesterday = today - timedelta(days=1)
-        dates = [today, yesterday]
-
-        with patch.object(_fb, "HAS_STREAMLIT", False):
-            start, end = render_date_range_selector(dates)
-            assert start == yesterday
-            assert end == today
-
-    def test_returns_none_for_empty_dates(self):
-        """Test with empty dates list."""
-        with patch.object(_fb, "HAS_STREAMLIT", False):
-            start, end = render_date_range_selector([])
-            assert start is None
-            assert end is None
-
-
-class TestFileBrowserIntegration:
-    """Integration tests for file browser components."""
-
-    @pytest.fixture
-    def sample_directory(self):
-        """Create a sample ParquetDirectory for testing."""
-        today = date.today()
-        yesterday = today - timedelta(days=1)
-
-        file1 = ParquetFileInfo(
-            path=Path("/data/PNORS/test1.parquet"),
-            record_type="PNORS",
-            file_date=today,
-            size_bytes=1000,
-            modified_at=today,
-        )
-        file2 = ParquetFileInfo(
-            path=Path("/data/PNORS/test2.parquet"),
-            record_type="PNORS",
-            file_date=yesterday,
-            size_bytes=2000,
-            modified_at=yesterday,
-        )
-        file3 = ParquetFileInfo(
-            path=Path("/data/PNORC/test3.parquet"),
-            record_type="PNORC",
-            file_date=today,
-            size_bytes=1500,
-            modified_at=today,
-        )
-
-        return ParquetDirectory(
-            base_path=Path("/data"),
-            record_types={
-                "PNORS": {today: [file1], yesterday: [file2]},
-                "PNORC": {today: [file3]},
-            },
-        )
-
-    def test_directory_structure(self, sample_directory):
-        """Test directory structure is correct."""
-        assert len(sample_directory.record_types) == 2
-        assert "PNORS" in sample_directory.record_types
-        assert "PNORC" in sample_directory.record_types
-
-    def test_get_all_dates(self, sample_directory):
-        """Test getting all dates."""
-        dates = sample_directory.get_all_dates()
-        assert len(dates) == 2
-
-    def test_get_files_for_selection(self, sample_directory):
-        """Test getting files for selection."""
-        files = sample_directory.get_files_for_selection(record_types=["PNORS"])
-        assert len(files) == 2
-
-        files = sample_directory.get_files_for_selection(record_types=["PNORC"])
-        assert len(files) == 1
-
-
-class TestFileBrowserMockedStreamlit:
-    """Tests for file browser with mocked Streamlit."""
-
-    def test_render_directory_selector_with_mock_st(self):
-        """Test directory selector with mocked Streamlit."""
-        mock_st = MagicMock()
-        mock_st.text_input.return_value = "/user/selected/path"
+    @patch("adcp_recorder.ui.components.file_browser.st")
+    def test_render_directory_selector_basic(self, mock_st):
+        """Test basic rendering."""
+        mock_st.text_input.return_value = "/path/to/data"
         mock_st.button.return_value = False
         mock_st.columns.return_value = [MagicMock(), MagicMock()]
 
-        with (
-            patch.object(_fb, "HAS_STREAMLIT", True),
-            patch.object(_fb, "st", mock_st),
-        ):
-            result = render_directory_selector(default_path="/default")
+        result = render_directory_selector(default_path="/default")
 
-            assert result == "/user/selected/path"
-            mock_st.subheader.assert_called_once()
+        assert result == "/path/to/data"
+        mock_st.text_input.assert_called_with(
+            "Parquet data directory",
+            value="/default",
+            key="data_dir_input",
+            help="Path to directory containing Parquet files",
+        )
 
-    def test_render_record_type_selector_with_mock_st(self):
-        """Test record type selector with mocked Streamlit."""
-        mock_st = MagicMock()
-        mock_st.checkbox.return_value = True  # Select all checked
-
-        with (
-            patch.object(_fb, "HAS_STREAMLIT", True),
-            patch.object(_fb, "st", mock_st),
-        ):
-            types = ["PNORS", "PNORC"]
-            result = render_record_type_selector(types)
-
-            # When select_all is True, should return all types
-            assert result == types
-
-    def test_render_record_type_selector_select_subset(self):
-        """Test record type selector with subset selection."""
-        mock_st = MagicMock()
-        mock_st.checkbox.return_value = False  # Select all not checked
-        mock_st.multiselect.return_value = ["PNORS"]
-
-        with (
-            patch.object(_fb, "HAS_STREAMLIT", True),
-            patch.object(_fb, "st", mock_st),
-        ):
-            types = ["PNORS", "PNORC"]
-            result = render_record_type_selector(types)
-
-            assert result == ["PNORS"]
-
-    def test_render_date_range_selector_with_mock_st(self):
-        """Test date range selector with mocked Streamlit."""
-        today = date.today()
-        yesterday = today - timedelta(days=1)
-
-        mock_st = MagicMock()
+    @patch("adcp_recorder.ui.components.file_browser.st")
+    def test_render_directory_selector_refresh(self, mock_st):
+        """Test refresh button interaction."""
+        mock_st.text_input.return_value = "/path"
+        mock_st.button.return_value = True
         mock_st.columns.return_value = [MagicMock(), MagicMock()]
-        mock_st.date_input.side_effect = [yesterday, today]
 
-        with (
-            patch.object(_fb, "HAS_STREAMLIT", True),
-            patch.object(_fb, "st", mock_st),
-        ):
-            dates = [today, yesterday]
-            start, end = render_date_range_selector(dates)
+        # Mock session state
+        mock_st.session_state = MockSessionState({"parquet_data_layer": MagicMock()})
 
-            assert start == yesterday
-            assert end == today
+        render_directory_selector()
 
-    def test_render_record_type_selector_empty_with_mock_st(self):
-        """Test record type selector with empty list."""
-        mock_st = MagicMock()
+        mock_st.session_state["parquet_data_layer"].refresh.assert_called_once()
 
-        with (
-            patch.object(_fb, "HAS_STREAMLIT", True),
-            patch.object(_fb, "st", mock_st),
-        ):
-            result = render_record_type_selector([])
+    def test_no_streamlit(self):
+        """Test fallback when streamlit is not present."""
+        with patch("adcp_recorder.ui.components.file_browser.HAS_STREAMLIT", False):
+            assert render_directory_selector(default_path="/abc") == "/abc"
 
-            assert result == []
-            mock_st.info.assert_called_once()
 
-    def test_render_date_range_empty_with_mock_st(self):
-        """Test date range selector with empty dates."""
-        mock_st = MagicMock()
+class TestRenderRecordTypeSelector:
+    """Tests for render_record_type_selector."""
 
-        with (
-            patch.object(_fb, "HAS_STREAMLIT", True),
-            patch.object(_fb, "st", mock_st),
-        ):
-            start, end = render_date_range_selector([])
+    @patch("adcp_recorder.ui.components.file_browser.st")
+    def test_render_basic(self, mock_st):
+        """Test basic rendering with subset selection."""
+        mock_st.checkbox.return_value = False
+        mock_st.multiselect.return_value = ["A"]
 
-            assert start is None
-            assert end is None
-            mock_st.info.assert_called_once()
+        result = render_record_type_selector(["A", "B"])
+        assert result == ["A"]
+
+    @patch("adcp_recorder.ui.components.file_browser.st")
+    def test_select_all(self, mock_st):
+        """Test select all checkbox."""
+        mock_st.checkbox.return_value = True
+
+        result = render_record_type_selector(["A", "B"])
+        assert result == ["A", "B"]
+        mock_st.multiselect.assert_not_called()
+
+    @patch("adcp_recorder.ui.components.file_browser.st")
+    def test_empty_types(self, mock_st):
+        """Test with empty available types."""
+        result = render_record_type_selector([])
+        assert result == []
+        mock_st.info.assert_called_with("No record types available. Check the data directory.")
+
+    def test_no_streamlit(self):
+        """Test no streamlit fallback."""
+        with patch("adcp_recorder.ui.components.file_browser.HAS_STREAMLIT", False):
+            assert render_record_type_selector(["A"]) == ["A"]
+
+
+class TestRenderDateRangeSelector:
+    """Tests for render_date_range_selector."""
+
+    @patch("adcp_recorder.ui.components.file_browser.st")
+    def test_render_basic(self, mock_st):
+        """Test basic rendering."""
+        d1 = date(2026, 1, 1)
+        d2 = date(2026, 1, 2)
+        mock_st.columns.return_value = [MagicMock(), MagicMock()]
+        mock_st.date_input.side_effect = [d1, d2]
+
+        start, end = render_date_range_selector([d1, d2])
+        assert start == d1
+        assert end == d2
+
+    @patch("adcp_recorder.ui.components.file_browser.st")
+    def test_empty_dates(self, mock_st):
+        """Test with empty dates."""
+        start, end = render_date_range_selector([])
+        assert start is None
+        assert end is None
+        mock_st.info.assert_called_with("No dates available.")
+
+    def test_no_streamlit(self):
+        """Test no streamlit fallback."""
+        d1 = date(2026, 1, 1)
+        with patch("adcp_recorder.ui.components.file_browser.HAS_STREAMLIT", False):
+            assert render_date_range_selector([d1]) == (d1, d1)
+            assert render_date_range_selector([]) == (None, None)
+
+
+class TestRenderFileTree:
+    """Tests for render_file_tree."""
+
+    @patch("adcp_recorder.ui.components.file_browser.st")
+    def test_render_tree(self, mock_st):
+        """Test file tree rendering."""
+        mock_st.expander.return_value.__enter__.return_value = MagicMock()
+        mock_st.multiselect.return_value = [date(2026, 1, 1)]
+
+        structure = MagicMock(spec=ParquetDirectory)
+        structure.record_types = {"PNORS": {date(2026, 1, 1): ["file1"]}}
+
+        result = render_file_tree(structure)
+        assert result == {"PNORS": [date(2026, 1, 1)]}
+        mock_st.expander.assert_called()
+
+    @patch("adcp_recorder.ui.components.file_browser.st")
+    def test_empty_structure(self, mock_st):
+        """Test empty structure."""
+        structure = MagicMock(spec=ParquetDirectory)
+        structure.record_types = {}
+
+        result = render_file_tree(structure)
+        assert result == {}
+        mock_st.info.assert_called()
+
+    def test_no_streamlit(self):
+        """Test no streamlit fallback."""
+        with patch("adcp_recorder.ui.components.file_browser.HAS_STREAMLIT", False):
+            assert render_file_tree(MagicMock()) == {}
+
+
+class TestRenderFileBrowser:
+    """Tests for complete file browser."""
+
+    @patch("adcp_recorder.ui.components.file_browser.st")
+    @patch("adcp_recorder.ui.components.file_browser.render_directory_selector")
+    def test_render_browser_no_dir(self, mock_dir_sel, mock_st):
+        """Test when no directory is selected."""
+        mock_dir_sel.return_value = ""
+        mock_st.session_state = MockSessionState()
+
+        result = render_file_browser(MagicMock())
+        assert result is None
+        mock_st.warning.assert_called()
+
+    @patch("adcp_recorder.ui.components.file_browser.st")
+    @patch("adcp_recorder.ui.components.file_browser.render_directory_selector")
+    def test_render_browser_no_files(self, mock_dir_sel, mock_st):
+        """Test when directory has no files."""
+        mock_dir_sel.return_value = "/data"
+        mock_st.session_state = MockSessionState()
+
+        layer = MagicMock()
+        layer.get_file_structure.return_value = None
+
+        result = render_file_browser(layer)
+        assert result is None
+        mock_st.error.assert_called()
+
+    @patch("adcp_recorder.ui.components.file_browser.st")
+    @patch("adcp_recorder.ui.components.file_browser.render_directory_selector")
+    @patch("adcp_recorder.ui.components.file_browser.render_record_type_selector")
+    @patch("adcp_recorder.ui.components.file_browser.render_date_range_selector")
+    def test_render_browser_load_success(self, mock_dates, mock_types, mock_dir, mock_st):
+        """Test successful loading flow."""
+        mock_dir.return_value = "/data"
+        mock_types.return_value = ["PNORS"]
+        mock_dates.return_value = (None, None)
+
+        mock_st.session_state = MockSessionState()
+        mock_st.button.return_value = True  # Load clicked
+
+        layer = MagicMock()
+        structure = MagicMock()
+        structure.record_types = {"PNORS": {}}
+        structure.get_all_dates.return_value = []
+        layer.get_file_structure.return_value = structure
+        layer.load_data.return_value = {"PNORS": 100}
+
+        result = render_file_browser(layer)
+
+        assert isinstance(result, FileSelection)
+        mock_st.success.assert_called()
+        layer.load_data.assert_called_with(record_types=["PNORS"], start_date=None, end_date=None)
+
+    @patch("adcp_recorder.ui.components.file_browser.st")
+    @patch("adcp_recorder.ui.components.file_browser.render_directory_selector")
+    @patch("adcp_recorder.ui.components.file_browser.render_record_type_selector")
+    @patch("adcp_recorder.ui.components.file_browser.render_date_range_selector")
+    def test_render_browser_load_empty(self, mock_dates, mock_types, mock_dir, mock_st):
+        """Test load yielding no results."""
+        mock_dir.return_value = "/data"
+        mock_types.return_value = ["PNORS"]
+        mock_dates.return_value = (None, None)
+
+        mock_st.session_state = MockSessionState()
+        mock_st.button.return_value = True
+
+        layer = MagicMock()
+        structure = MagicMock()
+        structure.record_types = {"PNORS": {}}
+        structure.get_all_dates.return_value = []
+        layer.get_file_structure.return_value = structure
+        layer.load_data.return_value = {}  # Empty result
+
+        render_file_browser(layer)
+
+        mock_st.warning.assert_called_with("No data loaded. Check your selection.")
+
+    @patch("adcp_recorder.ui.components.file_browser.st")
+    @patch("adcp_recorder.ui.components.file_browser.render_directory_selector")
+    @patch("adcp_recorder.ui.components.file_browser.render_record_type_selector")
+    @patch("adcp_recorder.ui.components.file_browser.render_date_range_selector")
+    def test_render_browser_load_errors(self, mock_dates, mock_types, mock_dir, mock_st):
+        """Test various load error scenarios."""
+        mock_dir.return_value = "/data"
+        mock_types.return_value = ["PNORS"]
+        mock_dates.return_value = (None, None)
+        mock_st.session_state = MockSessionState()
+        mock_st.button.return_value = True
+
+        layer = MagicMock()
+        structure = MagicMock()
+        structure.record_types = {"PNORS": {}}
+        structure.get_all_dates.return_value = []
+        layer.get_file_structure.return_value = structure
+
+        # Test generic error
+        layer.load_data.side_effect = Exception("Generic Error")
+        render_file_browser(layer)
+        mock_st.error.assert_called()
+        assert "Load failed" in mock_st.error.call_args[0][0]
+
+        # Test lock error
+        layer.load_data.side_effect = Exception("Database is locked")
+        render_file_browser(layer)
+        assert "File is locked" in mock_st.error.call_args[0][0]
+
+        # Test permission error
+        layer.load_data.side_effect = Exception("Permission denied")
+        render_file_browser(layer)
+        assert "Permission denied" in mock_st.error.call_args[0][0]
+
+    def test_no_streamlit(self):
+        """Test no streamlit fallback for main browser."""
+        with patch("adcp_recorder.ui.components.file_browser.HAS_STREAMLIT", False):
+            assert render_file_browser(MagicMock()) is None

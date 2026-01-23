@@ -47,8 +47,8 @@ class TestDataLayerCompleteCoverage:
 
     def test_query_data_missing_and_invalid(self, data_layer, real_conn):
         """Line 252, 257-261, 272-274, 281-282."""
-        with pytest.raises(ValueError, match="Unknown data source"):
-            data_layer.query_data("nonexistent")
+        # Line 252 failure fallback
+        assert data_layer.query_data("nonexistent") == []
 
         now = datetime.now()
         real_conn.execute(
@@ -69,16 +69,19 @@ class TestDataLayerCompleteCoverage:
 
     def test_query_time_series_missing_and_invalid(self, data_layer):
         """Line 310, 323."""
-        with pytest.raises(ValueError, match="Unknown data source"):
-            data_layer.query_time_series("nonexistent", ["col"])
+        # Line 310 failure fallback
+        assert data_layer.query_time_series("nonexistent", ["col"]) == {
+            "x": [],
+            "series": {"col": []},
+        }
 
         res = data_layer.query_time_series("pnors_df100", ["missing"])
         assert res["x"] == []
 
     def test_query_velocity_profile_missing_and_timestamp(self, data_layer, real_conn):
         """Line 364, 379-380, 429."""
-        with pytest.raises(ValueError, match="Unknown data source"):
-            data_layer.query_velocity_profile("nonexistent")
+        # Line 364 failure fallback
+        assert data_layer.query_velocity_profile("nonexistent") == {"depths": [], "velocities": {}}
 
         now = datetime(2023, 1, 1, 12, 0, 0)
         real_conn.execute(
@@ -131,8 +134,8 @@ class TestDataLayerCompleteCoverage:
 
     def test_column_stats_errors(self, data_layer):
         """Line 699, 703."""
-        with pytest.raises(ValueError, match="Unknown data source"):
-            data_layer.get_column_stats("nonexistent", "col")
+        # Line 699 failure fallback
+        assert data_layer.get_column_stats("nonexistent", "col") == {}
 
         res = data_layer.get_column_stats("pnors_df100", "original_sentence")
         assert res == {}
@@ -242,3 +245,71 @@ class TestDataLayerCompleteCoverage:
         )
         res = data_layer.aggregate_time_series("pnors_df100", "temperature", aggregation="UNKNOWN")
         assert len(res["y"]) == 1
+
+
+class TestDataLayerCoverageFinalConsistently:
+    """Extra tests to achieve 100% coverage."""
+
+    @patch("duckdb.DuckDBPyConnection.execute")
+    def test_execute_sql_exception(self, mock_execute, data_layer):
+        """Line 292-293: execute_sql exception."""
+        mock_execute.side_effect = Exception("SQL Error")
+        assert data_layer.execute_sql("SELECT *") == []
+
+    @patch("duckdb.DuckDBPyConnection.execute")
+    def test_query_time_series_exception(self, mock_execute, data_layer):
+        """Line 406-407: query_time_series execution exception."""
+        source_name = "test_source"
+        cols = [
+            ColumnMetadata("ts", ColumnType.TIMESTAMP),
+            ColumnMetadata("col1", ColumnType.NUMERIC),
+            ColumnMetadata("col2", ColumnType.NUMERIC),
+        ]
+        with patch.object(data_layer, "get_source_metadata") as mock_meta:
+            mock_meta.return_value = DataSource(source_name, "Test", cols, timestamp_column="ts")
+            mock_execute.side_effect = Exception("Query Error")
+            res = data_layer.query_time_series(source_name, ["col1", "col2"])
+            assert res == {"x": [], "series": {"col1": [], "col2": []}}
+
+    @patch("duckdb.DuckDBPyConnection.execute")
+    def test_query_spectrum_data_exception(self, mock_execute, data_layer):
+        """Line 572-573: query_spectrum_data exception."""
+        source_name = "test_source"
+        with patch.object(data_layer, "get_source_metadata") as mock_meta:
+            mock_meta.return_value = DataSource(source_name, "Test", [])
+            mock_execute.side_effect = Exception("Spectrum Error")
+            assert data_layer.query_spectrum_data(source_name) == []
+
+    @patch("duckdb.DuckDBPyConnection.execute")
+    def test_get_available_bursts_exception(self, mock_execute, data_layer):
+        """Line 633-634: get_available_bursts exception."""
+        source_name = "test_source"
+        with patch.object(data_layer, "get_source_metadata") as mock_meta:
+            mock_meta.return_value = DataSource(source_name, "Test", [])
+            mock_execute.side_effect = Exception("Burst Error")
+            assert data_layer.get_available_bursts(source_name=source_name) == []
+
+    @patch("duckdb.DuckDBPyConnection.execute")
+    def test_query_wave_energy_exception(self, mock_execute, data_layer):
+        """Line 667-668: query_wave_energy exception."""
+        source_name = "test_source"
+        with patch.object(data_layer, "get_source_metadata") as mock_meta:
+            mock_meta.return_value = DataSource(source_name, "Test", [])
+            mock_execute.side_effect = Exception("Energy Error")
+            assert data_layer.query_wave_energy(source_name) == []
+
+    @patch("duckdb.DuckDBPyConnection.execute")
+    def test_query_velocity_profile_latest_success(self, mock_execute, data_layer):
+        """Line 436: successful latest measurement lookup."""
+        source_name = "test_source"
+        with patch.object(data_layer, "get_source_metadata") as mock_meta:
+            mock_meta.return_value = DataSource(source_name, "Test", [])
+            mock_execute.return_value.fetchone.side_effect = [
+                ("010126", "120000"),  # latest
+                [],  # cells query result
+            ]
+            res = data_layer.query_velocity_profile(source_name)
+            assert res == {
+                "depths": [],
+                "velocities": {"vel1": [], "vel2": [], "vel3": [], "vel4": []},
+            }

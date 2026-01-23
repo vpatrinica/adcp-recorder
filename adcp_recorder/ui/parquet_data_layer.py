@@ -14,12 +14,13 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import duckdb
 
 if TYPE_CHECKING:
     from adcp_recorder.ui.data_layer import ColumnType, DataSource
+from adcp_recorder.ui.data_layer import DataLayer
 
 logger = logging.getLogger(__name__)
 
@@ -306,19 +307,19 @@ class ParquetFileDiscovery:
         result = ParquetDirectory(base_path=self.base_path, last_scan=now)
         self._writing_files = []
 
-        # Look for parquet subdirectory
-        parquet_dir = self.base_path / "parquet"
-        if not parquet_dir.exists():
-            # Try base_path directly
-            parquet_dir = self.base_path
-
-        if not parquet_dir.exists():
-            logger.warning(f"Parquet directory does not exist: {parquet_dir}")
-            self._cache = result
-            return result
-
-        # Scan record type directories
         try:
+            # Look for parquet subdirectory
+            parquet_dir = self.base_path / "parquet"
+            if not parquet_dir.exists():
+                # Try base_path directly
+                parquet_dir = self.base_path
+
+            if not parquet_dir.exists():
+                logger.warning(f"Parquet directory does not exist: {parquet_dir}")
+                self._cache = result
+                return result
+
+            # Scan record type directories
             for record_type_dir in parquet_dir.iterdir():
                 if not record_type_dir.is_dir():
                     continue
@@ -410,7 +411,7 @@ class ParquetFileDiscovery:
         self._cache = None
 
 
-class ParquetDataLayer:
+class ParquetDataLayer(DataLayer):
     """Data access layer for querying Parquet files via in-memory DuckDB.
 
     Provides the same query interface as DataLayer but reads from Parquet
@@ -439,6 +440,9 @@ class ParquetDataLayer:
 
         if base_path:
             self.set_data_directory(base_path)
+
+        # Initialize parent with our memory connection
+        super().__init__(self._conn)
 
     def set_data_directory(self, base_path: str | Path) -> None:
         """Set or change the data directory.
@@ -713,259 +717,6 @@ class ParquetDataLayer:
         parts = name.replace("_", " ").split()
         return " ".join(p.upper() if len(p) <= 2 else p.title() for p in parts)
 
-    def get_column_stats(self, source_name: str, column: str) -> dict[str, Any]:
-        """Get statistics for a numeric column.
-
-        Args:
-            source_name: Name of the data source
-            column: Column to get stats for
-
-        Returns:
-            Dict with min, max, avg, count
-
-        """
-        from adcp_recorder.ui.data_layer import ColumnType
-
-        source = self.get_source_metadata(source_name)
-        if not source:
-            return {}
-
-        col_meta = source.get_column(column)
-        if not col_meta or col_meta.column_type != ColumnType.NUMERIC:
-            return {}
-
-        try:
-            query = f"""
-                SELECT
-                    MIN({column}) as min_val,
-                    MAX({column}) as max_val,
-                    AVG({column}) as avg_val,
-                    COUNT({column}) as count
-                FROM {source.name}
-                WHERE {column} IS NOT NULL
-            """
-            result = self._conn.execute(query).fetchone()
-            if result:
-                return {
-                    "min": result[0],
-                    "max": result[1],
-                    "avg": result[2],
-                    "count": result[3],
-                }
-        except Exception:
-            pass
-        return {}
-
-    def query_data(
-        self,
-        source_name: str,
-        columns: list[str] | None = None,
-        filters: dict[str, Any] | None = None,
-        start_time: datetime | None = None,
-        end_time: datetime | None = None,
-        limit: int = 100,
-        order_desc: bool = True,
-    ) -> list[dict[str, Any]]:
-        """Query data from a source with optional filters.
-
-        Args:
-            source_name: Name of the data source
-            columns: Columns to select (None = all)
-            filters: Column filters as {column: value}
-            start_time: Start time filter
-            end_time: End time filter
-            limit: Maximum rows to return
-            order_desc: If True, order descending
-
-        Returns:
-            List of row dictionaries
-
-        """
-        source = self.get_source_metadata(source_name)
-        if not source:
-            raise ValueError(f"Unknown data source: {source_name}")
-
-        # Build column list
-        if columns:
-            valid_cols = {c.name for c in source.columns}
-            cols = [c for c in columns if c in valid_cols]
-            if not cols:
-                cols = ["*"]
-            col_str = ", ".join(cols)
-        else:
-            col_str = "*"
-
-        # Build query - use source.name which is the resolved view name
-        query = f"SELECT {col_str} FROM {source.name}"
-        params: list[Any] = []
-
-        # Add filters
-        conditions = []
-        if filters:
-            for col, value in filters.items():
-                conditions.append(f"{col} = ?")
-                params.append(value)
-
-        # Add time filters
-        if start_time and source.has_timestamp:
-            conditions.append(f"{source.timestamp_column} >= ?")
-            params.append(start_time)
-        if end_time and source.has_timestamp:
-            conditions.append(f"{source.timestamp_column} <= ?")
-            params.append(end_time)
-
-        if conditions:
-            query += " WHERE " + " AND ".join(conditions)
-
-        # Add ordering
-        order_by_col = source.timestamp_column if source.has_timestamp else None
-        if order_by_col:
-            query += f" ORDER BY {order_by_col} {'DESC' if order_desc else 'ASC'}"
-
-        query += f" LIMIT {limit}"
-
-        result = self._conn.execute(query, params).fetchall()
-        col_names = [d[0] for d in self._conn.description]
-        return [dict(zip(col_names, row, strict=False)) for row in result]
-
-    def _parse_time_range(self, time_range: str) -> datetime | None:
-        """Parse time range string to start datetime."""
-        now = datetime.now()
-        parse_map = {
-            "1h": timedelta(hours=1),
-            "6h": timedelta(hours=6),
-            "24h": timedelta(hours=24),
-            "7d": timedelta(days=7),
-            "30d": timedelta(days=30),
-        }
-        if time_range in parse_map:
-            return now - parse_map[time_range]
-        return None
-
-    def query(
-        self,
-        view_name: str,
-        columns: list[str] | None = None,
-        limit: int = 100,
-        order_by: str | None = None,
-        order_desc: bool = True,
-    ) -> list[dict[str, Any]]:
-        """Query data from a loaded view.
-
-        Args:
-            view_name: Name of the view to query
-            columns: Columns to select (None = all)
-            limit: Maximum rows to return
-            order_by: Column to order by (None = no ordering)
-            order_desc: If True, order descending
-
-        Returns:
-            List of row dictionaries
-
-        """
-        if view_name not in self._loaded_views:
-            raise ValueError(f"View not loaded: {view_name}")
-
-        col_str = ", ".join(columns) if columns else "*"
-        query = f"SELECT {col_str} FROM {view_name}"
-
-        if order_by:
-            direction = "DESC" if order_desc else "ASC"
-            query += f" ORDER BY {order_by} {direction}"
-
-        query += f" LIMIT {limit}"
-
-        result = self._conn.execute(query).fetchall()
-        col_names = [d[0] for d in self._conn.description]
-        return [dict(zip(col_names, row, strict=False)) for row in result]
-
-    def query_time_series(
-        self,
-        view_name: str | None = None,
-        x_column: str = "received_at",
-        y_columns: list[str] | None = None,
-        limit: int = 10000,
-        source_name: str | None = None,
-        time_range: str = "24h",
-    ) -> dict[str, Any]:
-        """Query time series data for plotting.
-
-        Args:
-            view_name: View to query (deprecated, use source_name)
-            x_column: Column for X axis (typically timestamp)
-            y_columns: Columns for Y axis values
-            limit: Maximum records
-            source_name: Data source name (supports DuckDB names)
-            time_range: Time range filter
-
-        Returns:
-            Dict with 'x' and 'series' keys for plotting
-
-        """
-        # Handle both view_name and source_name for compatibility
-        actual_view = source_name or view_name
-        if not actual_view:
-            return {"x": [], "series": {}}
-
-        # Resolve source name
-        resolved = self.resolve_source_name(actual_view)
-        if not resolved:
-            raise ValueError(f"View not loaded: {actual_view}")
-
-        if not y_columns:
-            return {"x": [], "series": {}}
-
-        all_cols = [x_column] + y_columns
-        col_str = ", ".join(all_cols)
-
-        query = f"SELECT {col_str} FROM {resolved} ORDER BY {x_column} ASC LIMIT {limit}"
-
-        try:
-            result = self._conn.execute(query).fetchall()
-
-            x_values = [row[0] for row in result]
-            series_data: dict[str, list] = {col: [] for col in y_columns}
-
-            for row in result:
-                for i, col in enumerate(y_columns):
-                    series_data[col].append(row[i + 1])
-
-            return {"x": x_values, "series": series_data}
-        except Exception:
-            return {"x": [], "series": {}}
-
-    def get_column_info(self, view_name: str) -> list[tuple[str, str]]:
-        """Get column names and types for a view.
-
-        Args:
-            view_name: View to inspect
-
-        Returns:
-            List of (column_name, column_type) tuples
-
-        """
-        if view_name not in self._loaded_views:
-            raise ValueError(f"View not loaded: {view_name}")
-
-        result = self._conn.execute(f"DESCRIBE {view_name}").fetchall()
-        return [(row[0], row[1]) for row in result]
-
-    def execute_sql(self, sql: str) -> list[dict[str, Any]]:
-        """Execute arbitrary SQL query.
-
-        Args:
-            sql: SQL query string
-
-        Returns:
-            List of row dictionaries
-
-        """
-        result = self._conn.execute(sql).fetchall()
-        if not self._conn.description:
-            return []
-        col_names = [d[0] for d in self._conn.description]
-        return [dict(zip(col_names, row, strict=False)) for row in result]
-
     def refresh(self) -> None:
         """Refresh file discovery cache."""
         if self._discovery:
@@ -1003,286 +754,6 @@ class ParquetDataLayer:
         if not self._discovery:
             return []
         return self._discovery.get_writing_files()
-
-    def get_available_bursts(
-        self,
-        time_range: str = "24h",
-        source_name: str = "pnore_data",
-        start_time: datetime | None = None,
-        end_time: datetime | None = None,
-    ) -> list[dict[str, Any]]:
-        """Get available measurement bursts for wave data.
-
-        Args:
-            time_range: Time range to search within
-            source_name: Data source (supports DuckDB names like pnore_data)
-            start_time: Explicit start time filter
-            end_time: Explicit end time filter
-
-        Returns:
-            List of dicts with measurement_date, measurement_time, received_at
-        """
-        # Resolve source name for parquet
-        resolved = self.resolve_source_name(source_name)
-        if not resolved:
-            return []
-
-        if not start_time:
-            start_time = self._parse_time_range(time_range)
-
-        query = f"""
-            SELECT DISTINCT measurement_date, measurement_time, received_at
-            FROM {resolved}
-        """
-        params: list[Any] = []
-        conditions = []
-
-        if start_time:
-            conditions.append("received_at >= ?")
-            params.append(start_time)
-
-        if end_time:
-            conditions.append("received_at <= ?")
-            params.append(end_time)
-
-        if conditions:
-            query += " WHERE " + " AND ".join(conditions)
-
-        query += " ORDER BY received_at DESC LIMIT 1000"
-
-        try:
-            result = self._conn.execute(query, params).fetchall()
-            return [
-                {
-                    "measurement_date": r[0],
-                    "measurement_time": r[1],
-                    "received_at": r[2],
-                    "label": f"{r[0]} {r[1]}",
-                }
-                for r in result
-            ]
-        except Exception:
-            return []
-
-    def query_wave_energy(
-        self,
-        source_name: str,
-        time_range: str = "24h",
-    ) -> list[dict[str, Any]]:
-        """Query wave energy density spectrum data for heatmaps."""
-        resolved = self.resolve_source_name(source_name)
-        if not resolved:
-            return []
-
-        start_time = self._parse_time_range(time_range)
-
-        query = f"""
-            SELECT
-                received_at,
-                start_frequency, step_frequency, num_frequencies,
-                energy_densities
-            FROM {resolved}
-        """
-        params: list[Any] = []
-
-        if start_time:
-            query += " WHERE received_at >= ?"
-            params.append(start_time)
-
-        query += " ORDER BY received_at DESC LIMIT 500"
-
-        try:
-            result = self._conn.execute(query, params).fetchall()
-            col_names = [d[0] for d in self._conn.description]
-            return [dict(zip(col_names, row, strict=False)) for row in result]
-        except Exception:
-            return []
-
-    def query_amplitude_heatmap(
-        self,
-        source_name: str,
-        time_range: str = "24h",
-    ) -> list[dict[str, Any]]:
-        """Query average signal strength (amplitude) for heatmaps."""
-        resolved = self.resolve_source_name(source_name)
-        if not resolved:
-            return []
-
-        start_time = self._parse_time_range(time_range)
-
-        query = f"""
-            SELECT
-                received_at,
-                cell_index,
-                (COALESCE(amp1, 0) + COALESCE(amp2, 0) +
-                 COALESCE(amp3, 0) + COALESCE(amp4, 0)) / 4.0 as avg_amp
-            FROM {resolved}
-        """
-        params: list[Any] = []
-        if start_time:
-            query += " WHERE received_at >= ?"
-            params.append(start_time)
-
-        query += " ORDER BY received_at DESC, cell_index ASC LIMIT 20000"
-
-        try:
-            result = self._conn.execute(query, params).fetchall()
-
-            from collections import defaultdict
-
-            grouped: dict[Any, list] = defaultdict(list)
-            for ts, _idx, amp in result:
-                grouped[ts].append(amp)
-
-            heatmap_data = []
-            for ts, amps in grouped.items():
-                heatmap_data.append({"received_at": ts, "amplitudes": amps})
-
-            return sorted(heatmap_data, key=lambda x: x["received_at"], reverse=True)
-        except Exception:
-            return []
-
-    def query_spectrum_data(
-        self,
-        source_name: str,
-        coefficient: str = "A1",
-        time_range: str = "24h",
-    ) -> list[dict[str, Any]]:
-        """Query Fourier coefficient spectrum data."""
-        resolved = self.resolve_source_name(source_name)
-        if not resolved:
-            return []
-
-        start_time = self._parse_time_range(time_range)
-
-        query = f"""
-            SELECT
-                measurement_date, measurement_time,
-                start_frequency, step_frequency, num_frequencies,
-                coefficient_flag, coefficients
-            FROM {resolved}
-            WHERE coefficient_flag = ?
-        """
-        params: list[Any] = [coefficient]
-
-        if start_time:
-            query += " AND received_at >= ?"
-            params.append(start_time)
-
-        query += " ORDER BY received_at DESC LIMIT 100"
-
-        try:
-            result = self._conn.execute(query, params).fetchall()
-            col_names = [d[0] for d in self._conn.description]
-            return [dict(zip(col_names, row, strict=False)) for row in result]
-        except Exception:
-            return []
-
-    def query_directional_spectrum(
-        self,
-        time_range: str = "24h",
-        timestamp: datetime | None = None,
-    ) -> dict[str, Any]:
-        """Query unified directional spectrum data.
-
-        Args:
-            time_range: Time range to search within
-            timestamp: Specific measurement timestamp
-
-        Returns:
-            Dictionary with frequencies, energy, directions, spreads
-        """
-        import json
-
-        # Resolve source names
-        pnore = self.resolve_source_name("pnore_data")
-        pnorwd = self.resolve_source_name("pnorwd_data")
-
-        if not pnore or not pnorwd:
-            return {}
-
-        try:
-            if timestamp:
-                query = f"""
-                    SELECT
-                        start_frequency, step_frequency, num_frequencies, energy_densities,
-                        received_at, measurement_date, measurement_time
-                    FROM {pnore}
-                    WHERE received_at = ?
-                """
-                energy_data = self._conn.execute(query, [timestamp]).fetchone()
-                if energy_data:
-                    start_f, step_f, num_f, energy_json, ts, date_str, time_str = energy_data
-                    energy = json.loads(energy_json)
-                else:
-                    return {}
-            else:
-                # Find latest measurement with all components
-                latest_query = f"""
-                    SELECT DISTINCT e.measurement_date, e.measurement_time, e.received_at
-                    FROM {pnore} e
-                    JOIN {pnorwd} md ON e.measurement_date = md.measurement_date
-                        AND e.measurement_time = md.measurement_time AND md.direction_type = 'MD'
-                    JOIN {pnorwd} ds ON e.measurement_date = ds.measurement_date
-                        AND e.measurement_time = ds.measurement_time AND ds.direction_type = 'DS'
-                    ORDER BY e.received_at DESC
-                    LIMIT 1
-                """
-                latest = self._conn.execute(latest_query).fetchone()
-                if not latest:
-                    return {}
-
-                date_str, time_str, ts = latest
-
-                energy_data = self._conn.execute(
-                    f"""
-                    SELECT start_frequency, step_frequency, num_frequencies,
-                           energy_densities, received_at
-                    FROM {pnore}
-                    WHERE measurement_date = ? AND measurement_time = ?
-                    """,
-                    [date_str, time_str],
-                ).fetchone()
-
-                if not energy_data:
-                    return {}
-
-                start_f, step_f, num_f, energy_json, ts = energy_data
-                energy = json.loads(energy_json)
-
-            # Mean Direction
-            md_data = self._conn.execute(
-                f"""
-                SELECT values FROM {pnorwd}
-                WHERE measurement_date = ? AND measurement_time = ? AND direction_type = 'MD'
-                """,
-                [date_str, time_str],
-            ).fetchone()
-            directions = json.loads(md_data[0]) if md_data else [0.0] * num_f
-
-            # Directional Spread
-            ds_data = self._conn.execute(
-                f"""
-                SELECT values FROM {pnorwd}
-                WHERE measurement_date = ? AND measurement_time = ? AND direction_type = 'DS'
-                """,
-                [date_str, time_str],
-            ).fetchone()
-            spreads = json.loads(ds_data[0]) if ds_data else [0.0] * num_f
-
-            frequencies = [round(float(start_f + i * step_f), 4) for i in range(num_f)]
-
-            return {
-                "timestamp": ts,
-                "measurement_date": date_str,
-                "measurement_time": time_str,
-                "frequencies": frequencies,
-                "energy": energy,
-                "directions": directions,
-                "spreads": spreads,
-            }
-        except Exception:
-            return {}
 
     def close(self) -> None:
         """Close the DuckDB connection."""

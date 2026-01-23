@@ -237,6 +237,61 @@ class DataLayer:
         self._source_cache[source_name] = source
         return source
 
+    def query(
+        self,
+        view_name: str,
+        columns: list[str] | None = None,
+        limit: int = 100,
+        order_by: str | None = None,
+        order_desc: bool = True,
+    ) -> list[dict[str, Any]]:
+        """Query data from a source (implements DataLayerProtocol)."""
+        source = self.get_source_metadata(view_name)
+        if not source:
+            raise ValueError(f"Unknown data source: {view_name}")
+
+        col_str = ", ".join(columns) if columns else "*"
+        query = f"SELECT {col_str} FROM {source.name}"
+
+        if order_by:
+            direction = "DESC" if order_desc else "ASC"
+            query += f" ORDER BY {order_by} {direction}"
+        elif source.has_timestamp:
+            query += f" ORDER BY {source.timestamp_column} {'DESC' if order_desc else 'ASC'}"
+
+        query += f" LIMIT {limit}"
+
+        result = self.conn.execute(query).fetchall()
+        col_names = [d[0] for d in self.conn.description]
+        return [dict(zip(col_names, row, strict=False)) for row in result]
+
+    def get_column_info(self, view_name: str) -> list[tuple[str, str]]:
+        """Get column names and types for a view (implements DataLayerProtocol)."""
+        # We can implement this via get_source_metadata or direct DESCRIBE
+        # Using DESCRIBE directly to match expected output format if getting source fails
+        try:
+            source = self.get_source_metadata(view_name)
+            if source:
+                target_name = source.name
+            else:
+                target_name = view_name  # Try direct name
+
+            result = self.conn.execute(f"DESCRIBE {target_name}").fetchall()
+            return [(row[0], row[1]) for row in result]
+        except Exception:
+            return []
+
+    def execute_sql(self, sql: str) -> list[dict[str, Any]]:
+        """Execute arbitrary SQL query (implements DataLayerProtocol)."""
+        try:
+            result = self.conn.execute(sql).fetchall()
+            if not self.conn.description:
+                return []
+            col_names = [d[0] for d in self.conn.description]
+            return [dict(zip(col_names, row, strict=False)) for row in result]
+        except Exception:
+            return []
+
     def query_data(
         self,
         source_name: str,
@@ -250,7 +305,7 @@ class DataLayer:
         """Query data from a source with optional filters."""
         source = self.get_source_metadata(source_name)
         if not source:
-            raise ValueError(f"Unknown data source: {source_name}")
+            return []
 
         # Build column list
         if columns:
@@ -264,7 +319,7 @@ class DataLayer:
             col_str = "*"
 
         # Build query
-        query = f"SELECT {col_str} FROM {source_name}"
+        query = f"SELECT {col_str} FROM {source.name}"
         params = []
 
         # Add filters
@@ -308,7 +363,7 @@ class DataLayer:
         """Query time series data optimized for plotting."""
         source = self.get_source_metadata(source_name)
         if not source:
-            raise ValueError(f"Unknown data source: {source_name}")
+            return {"x": [], "series": {col: [] for col in y_columns}}
 
         x_col = x_column or source.timestamp_column
 
@@ -324,7 +379,7 @@ class DataLayer:
             return {"x": [], "series": {}}
 
         col_str = ", ".join(cols)
-        query = f"SELECT {col_str} FROM {source_name}"
+        query = f"SELECT {col_str} FROM {source.name}"
 
         params = []
         if start_time:
@@ -333,20 +388,23 @@ class DataLayer:
 
         query += f" ORDER BY {x_col} ASC LIMIT 10000"
 
-        result = self.conn.execute(query, params).fetchall()
+        try:
+            result = self.conn.execute(query, params).fetchall()
 
-        # Structure for plotting
-        x_values = []
-        series_data: dict[str, list] = {col: [] for col in y_columns}
+            # Structure for plotting
+            x_values = []
+            series_data: dict[str, list] = {col: [] for col in y_columns}
 
-        for row in result:
-            x_values.append(row[0])
-            for _i, col in enumerate(y_columns):
-                if col in valid_cols:
-                    idx = cols.index(col)
-                    series_data[col].append(row[idx])
+            for row in result:
+                x_values.append(row[0])
+                for _i, col in enumerate(y_columns):
+                    if col in valid_cols:
+                        idx = cols.index(col)
+                        series_data[col].append(row[idx])
 
-        return {"x": x_values, "series": series_data}
+            return {"x": x_values, "series": series_data}
+        except Exception:
+            return {"x": [], "series": {col: [] for col in y_columns}}
 
     def query_velocity_profile(
         self,
@@ -362,13 +420,13 @@ class DataLayer:
 
         source = self.get_source_metadata(source_name)
         if not source:
-            raise ValueError(f"Unknown data source: {source_name}")
+            return {"depths": [], "velocities": {}}
 
         # Get the latest measurement if no timestamp specified
         if timestamp is None:
             query = f"""
                 SELECT DISTINCT measurement_date, measurement_time
-                FROM {source_name}
+                FROM {source.name}
                 ORDER BY measurement_date DESC, measurement_time DESC
                 LIMIT 1
             """
@@ -386,7 +444,7 @@ class DataLayer:
         col_str = ", ".join(valid_cols)
 
         query = f"""
-            SELECT {col_str} FROM {source_name}
+            SELECT {col_str} FROM {source.name}
             WHERE measurement_date = ? AND measurement_time = ?
             ORDER BY cell_index ASC
         """
@@ -440,6 +498,10 @@ class DataLayer:
         time_range: str = "24h",
     ) -> list[dict[str, Any]]:
         """Query average signal strength (amplitude) for heatmaps."""
+        source = self.get_source_metadata(source_name)
+        if not source:
+            return []
+
         start_time = self._parse_time_range(time_range)
 
         # We average across all 4 beams for "Average Signal Strength"
@@ -449,7 +511,7 @@ class DataLayer:
                 cell_index,
                 (COALESCE(amp1, 0) + COALESCE(amp2, 0) +
                  COALESCE(amp3, 0) + COALESCE(amp4, 0)) / 4.0 as avg_amp
-            FROM {source_name}
+            FROM {source.name}
         """
         params = []
         if start_time:
@@ -481,14 +543,18 @@ class DataLayer:
         time_range: str = "24h",
     ) -> list[dict[str, Any]]:
         """Query Fourier coefficient spectrum data."""
+        source = self.get_source_metadata(source_name)
+        if not source:
+            return []
+
         start_time = self._parse_time_range(time_range)
 
         query = f"""
             SELECT
                 measurement_date, measurement_time,
                 start_frequency, step_frequency, num_frequencies,
-                coefficients
-            FROM {source_name}
+                coefficient_flag, coefficients
+            FROM {source.name}
             WHERE coefficient_flag = ?
         """
         params: list[Any] = [coefficient]
@@ -499,9 +565,12 @@ class DataLayer:
 
         query += " ORDER BY received_at DESC LIMIT 100"
 
-        result = self.conn.execute(query, params).fetchall()
-        col_names = [d[0] for d in self.conn.description]
-        return [dict(zip(col_names, row, strict=False)) for row in result]
+        try:
+            result = self.conn.execute(query, params).fetchall()
+            col_names = [d[0] for d in self.conn.description]
+            return [dict(zip(col_names, row, strict=False)) for row in result]
+        except Exception:
+            return []
 
     def get_available_bursts(
         self,
@@ -524,9 +593,15 @@ class DataLayer:
         if not start_time:
             start_time = self._parse_time_range(time_range)
 
+        source = self.get_source_metadata(source_name)
+        if not source:
+            return []
+
+        real_source_name = source.name
+
         query = f"""
             SELECT DISTINCT measurement_date, measurement_time, received_at
-            FROM {source_name}
+            FROM {real_source_name}
         """
         params = []
         conditions = []
@@ -544,16 +619,19 @@ class DataLayer:
 
         query += " ORDER BY received_at DESC LIMIT 1000"
 
-        result = self.conn.execute(query, params).fetchall()
-        return [
-            {
-                "measurement_date": r[0],
-                "measurement_time": r[1],
-                "received_at": r[2],
-                "label": f"{r[0]} {r[1]}",
-            }
-            for r in result
-        ]
+        try:
+            result = self.conn.execute(query, params).fetchall()
+            return [
+                {
+                    "measurement_date": r[0],
+                    "measurement_time": r[1],
+                    "received_at": r[2],
+                    "label": f"{r[0]} {r[1]}",
+                }
+                for r in result
+            ]
+        except Exception:
+            return []
 
     def query_wave_energy(
         self,
@@ -561,6 +639,10 @@ class DataLayer:
         time_range: str = "24h",
     ) -> list[dict[str, Any]]:
         """Query wave energy density spectrum data for heatmaps."""
+        source = self.get_source_metadata(source_name)
+        if not source:
+            return []
+
         start_time = self._parse_time_range(time_range)
 
         query = f"""
@@ -568,7 +650,7 @@ class DataLayer:
                 received_at,
                 start_frequency, step_frequency, num_frequencies,
                 energy_densities
-            FROM {source_name}
+            FROM {source.name}
         """
         params = []
 
@@ -578,116 +660,124 @@ class DataLayer:
 
         query += " ORDER BY received_at DESC LIMIT 500"
 
-        result = self.conn.execute(query, params).fetchall()
-        col_names = [d[0] for d in self.conn.description]
-        return [dict(zip(col_names, row, strict=False)) for row in result]
+        try:
+            result = self.conn.execute(query, params).fetchall()
+            col_names = [d[0] for d in self.conn.description]
+            return [dict(zip(col_names, row, strict=False)) for row in result]
+        except Exception:
+            return []
 
     def query_directional_spectrum(
         self,
         time_range: str = "24h",
         timestamp: datetime | None = None,
     ) -> dict[str, Any]:
-        """Query unified directional spectrum data merging energy, direction, and spread.
-
-        Args:
-            time_range: Time range to search within if timestamp is not provided
-            timestamp: Specific measurement timestamp to retrieve
-
-        Returns:
-            Dictionary with frequencies, energy, directions, and spreads
-
-        """
+        """Query unified directional spectrum data merging energy, direction, and spread."""
         import json
 
-        # 1. Find the target measurement time
-        if timestamp:
-            query = """
-                SELECT
-                    start_frequency, step_frequency, num_frequencies, energy_densities,
-                    received_at, measurement_date, measurement_time
-                FROM pnore_data
-                WHERE received_at = ?
-            """
-            energy_data = self.conn.execute(query, [timestamp]).fetchone()
+        source_pnore = self.get_source_metadata("pnore_data")
+        source_pnorwd = self.get_source_metadata("pnorwd_data")
 
-            if not energy_data:
-                # Fallback to string matching if received_at fails
-                date_str = timestamp.strftime("%m%d%y")
-                time_str = timestamp.strftime("%H%M%S")
-            else:
-                (start_f, step_f, num_f, energy_densities_json, ts, date_str, time_str) = (
-                    energy_data
-                )
-                energy = json.loads(energy_densities_json)
+        if not source_pnore or not source_pnorwd:
+            # Try simple defaults
+            name_pnore = "pnore_data"
+            name_pnorwd = "pnorwd_data"
         else:
-            # Find the latest measurement that has all components
-            latest_query = """
-                SELECT DISTINCT e.measurement_date, e.measurement_time, e.received_at
-                FROM pnore_data e
-                JOIN pnorwd_data md ON e.measurement_date = md.measurement_date
-                    AND e.measurement_time = md.measurement_time AND md.direction_type = 'MD'
-                JOIN pnorwd_data ds ON e.measurement_date = ds.measurement_date
-                    AND e.measurement_time = ds.measurement_time AND ds.direction_type = 'DS'
-                ORDER BY e.received_at DESC
-                LIMIT 1
-            """
-            latest = self.conn.execute(latest_query).fetchone()
-            if not latest:
-                return {}
-            date_str, time_str, _ = latest
-            energy_data = None  # Will fetch below
+            name_pnore = source_pnore.name
+            name_pnorwd = source_pnorwd.name
 
-        # 2. Fetch Energy if not already fetched
-        if not energy_data:
-            energy_data = self.conn.execute(
+        try:
+            # 1. Find the target measurement time
+            if timestamp:
+                query = f"""
+                    SELECT
+                        start_frequency, step_frequency, num_frequencies, energy_densities,
+                        received_at, measurement_date, measurement_time
+                    FROM {name_pnore}
+                    WHERE received_at = ?
                 """
-                SELECT
-                    start_frequency, step_frequency, num_frequencies,
-                    energy_densities, received_at
-                FROM pnore_data
-                WHERE measurement_date = ? AND measurement_time = ?
+                energy_data = self.conn.execute(query, [timestamp]).fetchone()
+
+                if not energy_data:
+                    # Fallback to string matching if received_at fails
+                    date_str = timestamp.strftime("%m%d%y")
+                    time_str = timestamp.strftime("%H%M%S")
+                else:
+                    (start_f, step_f, num_f, energy_densities_json, ts, date_str, time_str) = (
+                        energy_data
+                    )
+                    energy = json.loads(energy_densities_json)
+            else:
+                # Find the latest measurement that has all components
+                latest_query = f"""
+                    SELECT DISTINCT e.measurement_date, e.measurement_time, e.received_at
+                    FROM {name_pnore} e
+                    JOIN {name_pnorwd} md ON e.measurement_date = md.measurement_date
+                        AND e.measurement_time = md.measurement_time AND md.direction_type = 'MD'
+                    JOIN {name_pnorwd} ds ON e.measurement_date = ds.measurement_date
+                        AND e.measurement_time = ds.measurement_time AND ds.direction_type = 'DS'
+                    ORDER BY e.received_at DESC
+                    LIMIT 1
+                """
+                latest = self.conn.execute(latest_query).fetchone()
+                if not latest:
+                    return {}
+                date_str, time_str, _ = latest
+                energy_data = None  # Will fetch below
+
+            # 2. Fetch Energy if not already fetched
+            if not energy_data:
+                energy_data = self.conn.execute(
+                    f"""
+                    SELECT
+                        start_frequency, step_frequency, num_frequencies,
+                        energy_densities, received_at
+                    FROM {name_pnore}
+                    WHERE measurement_date = ? AND measurement_time = ?
+                    """,
+                    [date_str, time_str],
+                ).fetchone()
+
+                if not energy_data:
+                    return {}
+
+                start_f, step_f, num_f, energy_densities_json, ts = energy_data
+                energy = json.loads(energy_densities_json)
+
+            # Mean Direction
+            md_data = self.conn.execute(
+                f"""
+                SELECT values FROM {name_pnorwd}
+                WHERE measurement_date = ? AND measurement_time = ? AND direction_type = 'MD'
                 """,
                 [date_str, time_str],
             ).fetchone()
+            directions = json.loads(md_data[0]) if md_data else [0.0] * num_f
 
-            if not energy_data:
-                return {}
+            # Directional Spread
+            ds_data = self.conn.execute(
+                f"""
+                SELECT values FROM {name_pnorwd}
+                WHERE measurement_date = ? AND measurement_time = ? AND direction_type = 'DS'
+                """,
+                [date_str, time_str],
+            ).fetchone()
+            spreads = json.loads(ds_data[0]) if ds_data else [0.0] * num_f
 
-            start_f, step_f, num_f, energy_densities_json, ts = energy_data
-            energy = json.loads(energy_densities_json)
+            # 3. Reconstruct frequencies
+            frequencies = [round(float(start_f + i * step_f), 4) for i in range(num_f)]
 
-        # Mean Direction
-        md_data = self.conn.execute(
-            """
-            SELECT values FROM pnorwd_data
-            WHERE measurement_date = ? AND measurement_time = ? AND direction_type = 'MD'
-            """,
-            [date_str, time_str],
-        ).fetchone()
-        directions = json.loads(md_data[0]) if md_data else [0.0] * num_f
-
-        # Directional Spread
-        ds_data = self.conn.execute(
-            """
-            SELECT values FROM pnorwd_data
-            WHERE measurement_date = ? AND measurement_time = ? AND direction_type = 'DS'
-            """,
-            [date_str, time_str],
-        ).fetchone()
-        spreads = json.loads(ds_data[0]) if ds_data else [0.0] * num_f
-
-        # 3. Reconstruct frequencies
-        frequencies = [round(float(start_f + i * step_f), 4) for i in range(num_f)]
-
-        return {
-            "timestamp": ts,
-            "measurement_date": date_str,
-            "measurement_time": time_str,
-            "frequencies": frequencies,
-            "energy": energy,
-            "directions": directions,
-            "spreads": spreads,
-        }
+            return {
+                "timestamp": ts,
+                "measurement_date": date_str,
+                "measurement_time": time_str,
+                "frequencies": frequencies,
+                "energy": energy,
+                "directions": directions,
+                "spreads": spreads,
+            }
+        except Exception:
+            return {}
 
     def get_column_stats(
         self,
@@ -697,7 +787,7 @@ class DataLayer:
         """Get statistics for a numeric column."""
         source = self.get_source_metadata(source_name)
         if not source:
-            raise ValueError(f"Unknown data source: {source_name}")
+            return {}
 
         col_meta = source.get_column(column)
         if not col_meta or col_meta.column_type != ColumnType.NUMERIC:
@@ -709,18 +799,21 @@ class DataLayer:
                 MAX({column}) as max_val,
                 AVG({column}) as avg_val,
                 COUNT({column}) as count
-            FROM {source_name}
+            FROM {source.name}
             WHERE {column} IS NOT NULL
         """
 
-        result = self.conn.execute(query).fetchone()
-        if result:
-            return {
-                "min": result[0],
-                "max": result[1],
-                "avg": result[2],
-                "count": result[3],
-            }
+        try:
+            result = self.conn.execute(query).fetchone()
+            if result:
+                return {
+                    "min": result[0],
+                    "max": result[1],
+                    "avg": result[2],
+                    "count": result[3],
+                }
+        except Exception:
+            pass
         return {}
 
     def _parse_time_range(self, time_range: str) -> datetime | None:
@@ -761,7 +854,7 @@ class DataLayer:
             SELECT
                 time_bucket(INTERVAL '{bucket_minutes} minutes', {ts_col}) as bucket,
                 {agg_func}({y_column}) as value
-            FROM {source_name}
+            FROM {source.name}
             WHERE {ts_col} IS NOT NULL
         """
         params = []
