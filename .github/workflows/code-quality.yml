@@ -42,7 +42,7 @@ jobs:
     - name: Type checking with mypy
       continue-on-error: true
       run: |
-        mypy adcp_recorder/ --ignore-missing-imports || true
+        mypy adcp_recorder/ --check-untyped-defs || true
 
   security:
     name: Security Scanning
