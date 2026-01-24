@@ -147,3 +147,92 @@ class TestFileWriter:
             content = f.read()
 
         assert content == "bad_data\n"
+
+    def test_write_when_closed(self, export_dir):
+        """Test write does nothing when closed."""
+        writer = FileWriter(export_dir)
+        writer.close()
+        # Should not raise or create files
+        writer.write("PNORI", "data")
+
+    def test_write_record_when_closed(self, export_dir):
+        """Test write_record does nothing when closed."""
+        writer = FileWriter(export_dir)
+        writer.close()
+        # Should not raise
+        writer.write_record("PNORI", {"foo": "bar"})
+
+    def test_write_open_error(self, export_dir):
+        """Test handling of file open errors."""
+        writer = FileWriter(export_dir)
+
+        # Mock open to raise OSError
+        with patch("builtins.open", side_effect=OSError("Permission denied")):
+            # Should not raise
+            writer.write("PNORI", "data")
+
+        # Verify no file handle was stored
+        assert "PNORI" not in writer._files
+
+    def test_internal_get_file_handle_closed(self, export_dir):
+        """Test _get_file_handle returns None when closed."""
+        writer = FileWriter(export_dir)
+        writer.close()
+        assert writer._get_file_handle("PNORI") is None
+
+    def test_write_exception(self, export_dir):
+        """Test exception handling in write."""
+        writer = FileWriter(export_dir)
+        # We need to successfully open the file, then fail on write
+        # So we can't just mock open to fail.
+        # We'll use a real file, then mock the write method on the file handle
+        writer.write("PNORI", "init")
+
+        handle = writer._files["PNORI"]
+        with patch.object(handle, "write", side_effect=Exception("Write failed")):
+            # Should catch exception and log error, not raise
+            writer.write("PNORI", "data")
+
+    def test_write_record_exception(self, export_dir):
+        """Test exception handling in write_record."""
+        writer = FileWriter(export_dir)
+
+        with patch.object(
+            writer.parquet_writer, "write_record", side_effect=Exception("Parquet failed")
+        ):
+            writer.write_record("PNORI", {"a": 1})
+
+    def test_write_invalid_record_closed(self, export_dir):
+        """Test write_invalid_record checks closed state."""
+        writer = FileWriter(export_dir)
+        writer.close()
+        writer.write_invalid_record("PNORI", "bad")
+        # Verify no file created
+        assert not os.path.exists(os.path.join(export_dir, "errors"))
+
+    def test_write_invalid_record_exception(self, export_dir):
+        """Test exception handling in write_invalid_record."""
+        writer = FileWriter(export_dir)
+
+        with patch("builtins.open", side_effect=Exception("Open failed")):
+            writer.write_invalid_record("PNORI", "bad")
+
+    def test_close_handle_error(self, export_dir):
+        """Test error handling when closing file handles."""
+        writer = FileWriter(export_dir)
+        writer.write("PNORI", "data")
+
+        handle = writer._files["PNORI"]
+        with patch.object(handle, "close", side_effect=Exception("Close failed")):
+            # Should catch exception and continue
+            writer.close()
+
+    def test_close_parquet_error(self, export_dir):
+        """Test error handling when closing parquet writer."""
+        writer = FileWriter(export_dir)
+
+        with patch.object(
+            writer.parquet_writer, "close", side_effect=Exception("Parquet close failed")
+        ):
+            # Should catch exception
+            writer.close()
