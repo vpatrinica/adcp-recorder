@@ -27,6 +27,7 @@ class FileWriter:
         self.base_path = base_path
         self._files: dict[str, TextIO] = {}
         self._current_date = datetime.now().date()
+        self._closed = False
         self._ensure_base_path()
         self.parquet_writer = ParquetWriter(base_path)
 
@@ -51,18 +52,27 @@ class FileWriter:
         now = datetime.now().date()
         if now != self._current_date:
             logger.info(f"Rotating files from {self._current_date} to {now}")
-            self.close()
+            # Do not call self.close() here as it sets _closed=True
+            # Instead, just close internal handles
+            self._close_handles()
             self._current_date = now
             self._files = {}
 
-    def _get_file_handle(self, prefix: str) -> TextIO:
+    def _get_file_handle(self, prefix: str) -> TextIO | None:
         """Get or create file handle for message type."""
+        if self._closed:
+            return None
+
         self._check_rotation()
 
         if prefix not in self._files:
             filename = self._get_filename(prefix)
-            self._files[prefix] = open(filename, "a", encoding="utf-8", buffering=1)
-            logger.debug(f"Opened log file: {filename}")
+            try:
+                self._files[prefix] = open(filename, "a", encoding="utf-8", buffering=1)
+                logger.debug(f"Opened log file: {filename}")
+            except OSError as e:
+                logger.error(f"Failed to open log file {filename}: {e}")
+                return None
 
         return self._files[prefix]
 
@@ -74,15 +84,16 @@ class FileWriter:
             data: Data string to write (should include newlines if needed)
 
         """
-        if not prefix or not data:
+        if self._closed or not prefix or not data:
             return
 
         try:
             f = self._get_file_handle(prefix)
-            f.write(data)
-            if not data.endswith("\n"):
-                f.write("\n")
-            f.flush()
+            if f:
+                f.write(data)
+                if not data.endswith("\n"):
+                    f.write("\n")
+                f.flush()
         except Exception as e:
             logger.error(f"Failed to write to file for {prefix}: {e}")
 
@@ -94,6 +105,9 @@ class FileWriter:
             record: Data dictionary
 
         """
+        if self._closed:
+            return
+
         try:
             self.parquet_writer.write_record(prefix, record)
         except Exception as e:
@@ -107,7 +121,7 @@ class FileWriter:
             data: Invalid data string
 
         """
-        if not prefix or not data:
+        if self._closed or not prefix or not data:
             return
 
         try:
@@ -135,6 +149,8 @@ class FileWriter:
                 filename = os.path.join(error_dir, f"{prefix}_error_{date_str}.nmea")
 
             # Append to file
+            # Note: For error files we open/close immediately to avoid keeping many handles open
+            # This is less efficient but error rate should be low
             with open(filename, "a", encoding="utf-8", buffering=1) as f:
                 f.write(data)
                 if not data.endswith("\n"):
@@ -148,13 +164,18 @@ class FileWriter:
         timestamp = datetime.now().isoformat()
         self.write_invalid_record("SYSTEM", f"[{timestamp}] {message}")
 
-    def close(self) -> None:
-        """Close all open files and writers."""
+    def _close_handles(self) -> None:
+        """Close all open file handles."""
         for prefix, f in self._files.items():
             try:
                 f.close()
             except Exception as e:
                 logger.error(f"Error closing file for {prefix}: {e}")
+
+    def close(self) -> None:
+        """Close all open files and writers."""
+        self._closed = True
+        self._close_handles()
         self._files.clear()
 
         try:
