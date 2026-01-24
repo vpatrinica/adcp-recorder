@@ -6,6 +6,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+pytest.importorskip("plotly")
+pytest.importorskip("streamlit")
+
 from adcp_recorder.ui.components.spectrum_plots import (
     render_amplitude_heatmap,
     render_directional_spectrum,

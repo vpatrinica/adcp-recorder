@@ -4,6 +4,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+pytest.importorskip("plotly")
+pytest.importorskip("streamlit")
+
 from adcp_recorder.ui.components.time_series import (
     render_time_range_selector,
     render_time_series,

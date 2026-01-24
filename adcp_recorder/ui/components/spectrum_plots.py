@@ -5,8 +5,13 @@ from datetime import datetime
 from typing import Any
 
 import numpy as np
-import plotly.graph_objects as go
-import streamlit as st
+
+try:
+    import plotly.graph_objects as go
+    import streamlit as st
+except ImportError:
+    go = None  # type: ignore
+    st = None  # type: ignore
 
 from adcp_recorder.ui.data_layer import DataLayer
 
@@ -32,6 +37,8 @@ def render_fourier_spectrum(
         key_prefix: Unique key prefix for Streamlit session state
 
     """
+    if st is None or go is None:
+        raise ImportError("Streamlit and Plotly are required for this component.")
     config = config or {}
 
     # Configuration
@@ -211,6 +218,8 @@ def render_energy_heatmap(
         key_prefix: Unique key prefix for Streamlit session state
 
     """
+    if st is None or go is None:
+        raise ImportError("Streamlit and Plotly are required for this component.")
     config = config or {}
 
     # Configuration
@@ -353,6 +362,8 @@ def render_directional_spectrum(
         key_prefix: Unique key prefix for Streamlit session state
 
     """
+    if st is None or go is None:
+        raise ImportError("Streamlit and Plotly are required for this component.")
     config = config or {}
 
     # Configuration
@@ -618,6 +629,8 @@ def render_amplitude_heatmap(
         config: Configuration dict with data_source, time_range
         key_prefix: Unique key prefix for Streamlit session state
     """
+    if st is None or go is None:
+        raise ImportError("Streamlit and Plotly are required for this component.")
     config = config or {}
     source_name = config.get("data_source", "pnorc12")
     default_time_range = config.get("time_range", "24h")

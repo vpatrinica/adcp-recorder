@@ -5,6 +5,9 @@ from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
+pytest.importorskip("plotly")
+pytest.importorskip("streamlit")
+
 from adcp_recorder.ui.components.table_view import render_column_selector, render_table_view
 from adcp_recorder.ui.data_layer import ColumnMetadata, ColumnType, DataSource
 

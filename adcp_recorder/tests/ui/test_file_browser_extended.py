@@ -6,6 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+pytest.importorskip("streamlit")
+
 import adcp_recorder.ui.components.file_browser as fb
 from adcp_recorder.ui.parquet_data_layer import ParquetDirectory, ParquetFileInfo
 
