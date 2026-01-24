@@ -3,6 +3,7 @@
 import itertools
 import time
 from queue import Queue
+from typing import Any
 from unittest.mock import Mock
 
 from adcp_recorder.serial import SerialConnectionManager, SerialProducer
@@ -14,7 +15,7 @@ class TestSerialProducer:
     def test_init_sets_properties(self):
         """Test that initialization sets properties correctly."""
         manager = Mock(spec=SerialConnectionManager)
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
 
         producer = SerialProducer(manager, queue, heartbeat_interval=10.0)
 
@@ -26,7 +27,7 @@ class TestSerialProducer:
         manager = Mock(spec=SerialConnectionManager)
         manager.is_connected.return_value = True
         manager.read_line.return_value = b""
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
 
         producer = SerialProducer(manager, queue)
         producer.start()
@@ -41,7 +42,7 @@ class TestSerialProducer:
         manager = Mock(spec=SerialConnectionManager)
         manager.is_connected.return_value = True
         manager.read_line.return_value = b""
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
 
         producer = SerialProducer(manager, queue)
         producer.start()
@@ -59,7 +60,7 @@ class TestSerialProducer:
         manager = Mock(spec=SerialConnectionManager)
         manager.is_connected.return_value = True
         manager.read_line.return_value = b""
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
 
         producer = SerialProducer(manager, queue)
         producer.start()
@@ -80,7 +81,7 @@ class TestSerialProducer:
         manager.reconnect.return_value = True
         manager.read_line.return_value = b"$PNORI,4,Test*00\r\n"
 
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
 
         producer = SerialProducer(manager, queue)
         producer.start()
@@ -107,7 +108,7 @@ class TestSerialProducer:
         lines_iter = itertools.chain(lines, itertools.cycle([b""]))
         manager.read_line.side_effect = lambda timeout=None: next(lines_iter)
 
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
 
         producer = SerialProducer(manager, queue)
         producer.start()
@@ -129,7 +130,7 @@ class TestSerialProducer:
         lines_iter = itertools.chain([binary_data], itertools.cycle([b""]))
         manager.read_line.side_effect = lambda timeout=None: next(lines_iter)
 
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
 
         producer = SerialProducer(manager, queue)
         producer.start()
@@ -150,7 +151,7 @@ class TestSerialProducer:
         lines_iter = itertools.chain([invalid_data], itertools.cycle([b""]))
         manager.read_line.side_effect = lambda timeout=None: next(lines_iter)
 
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
 
         producer = SerialProducer(manager, queue)
         producer.start()
@@ -168,7 +169,7 @@ class TestSerialProducer:
         lines_iter = itertools.chain([b"$PNORI,4,Test*00\r\n"], itertools.cycle([b""]))
         manager.read_line.side_effect = lambda timeout=None: next(lines_iter)
 
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
 
         producer = SerialProducer(manager, queue)
 
@@ -192,7 +193,7 @@ class TestSerialProducer:
         manager.read_line.side_effect = lambda timeout=None: next(lines_iter)
 
         # Small queue
-        queue = Queue(maxsize=5)
+        queue: Queue[Any] = Queue(maxsize=5)
 
         producer = SerialProducer(manager, queue)
         producer.start()
@@ -210,7 +211,7 @@ class TestSerialProducer:
         lines_iter = itertools.chain([b"", b"$PNORI,4,Test*00\r\n"], itertools.cycle([b""]))
         manager.read_line.side_effect = lambda timeout=None: next(lines_iter)
 
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
 
         producer = SerialProducer(manager, queue)
         producer.start()
@@ -224,7 +225,7 @@ class TestSerialProducer:
     def test_stop_when_not_running(self):
         """Test that stopping when not running returns immediately."""
         manager = Mock(spec=SerialConnectionManager)
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
         producer = SerialProducer(manager, queue)
 
         # Stop without starting
@@ -237,7 +238,7 @@ class TestSerialProducer:
         manager.is_connected.return_value = False
         manager.reconnect.return_value = False
 
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
         producer = SerialProducer(manager, queue)
 
         producer.start()
@@ -273,7 +274,7 @@ class TestSerialProducer:
         lines_iter = itertools.chain([invalid_data], itertools.cycle([b""]))
         manager.read_line.side_effect = lambda timeout=None: next(lines_iter)
 
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
         producer = SerialProducer(manager, queue)
 
         producer.start()

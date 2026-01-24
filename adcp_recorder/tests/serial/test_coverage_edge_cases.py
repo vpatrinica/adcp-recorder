@@ -2,6 +2,7 @@
 
 import time
 from queue import Queue
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
@@ -36,7 +37,7 @@ def test_producer_unicode_decode_error_threshold(tmp_path):
     # Infinite empty bytes after invalid data
     manager.read_line.side_effect = itertools.chain([invalid_data], itertools.cycle([b""]))
 
-    queue = Queue()
+    queue: Queue[Any] = Queue()
     producer = SerialProducer(manager, queue)
 
     with patch("adcp_recorder.serial.producer.logger") as mock_logger:
@@ -44,7 +45,8 @@ def test_producer_unicode_decode_error_threshold(tmp_path):
         time.sleep(0.2)
         producer.stop()
 
-        mock_logger.warning.assert_any_call(f"Failed to decode ASCII: {invalid_data[:50]}")
+        # Fix bytes formatting issue
+        mock_logger.warning.assert_any_call(f"Failed to decode ASCII: {invalid_data[:50]!r}")
         assert queue.qsize() == 1
 
 
@@ -52,7 +54,7 @@ def test_consumer_unicode_decode_error(tmp_path):
     """Test handle UnicodeDecodeError in consumer."""
     db_path = tmp_path / "test_consumer_cov.db"
     db = DatabaseManager(str(db_path))
-    queue = Queue()
+    queue: Queue[Any] = Queue()
     router = MessageRouter()
 
     consumer = SerialConsumer(queue, db, router)
@@ -75,7 +77,7 @@ def test_consumer_empty_sentence(tmp_path):
     """Test handling of empty or whitespace-only lines in consumer."""
     db_path = tmp_path / "test_consumer_empty.db"
     db = DatabaseManager(str(db_path))
-    queue = Queue()
+    queue: Queue[Any] = Queue()
     router = MessageRouter()
 
     consumer = SerialConsumer(queue, db, router)
@@ -86,8 +88,9 @@ def test_consumer_empty_sentence(tmp_path):
     consumer.stop()
 
     conn = db.get_connection()
-    count = conn.execute("SELECT count(*) FROM raw_lines").fetchone()[0]
-    assert count == 0
+    res = conn.execute("SELECT count(*) FROM raw_lines").fetchone()
+    assert res is not None
+    assert res[0] == 0
 
 
 def test_pnora_coverage():
@@ -142,7 +145,7 @@ def test_pnorw_family_coverage():
     ]
     for cls, sentence in test_cases:
         with pytest.raises(ValueError, match="Invalid prefix"):
-            cls.from_nmea(sentence)
+            cls.from_nmea(sentence)  # type: ignore[attr-defined]
 
 
 def test_pnors_coverage():

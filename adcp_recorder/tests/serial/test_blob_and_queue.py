@@ -1,10 +1,12 @@
 import os
 import time
 from queue import Queue
+from typing import Any, cast
 
 from adcp_recorder.db.db import DatabaseManager
 from adcp_recorder.export.file_writer import FileWriter
 from adcp_recorder.serial.consumer import MessageRouter, SerialConsumer
+from adcp_recorder.serial.port_manager import SerialConnectionManager
 from adcp_recorder.serial.producer import SerialProducer
 
 
@@ -30,7 +32,7 @@ class FakeConnectionManager:
         return val
 
 
-def drain_queue(q: Queue):
+def drain_queue(q: "Queue[Any]"):
     items = []
     try:
         while True:
@@ -42,11 +44,13 @@ def drain_queue(q: Queue):
 
 def test_queue_drop_oldest_behavior():
     # queue maxsize 3, send 5 lines, expect last 3 present
-    q = Queue(maxsize=3)
+    q: Queue[Any] = Queue(maxsize=3)
     lines = [f"line{i}\n".encode("ascii") for i in range(1, 6)]
 
     manager = FakeConnectionManager(lines)
-    producer = SerialProducer(connection_manager=manager, queue=q, max_line_length=1024)
+    producer = SerialProducer(
+        connection_manager=cast(SerialConnectionManager, manager), queue=q, max_line_length=1024
+    )
 
     producer.start()
     # allow producer to run briefly
@@ -77,13 +81,13 @@ def test_binary_blob_streaming(tmp_path):
 
     manager = FakeConnectionManager(items)
 
-    q = Queue(maxsize=50)
+    q: Queue[Any] = Queue(maxsize=50)
     db_path = os.path.join(base, "adcp_test.duckdb")
     db = DatabaseManager(db_path)
     file_writer = FileWriter(base)
     router = MessageRouter()
 
-    producer = SerialProducer(connection_manager=manager, queue=q)
+    producer = SerialProducer(connection_manager=cast(SerialConnectionManager, manager), queue=q)
     consumer = SerialConsumer(queue=q, db_manager=db, router=router, file_writer=file_writer)
 
     # start components

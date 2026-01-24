@@ -686,14 +686,15 @@ class DataLayer:
             # Try simple defaults
             name_pnore = "pnore_data"
             name_pnorwd = "pnorwd_data"
+            ts_col = "received_at"
         else:
             name_pnore = source_pnore.name
             name_pnorwd = source_pnorwd.name
+            ts_col = source_pnore.timestamp_column
 
         try:
             # 1. Find the target measurement time
             if timestamp:
-                ts_col = source_pnore.timestamp_column
                 query = f"""
                     SELECT
                         start_frequency, step_frequency, num_frequencies, energy_densities,
@@ -713,7 +714,7 @@ class DataLayer:
                     )
                     energy = json.loads(energy_densities_json)
             else:
-                ts_col = source_pnore.timestamp_column
+                # Use ts_col defined above
                 # Find the latest measurement that has all components
                 latest_query = f"""
                     SELECT DISTINCT e.measurement_date, e.measurement_time, e.{ts_col}

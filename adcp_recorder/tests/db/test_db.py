@@ -119,6 +119,7 @@ class TestDatabaseManager:
         # Should not raise any errors
         conn = db.get_connection()
         result = conn.execute("SELECT COUNT(*) FROM raw_lines").fetchone()
+        assert result is not None
         assert result[0] == 0
 
     def test_close_connection(self):

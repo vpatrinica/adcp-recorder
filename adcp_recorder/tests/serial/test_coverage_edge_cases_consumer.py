@@ -1,6 +1,7 @@
 import logging
 import time
 from queue import Queue
+from typing import Any
 from unittest.mock import Mock, patch
 
 from adcp_recorder.db.db import DatabaseManager
@@ -20,7 +21,7 @@ def test_router_prefix_none():
 def test_consumer_stop_idempotent(tmp_path):
     """Cover SerialConsumer.stop when not running."""
     db_path = str(tmp_path / "test_stop.db")
-    queue = Queue()
+    queue: Queue[Any] = Queue()
     db = DatabaseManager(db_path)
     router = MessageRouter()
     consumer = SerialConsumer(queue, db, router)
@@ -35,7 +36,7 @@ def test_consumer_stop_idempotent(tmp_path):
 def test_consumer_exception_handling(tmp_path, caplog):
     """Cover exception handling in _consume_loop."""
     db_path = str(tmp_path / "test_exception.db")
-    queue = Queue()
+    queue: Queue[Any] = Queue()
     db = DatabaseManager(db_path)
     router = MessageRouter()
     consumer = SerialConsumer(queue, db, router)
@@ -54,7 +55,7 @@ def test_consumer_exception_handling(tmp_path, caplog):
 def test_store_parsed_message_unknown_prefix(tmp_path, caplog):
     """Cover _store_parsed_message else branch."""
     db_path = str(tmp_path / "test_store.db")
-    queue = Queue()
+    queue: Queue[Any] = Queue()
     db = DatabaseManager(db_path)
     router = MessageRouter()
 

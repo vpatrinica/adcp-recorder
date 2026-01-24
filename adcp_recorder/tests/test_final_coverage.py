@@ -95,8 +95,8 @@ def test_consumer_loop_outer_exception_handling():
     def side_effect(*args, **kwargs):
         if consumer._running:
             # First call: return malicious item
-            if not hasattr(side_effect, "called"):
-                side_effect.called = True
+            if not getattr(side_effect, "called", False):
+                setattr(side_effect, "called", True)
                 return malicious_item
 
             # Second call: stop loop

@@ -55,6 +55,7 @@ def test_migration_cli_basic(tmp_path):
 
     # Verify new DB
     conn = duckdb.connect(str(new_db))
-    res = conn.execute("SELECT count(*) FROM pnori12").fetchone()[0]
-    assert res == 1
+    res = conn.execute("SELECT count(*) FROM pnori12").fetchone()
+    assert res is not None
+    assert res[0] == 1
     conn.close()

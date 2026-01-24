@@ -84,8 +84,8 @@ def test_throughput_performance():
                 count = 0
                 while time.time() - start_time < max_wait:
                     try:
-                        count = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()[0]
-                        if count >= 48:
+                        res = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()
+                        if res is not None and res[0] >= 48:
                             processed = True
                             break
                     except Exception:
@@ -99,8 +99,10 @@ def test_throughput_performance():
                 throughput = len(sentences) / duration
 
                 if not processed:
-                    raw_count = conn.execute("SELECT count(*) FROM raw_lines").fetchone()[0]
-                    error_count = conn.execute("SELECT count(*) FROM parse_errors").fetchone()[0]
+                    c1 = conn.execute("SELECT count(*) FROM raw_lines").fetchone()
+                    c2 = conn.execute("SELECT count(*) FROM parse_errors").fetchone()
+                    raw_count = c1[0] if c1 else 0
+                    error_count = c2[0] if c2 else 0
                     errors = conn.execute(
                         "SELECT error_type, error_message FROM parse_errors LIMIT 5"
                     ).fetchall()
@@ -212,6 +214,7 @@ def test_database_concurrency():
 
         # Verify all records inserted
         conn = db_manager.get_connection()
-        count = conn.execute("SELECT count(*) FROM raw_lines").fetchone()[0]
+        res = conn.execute("SELECT count(*) FROM raw_lines").fetchone()
+        count = res[0] if res else 0
         db_manager.close()
         assert count == 250, f"Expected 250 records, got {count}"

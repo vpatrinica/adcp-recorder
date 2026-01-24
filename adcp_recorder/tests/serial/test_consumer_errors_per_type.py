@@ -6,6 +6,7 @@ in the database, rather than being discarded or crashing the consumer.
 
 import time
 from queue import Queue
+from typing import Any
 
 import pytest
 
@@ -37,7 +38,7 @@ def consumer_stack(db_conn):
     from adcp_recorder.parsers.pnorw import PNORW
     from adcp_recorder.parsers.pnorwd import PNORWD
 
-    queue = Queue()
+    queue: Queue[Any] = Queue()
     router = MessageRouter()
 
     # Register all parsers so strict consumer logic finds them

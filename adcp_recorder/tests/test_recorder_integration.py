@@ -37,13 +37,13 @@ def test_recorder_start_stop():
         recorder = AdcpRecorder(config)
 
         # Mock internal start/stop to avoid actual thread spawn or serial access issues in test env
-        recorder.producer.start = MagicMock()
-        recorder.consumer.start = MagicMock()
-        recorder.producer.stop = MagicMock()
-        recorder.consumer.stop = MagicMock()
-        recorder.file_writer.close = MagicMock()
-        recorder.db_manager.close = MagicMock()
-        recorder.db_manager.initialize_schema = MagicMock()
+        recorder.producer.start = MagicMock()  # type: ignore[method-assign]
+        recorder.consumer.start = MagicMock()  # type: ignore[method-assign]
+        recorder.producer.stop = MagicMock()  # type: ignore[method-assign]
+        recorder.consumer.stop = MagicMock()  # type: ignore[method-assign]
+        recorder.file_writer.close = MagicMock()  # type: ignore[method-assign]
+        recorder.db_manager.close = MagicMock()  # type: ignore[method-assign]
+        recorder.db_manager.initialize_schema = MagicMock()  # type: ignore[method-assign]
 
         recorder.start()
         assert recorder.is_running

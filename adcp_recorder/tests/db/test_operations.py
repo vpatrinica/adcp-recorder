@@ -33,6 +33,7 @@ class TestInsertOperations:
             [line_id],
         ).fetchone()
 
+        assert result is not None
         assert result[0] == sentence
         assert result[1] == "OK"
         assert result[2] == "PNORI"
@@ -53,6 +54,7 @@ class TestInsertOperations:
             [line_id],
         ).fetchone()
 
+        assert result is not None
         assert result[0] == "PENDING"
         assert result[1] is None
         assert result[2] is None
@@ -74,6 +76,7 @@ class TestInsertOperations:
             [line_id],
         ).fetchone()
 
+        assert result is not None
         assert result[0] == error_msg
 
     def test_batch_insert_raw_lines(self):
@@ -98,6 +101,7 @@ class TestInsertOperations:
 
         # Verify count in database
         result = conn.execute("SELECT COUNT(*) FROM raw_lines").fetchone()
+        assert result is not None
         assert result[0] == 10
 
     def test_batch_insert_empty_list(self):
@@ -137,6 +141,7 @@ class TestInsertOperations:
             [error_id],
         ).fetchone()
 
+        assert result is not None
         assert result[0] == sentence
         assert result[1] == "CHECKSUM_FAILED"
         assert result[2] == "Checksum mismatch"
@@ -168,6 +173,7 @@ class TestUpdateOperations:
             [line_id],
         ).fetchone()
 
+        assert result is not None
         assert result[0] == "OK"
 
     def test_update_raw_line_status_with_error(self):
@@ -191,6 +197,7 @@ class TestUpdateOperations:
             [line_id],
         ).fetchone()
 
+        assert result is not None
         assert result[0] == "FAIL"
         assert result[1] == error_msg
 
@@ -338,11 +345,11 @@ class TestPerformance:
         for r in records:
             insert_raw_line(
                 conn,
-                r["sentence"],
-                r["parse_status"],
-                r["record_type"],
-                r["checksum_valid"],
-                r["error_message"],
+                str(r["sentence"]),
+                str(r["parse_status"]),
+                str(r["record_type"]) if r["record_type"] else None,
+                bool(r["checksum_valid"]) if r["checksum_valid"] is not None else None,
+                str(r["error_message"]) if r["error_message"] else None,
             )
         individual_time = time.time() - start
 
@@ -381,6 +388,7 @@ class TestPNORIConfigurationOperations:
             [config_id],
         ).fetchone()
 
+        assert result is not None
         assert result[0] == "SIGNATURE"
         assert result[1] == "Signature1000900001"
         assert result[2] == 4
@@ -406,6 +414,7 @@ class TestPNORIConfigurationOperations:
             [config_id],
         ).fetchone()
 
+        assert result is not None
         assert result[0] == "BEAM"
         assert result[1] == 2  # BEAM maps to 2
         assert result[2] == 101  # PNORI1 => data_format 101
@@ -430,6 +439,7 @@ class TestPNORIConfigurationOperations:
             [config_id],
         ).fetchone()
 
+        assert result is not None
         assert result[0] == "789012"
         assert result[1] == "XYZ"
         assert result[2] == 102  # PNORI2 => data_format 102
@@ -448,12 +458,14 @@ class TestPNORIConfigurationOperations:
 
         for sentence in sentences:
             if "PNORI2" in sentence:
-                config = PNORI2.from_nmea(sentence)
+                config_p2 = PNORI2.from_nmea(sentence)
+                insert_pnori_configuration(conn, config_p2.to_dict(), sentence)
             elif "PNORI1" in sentence:
-                config = PNORI1.from_nmea(sentence)
+                config_p1 = PNORI1.from_nmea(sentence)
+                insert_pnori_configuration(conn, config_p1.to_dict(), sentence)
             else:
-                config = PNORI.from_nmea(sentence)
-            insert_pnori_configuration(conn, config.to_dict(), sentence)
+                config_p = PNORI.from_nmea(sentence)
+                insert_pnori_configuration(conn, config_p.to_dict(), sentence)
 
         # Query all
         results = query_pnori_configurations(conn)

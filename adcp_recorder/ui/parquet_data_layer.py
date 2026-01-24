@@ -729,7 +729,8 @@ class ParquetDataLayer(DataLayer):
         match = re.match(r"(pnor[a-z]+)", source_name.lower())
         if match:
             base_type = match.group(1)
-            # Special case for wave tables which often have _data suffix in schema but not in parquet prefix
+            # Special case for wave tables which often have _data suffix in schema
+            # but not in parquet prefix
             if base_type.endswith("data"):
                 base_type = base_type[:-4]
 

@@ -2,6 +2,7 @@
 
 import time
 from queue import Queue
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
@@ -79,7 +80,7 @@ class TestSerialConsumer:
 
     def test_init_sets_properties(self, db_path):
         """Test that initialization sets properties correctly."""
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
         db = DatabaseManager(db_path)
         router = MessageRouter()
 
@@ -90,7 +91,7 @@ class TestSerialConsumer:
 
     def test_start_starts_thread(self, db_path):
         """Test starting the consumer."""
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
         db = DatabaseManager(db_path)
         router = MessageRouter()
 
@@ -104,7 +105,7 @@ class TestSerialConsumer:
 
     def test_start_when_already_running(self, db_path):
         """Test that starting when already running does not create new thread."""
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
         db = DatabaseManager(db_path)
         router = MessageRouter()
 
@@ -121,7 +122,7 @@ class TestSerialConsumer:
 
     def test_stop_stops_thread(self, db_path):
         """Test stopping the consumer."""
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
         db = DatabaseManager(db_path)
         router = MessageRouter()
 
@@ -135,7 +136,7 @@ class TestSerialConsumer:
 
     def test_consume_and_parse_pnori(self, db_path):
         """Test consuming and parsing PNORI message."""
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
         db = DatabaseManager(db_path)
         router = MessageRouter()
         router.register_parser("PNORI", PNORI)
@@ -160,7 +161,7 @@ class TestSerialConsumer:
 
     def test_consume_unknown_message_type(self, db_path):
         """Test consuming unknown message type."""
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
         db = DatabaseManager(db_path)
         router = MessageRouter()
         # Don't register any parsers
@@ -185,7 +186,7 @@ class TestSerialConsumer:
 
     def test_consume_invalid_message_logs_error(self, db_path):
         """Test consuming invalid message logs to parse_errors."""
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
         db = DatabaseManager(db_path)
         router = MessageRouter()
         router.register_parser("PNORI", PNORI)
@@ -210,7 +211,7 @@ class TestSerialConsumer:
 
     def test_consume_binary_data_logs_error(self, db_path):
         """Test consuming binary data logs to errors."""
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
         db = DatabaseManager(db_path)
         router = MessageRouter()
 
@@ -233,7 +234,7 @@ class TestSerialConsumer:
 
     def test_consume_updates_heartbeat(self, db_path):
         """Test that heartbeat is updated when consuming."""
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
         db = DatabaseManager(db_path)
         router = MessageRouter()
         router.register_parser("PNORI", PNORI)
@@ -256,7 +257,7 @@ class TestSerialConsumer:
 
     def test_consume_empty_queue_continues(self, db_path):
         """Test that empty queue doesn't crash consumer."""
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
         db = DatabaseManager(db_path)
         router = MessageRouter()
 
@@ -271,7 +272,7 @@ class TestSerialConsumer:
 
     def test_consume_no_prefix_logs_error(self, db_path):
         """Test that message without prefix logs error."""
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
         db = DatabaseManager(db_path)
         router = MessageRouter()
 
@@ -307,7 +308,7 @@ class TestSerialConsumer:
             PNORWD,
         )
 
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
         db = DatabaseManager(db_path)
         router = MessageRouter()
 
@@ -356,7 +357,9 @@ class TestSerialConsumer:
         conn = db.get_connection()
 
         # Check raw_lines first (now 10 messages total)
-        raw_count = conn.execute("SELECT count(*) FROM raw_lines").fetchone()[0]
+        raw_res = conn.execute("SELECT count(*) FROM raw_lines").fetchone()
+        assert raw_res is not None
+        raw_count = raw_res[0]
         if raw_count < 10:
             # If failed, let's see why
             raw_lines = conn.execute(
@@ -370,20 +373,25 @@ class TestSerialConsumer:
 
         assert raw_count == 10
         # Verify all message types were stored in new separate tables
-        assert conn.execute("SELECT count(*) FROM pnori").fetchone()[0] == 1
-        assert conn.execute("SELECT count(*) FROM pnors_df100").fetchone()[0] == 1  # PNORS
-        assert conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()[0] == 1  # PNORC
-        assert (
-            conn.execute("SELECT count(*) FROM pnorh WHERE data_format=104").fetchone()[0] == 1
-        )  # PNORH4
-        assert conn.execute("SELECT count(*) FROM pnorw_data").fetchone()[0] == 1
-        assert conn.execute("SELECT count(*) FROM pnorb_data").fetchone()[0] == 1
+        res = conn.execute("SELECT count(*) FROM pnori").fetchone()
+        assert res is not None and res[0] == 1
+        res = conn.execute("SELECT count(*) FROM pnors_df100").fetchone()
+        assert res is not None and res[0] == 1  # PNORS
+        res = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()
+        assert res is not None and res[0] == 1  # PNORC
+        res = conn.execute("SELECT count(*) FROM pnorh WHERE data_format=104").fetchone()
+        assert res is not None and res[0] == 1  # PNORH4
+        res = conn.execute("SELECT count(*) FROM pnorw_data").fetchone()
+        assert res is not None and res[0] == 1
+        res = conn.execute("SELECT count(*) FROM pnorb_data").fetchone()
+        assert res is not None and res[0] == 1
         # Note: PNORE/PNORF/PNORWD will fail to parse with old format, so these won't be in DB
-        assert conn.execute("SELECT count(*) FROM pnora_data").fetchone()[0] == 1
+        res = conn.execute("SELECT count(*) FROM pnora_data").fetchone()
+        assert res is not None and res[0] == 1
 
     def test_consume_writes_to_file(self, db_path):
         """Test that consumer writes to file writer."""
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
         db = DatabaseManager(db_path)
         router = MessageRouter()
         router.register_parser("PNORI", PNORI)
@@ -402,7 +410,7 @@ class TestSerialConsumer:
 
     def test_consume_writes_binary_errors_to_file(self, db_path):
         """Test that consumer writes binary errors to file writer."""
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
         db = DatabaseManager(db_path)
         router = MessageRouter()
         mock_file_writer = Mock()
@@ -424,7 +432,7 @@ class TestSerialConsumer:
 
     def test_consume_writes_unknown_to_file(self, db_path):
         """Test that consumer writes unknown messages to file writer."""
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
         db = DatabaseManager(db_path)
         router = MessageRouter()
         mock_file_writer = Mock()
@@ -442,7 +450,7 @@ class TestSerialConsumer:
 
     def test_consume_writes_invalid_record_to_file(self, db_path):
         """Test that consumer writes invalid records to file writer."""
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
         db = DatabaseManager(db_path)
         router = MessageRouter()
         # Register PNORI with a parser that will fail if data is invalid

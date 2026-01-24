@@ -46,7 +46,9 @@ class TestFileBrowserExtended:
     def test_render_file_tree_logic(self, mock_st):
         """Cover lines 179-208 (file tree rendering)."""
         today = date.today()
-        info = ParquetFileInfo(Path("f.pq"), "T", today, 0, today)
+        from datetime import datetime
+
+        info = ParquetFileInfo(Path("f.pq"), "T", today, 0, datetime.now())
         structure = ParquetDirectory(Path("/"), {"T": {today: [info]}})
 
         mock_st.multiselect.return_value = [today]
