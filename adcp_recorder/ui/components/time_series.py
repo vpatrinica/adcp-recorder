@@ -2,8 +2,12 @@
 
 from typing import Any
 
-import plotly.graph_objects as go
-import streamlit as st
+try:
+    import plotly.graph_objects as go
+    import streamlit as st
+except ImportError:
+    go = None  # type: ignore
+    st = None  # type: ignore
 
 from adcp_recorder.ui.data_layer import DataLayer
 
@@ -33,6 +37,8 @@ def render_time_series(
         key_prefix: Unique key prefix for Streamlit session state
 
     """
+    if st is None or go is None:
+        raise ImportError("Streamlit and Plotly are required for this component.")
     config = config or {}
 
     # Series configuration
@@ -133,6 +139,8 @@ def render_time_series(
 
 def _render_series_builder(data_layer: DataLayer, key_prefix: str) -> list[dict[str, Any]]:
     """Render UI for building series configuration interactively."""
+    if st is None:
+        raise ImportError("Streamlit is required for this component.")
     series_list = []
 
     # Get available sources
@@ -219,6 +227,8 @@ def render_time_range_selector(
     key: str = "time_range",
 ) -> str:
     """Standalone time range selector widget."""
+    if st is None:
+        raise ImportError("Streamlit is required for this component.")
     options = ["1h", "6h", "24h", "7d", "30d", "all"]
     idx = options.index(default) if default in options else 2
     return st.selectbox("Time Range", options=options, index=idx, key=key)

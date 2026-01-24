@@ -7,6 +7,10 @@ and file tree rendering functionality.
 from datetime import date, timedelta
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+pytest.importorskip("streamlit")
+
 # Standard import
 from adcp_recorder.ui.components.file_browser import (
     FileSelection,

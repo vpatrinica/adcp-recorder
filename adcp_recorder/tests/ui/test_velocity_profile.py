@@ -5,6 +5,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+pytest.importorskip("plotly")
+pytest.importorskip("streamlit")
+
 from adcp_recorder.ui.components.velocity_profile import (
     render_velocity_comparison,
     render_velocity_profile,

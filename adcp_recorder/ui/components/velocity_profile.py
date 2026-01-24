@@ -3,8 +3,12 @@
 from datetime import datetime
 from typing import Any
 
-import plotly.graph_objects as go
-import streamlit as st
+try:
+    import plotly.graph_objects as go
+    import streamlit as st
+except ImportError:
+    go = None  # type: ignore
+    st = None  # type: ignore
 
 from adcp_recorder.ui.data_layer import DataLayer
 
@@ -37,6 +41,8 @@ def render_velocity_profile(
         key_prefix: Unique key prefix for Streamlit session state
 
     """
+    if st is None or go is None:
+        raise ImportError("Streamlit and Plotly are required for this component.")
     config = config or {}
 
     # Configuration
@@ -272,6 +278,8 @@ def render_velocity_comparison(
         key_prefix: Unique key prefix
 
     """
+    if st is None or go is None:
+        raise ImportError("Streamlit and Plotly are required for this component.")
     config = config or {}
     source_name = config.get("data_source", "pnorc_df101")
 
