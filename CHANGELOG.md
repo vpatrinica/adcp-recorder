@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Directional spectrum polar plots for wave analysis
 
+## [0.2.1] - 2026-01-24
+
+### Added
+
+- **Stale File Monitoring**: Robust retry mechanism for Parquet files stuck in `.writing` state.
+- **Robust Error Handling**: Improved handling of database and Parquet locks in the dashboard with user-friendly messages.
+
+### Changed
+
+- **Improved UI Defaults**:
+  - Parquet File Browser is now collapsed by default.
+  - Selecting "Parquet Files" data source automatically loads available data.
+- **Dependencies**: Moved `numpy` from optional to core dependencies.
+
+### Fixed
+
+- **Type Safety**: Resolved 150+ Mypy type errors across the codebase.
+- **Parquet Scanning**: Fixed `OSError` during directory scanning when folders are missing.
+- **Testing**: Fixed migration warnings, DuckDB locking issues in tests, and improved test isolation.
+- **Coverage**: Achieved 100% test coverage for key UI components (`velocity_profile`, `spectrum_plots`).
+
 ## [0.2.0] - 2026-01-18
 
 ### Added
