@@ -2,6 +2,7 @@
 
 import time
 from queue import Queue
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
@@ -40,7 +41,7 @@ class TestIntegration:
 
         manager.read_line.side_effect = itertools.chain(sentences, itertools.cycle([b""]))
 
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
         db = DatabaseManager(db_path)
 
         router = MessageRouter()
@@ -59,8 +60,8 @@ class TestIntegration:
             max_wait = 10.0
             while time.time() - start_time < max_wait:
                 conn = db.get_connection()
-                count = conn.execute("SELECT count(*) FROM raw_lines").fetchone()[0]
-                if count >= 3:
+                res = conn.execute("SELECT count(*) FROM raw_lines").fetchone()
+                if res is not None and res[0] >= 3:
                     break
                 time.sleep(0.1)
 
@@ -95,7 +96,9 @@ class TestIntegration:
 
         manager.read_line.side_effect = itertools.chain(sentences, itertools.cycle([b""]))
 
-        queue = Queue(maxsize=100)
+        manager.read_line.side_effect = itertools.chain(sentences, itertools.cycle([b""]))
+
+        queue: Queue[Any] = Queue(maxsize=100)
         db = DatabaseManager(db_path)
 
         router = MessageRouter()
@@ -139,7 +142,9 @@ class TestIntegration:
 
         manager.read_line.side_effect = itertools.chain(sentences, itertools.cycle([b""]))
 
-        queue = Queue(maxsize=100)
+        manager.read_line.side_effect = itertools.chain(sentences, itertools.cycle([b""]))
+
+        queue: Queue[Any] = Queue(maxsize=100)
         db = DatabaseManager(db_path)
 
         router = MessageRouter()
@@ -185,7 +190,9 @@ class TestIntegration:
 
         manager.read_line.side_effect = itertools.chain(sentences, itertools.cycle([b""]))
 
-        queue = Queue(maxsize=100)
+        manager.read_line.side_effect = itertools.chain(sentences, itertools.cycle([b""]))
+
+        queue: Queue[Any] = Queue(maxsize=100)
         db = DatabaseManager(db_path)
 
         router = MessageRouter()
@@ -227,7 +234,7 @@ class TestIntegration:
         # Keep providing data
         manager.read_line.return_value = b"$PNORI,4,Test,4,20,0.20,1.00,0*2E\r\n"
 
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
         db = DatabaseManager(db_path)
 
         router = MessageRouter()
@@ -258,7 +265,7 @@ class TestIntegration:
         manager.is_connected.return_value = True
         manager.read_line.return_value = b"$PNORI,4,Test,4,20,0.20,1.00,0*2E\r\n"
 
-        queue = Queue(maxsize=100)
+        queue: Queue[Any] = Queue(maxsize=100)
         db = DatabaseManager(db_path)
 
         router = MessageRouter()

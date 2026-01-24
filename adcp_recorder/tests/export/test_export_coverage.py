@@ -38,6 +38,7 @@ class TestBinaryBlobWriterCoverage:
         writer.start_blob(b"start")
         writer.append_chunk(b"extra")
         path = writer.finish_blob()
+        assert path is not None
         with open(path, "rb") as f:
             assert f.read() == b"startextra"
 
@@ -171,8 +172,33 @@ class TestParquetWriterCoverage:
     def test_write_to_parquet_exception_rethrows(self, tmp_path):
         """Test that _write_to_parquet rethrows after logging."""
         writer = ParquetWriter(str(tmp_path))
-        with patch("polars.DataFrame", side_effect=Exception("Polars error")):
+        with patch("polars.from_dicts", side_effect=Exception("Polars error")):
             with patch("adcp_recorder.export.parquet_writer.logger") as mock_logger:
                 with pytest.raises(Exception, match="Polars error"):
                     writer._write_to_parquet("PNORS", date(2023, 1, 1), [{"test": 1}])
                 mock_logger.error.assert_called()
+
+    def test_write_record_with_measurement_id(self, tmp_path):
+        """Test that measurement_id is generated when date/time are present."""
+        writer = ParquetWriter(str(tmp_path))
+        record = {"measurement_date": "012326", "measurement_time": "123456", "val": 10}
+        writer.write_record("PNORS", record)
+
+        buffered = writer._buffers["PNORS"][0]
+        assert buffered["measurement_id"] == 12326123456
+        assert buffered["measurement_date"] == "012326"
+        assert buffered["measurement_time"] == "123456"
+
+    def test_write_record_invalid_measurement_id(self, tmp_path):
+        """Test that invalid date/time don't crash and don't generate measurement_id."""
+        writer = ParquetWriter(str(tmp_path))
+
+        # Invalid length
+        record1 = {"measurement_date": "123", "measurement_time": "123456"}
+        writer.write_record("PNORS", record1)
+        assert "measurement_id" not in writer._buffers["PNORS"][0]
+
+        # Non-numeric
+        record2 = {"measurement_date": "abcabc", "measurement_time": "123456"}
+        writer.write_record("PNORS", record2)
+        assert "measurement_id" not in writer._buffers["PNORS"][1]

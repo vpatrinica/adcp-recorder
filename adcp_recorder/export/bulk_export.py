@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 import duckdb
+
 from adcp_recorder.export.parquet_writer import ParquetWriter
 
 # Configure logging
@@ -28,7 +29,7 @@ class BulkExporter:
         """
         self.db_path = db_path
         self.output_path = Path(output_path)
-        self.writer = ParquetWriter(self.output_path, buffer_size=buffer_size)
+        self.writer = ParquetWriter(str(self.output_path), buffer_size=buffer_size)
 
         # Mapping from SQL table names to Parquet prefixes (folder names)
         self.table_map = {
@@ -98,7 +99,8 @@ class BulkExporter:
         logger.info(f"Exporting table '{table_name}' to prefix '{prefix}'...")
 
         # Get row count for progress reporting
-        total_rows = conn.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
+        row = conn.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()
+        total_rows = row[0] if row else 0
         if total_rows == 0:
             logger.info(f"Table '{table_name}' is empty. Skipping.")
             return 0

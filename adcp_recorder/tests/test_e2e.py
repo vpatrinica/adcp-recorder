@@ -1,6 +1,7 @@
 import tempfile
 import time
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -90,10 +91,15 @@ def test_full_pipeline_e2e(temp_recorder_dir):
 
                 try:
                     # We expect 3 successfully parsed messages in their tables
-                    count_pnori = conn.execute("SELECT count(*) FROM pnori").fetchone()[0]
-                    count_pnors = conn.execute("SELECT count(*) FROM pnors_df100").fetchone()[0]
-                    count_pnorc = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()[0]
-                    count_errors = conn.execute("SELECT count(*) FROM parse_errors").fetchone()[0]
+                    c1 = conn.execute("SELECT count(*) FROM pnori").fetchone()
+                    c2 = conn.execute("SELECT count(*) FROM pnors_df100").fetchone()
+                    c3 = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()
+                    c4 = conn.execute("SELECT count(*) FROM parse_errors").fetchone()
+
+                    count_pnori = c1[0] if c1 else 0
+                    count_pnors = c2[0] if c2 else 0
+                    count_pnorc = c3[0] if c3 else 0
+                    count_errors = c4[0] if c4 else 0
 
                     if (
                         count_pnori >= 1
@@ -120,9 +126,12 @@ def test_full_pipeline_e2e(temp_recorder_dir):
                     errors = conn.execute(
                         "SELECT error_type, error_message FROM parse_errors"
                     ).fetchall()
-                    pnori = conn.execute("SELECT count(*) FROM pnori").fetchone()[0]
-                    pnors = conn.execute("SELECT count(*) FROM pnors_df100").fetchone()[0]
-                    pnorc = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()[0]
+                    c1 = conn.execute("SELECT count(*) FROM pnori").fetchone()
+                    c2 = conn.execute("SELECT count(*) FROM pnors_df100").fetchone()
+                    c3 = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()
+                    pnori = c1[0] if c1 else 0
+                    pnors = c2[0] if c2 else 0
+                    pnorc = c3[0] if c3 else 0
                 finally:
                     db.close()
 
@@ -212,7 +221,7 @@ def test_reconnect_scenario(temp_recorder_dir):
         def close(self) -> None:
             self.is_open = False
 
-    instances = []
+    instances: list[Any] = []
 
     # We want to mock sleep for the reconnection logic but NOT for the test's wait loop.
     # The SerialConnectionManager uses time.sleep(wait_time).

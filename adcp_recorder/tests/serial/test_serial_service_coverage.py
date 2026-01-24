@@ -4,6 +4,7 @@ import signal
 import threading
 import time
 from queue import Empty, Queue
+from typing import Any
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
@@ -17,7 +18,7 @@ from adcp_recorder.service.supervisor import ServiceSupervisor, main
 class TestSerialServiceCoverage:
     def test_consumer_loop_exceptions(self):
         """Cover SerialConsumer._consume_loop exception handling."""
-        queue = Queue()
+        queue: Queue[Any] = Queue()
         db_manager = MagicMock()
         router = MessageRouter()
 
@@ -48,7 +49,7 @@ class TestSerialServiceCoverage:
 
     def test_consumer_decode_error_with_file_writer(self):
         """Cover SerialConsumer decode error logging to file writer."""
-        queue = Queue()
+        queue: Queue[Any] = Queue()
         db_manager = MagicMock()
         router = MessageRouter()
         file_writer = MagicMock()
@@ -73,7 +74,7 @@ class TestSerialServiceCoverage:
     def test_producer_unicode_decode_error_double(self):
         """Cover SerialProducer unicode decode error handling with existing blob mode."""
         manager = MagicMock()
-        queue = Queue()
+        queue: Queue[Any] = Queue()
         producer = SerialProducer(manager, queue)
 
         bad_bytes = b"A" * 100 + b"\xff"
@@ -173,7 +174,7 @@ class TestSerialServiceCoverage:
 
         def side_effect(*args, **kwargs):
             if not getattr(side_effect, "called", False):
-                side_effect.called = True
+                setattr(side_effect, "called", True)
                 raise Exception("Generic Queue Error")
             consumer._running = False
             raise Empty

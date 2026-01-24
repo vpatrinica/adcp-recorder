@@ -4,6 +4,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -68,7 +69,7 @@ def test_supervisor_lifecycle_sigint(tmp_path):
     env = os.environ.copy()
     env["PYTHONPATH"] = os.getcwd()
 
-    kwargs = {
+    kwargs: dict[str, Any] = {
         "env": env,
         "stdout": subprocess.PIPE,
         "stderr": subprocess.PIPE,
@@ -77,7 +78,7 @@ def test_supervisor_lifecycle_sigint(tmp_path):
 
     if os.name == "nt":
         # On Windows, we need a new process group to send CTRL_C_EVENT
-        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+        kwargs["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200)
 
     process = subprocess.Popen([sys.executable, str(runner_script)], **kwargs)
 

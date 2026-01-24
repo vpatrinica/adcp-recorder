@@ -1261,6 +1261,11 @@ class TestParquetDataLayerErrorPaths:
         # First ensure pnorf is in loaded views
         layer._loaded_views.add("pq_pnorf")
         assert layer.resolve_source_name("pnorf_data") == "pq_pnorf"
+
+        # Test fallback for 'pnor' base type ending in 'data' without underscore
+        layer._loaded_views.add("pq_pnorw")
+        assert layer.resolve_source_name("pnorwdata_something") == "pq_pnorw"
+
         layer.close()
 
     def test_close_error_handling(self):
@@ -1521,6 +1526,7 @@ class TestMiscCoverage:
 
         # 528: load_data no files matching
         # discovery exists but has no files for a TYPE
+        assert layer._discovery is not None
         layer._discovery._cache = ParquetDirectory(tmp_path, {"TYPE": {}})
         assert layer.load_data(record_types=["TYPE"]) == {}
 

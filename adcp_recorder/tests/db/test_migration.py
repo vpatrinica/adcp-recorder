@@ -1,6 +1,7 @@
 """Unit tests for database migration logic."""
 
 from datetime import datetime
+from typing import Any
 
 import duckdb
 import pytest
@@ -171,7 +172,7 @@ def old_db_path(tmp_path):
         cols = conn.execute(f"DESCRIBE {tbl}").fetchall()
         # cols: (column_name, column_type, null, key, default, extra)
         # DuckDB DESCRIBE format: [column_name, column_type, null, key, default, extra]
-        data = []
+        data: list[Any] = []
         for i, col in enumerate(cols):
             name, col_type, nullable = col[0], col[1], col[2]
             if i == 0:  # record_id / config_id
@@ -264,13 +265,16 @@ def test_full_migration(old_db_path):
     assert verification["pnorh"] == 2
 
     # Check specific fields in pnors12 (conversion)
+    # Check specific fields in pnors12 (conversion)
     conn = duckdb.connect(str(target_path))
     res = conn.execute("SELECT data_format, heading FROM pnors12").fetchone()
+    assert res is not None
     assert res[0] == 101
     assert float(res[1]) == 90.0
 
     # Check pnorw_data standardized names
     res = conn.execute("SELECT main_dir, dir_tp, spr_tp, tz FROM pnorw_data").fetchone()
+    assert res is not None
     assert float(res[0]) == 90.0  # was mean_dir
     assert float(res[1]) == 180.0  # was peak_dir
     assert float(res[2]) == 10.0  # was peak_directional_spread
