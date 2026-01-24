@@ -2,7 +2,10 @@
 
 from typing import Any
 
-import streamlit as st
+try:
+    import streamlit as st
+except ImportError:
+    st = None  # type: ignore
 
 from adcp_recorder.ui.data_layer import DataLayer, DataSource
 
@@ -22,6 +25,8 @@ def render_table_view(
         key_prefix: Unique key prefix for Streamlit session state
 
     """
+    if st is None:
+        raise ImportError("Streamlit is required for this component.")
     config = config or {}
 
     # Get source metadata
@@ -216,6 +221,8 @@ def render_column_selector(
         List of selected column names
 
     """
+    if st is None:
+        raise ImportError("Streamlit is required for this component.")
     available = [c.name for c in source.columns]
     defaults = default_columns or available[:5]
 
