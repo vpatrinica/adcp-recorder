@@ -187,6 +187,8 @@ class SerialConsumer:
         self._running = False
         if self._thread is not None:
             self._thread.join(timeout=10.0)
+            if self._thread.is_alive():
+                logger.warning("Consumer thread did not exit cleanly within timeout")
         logger.info("Serial consumer stopped")
 
     def _update_heartbeat(self) -> None:
@@ -207,6 +209,7 @@ class SerialConsumer:
                 except Empty:
                     # Queue empty - if we are stopping, we are done
                     if not self._running:
+                        logger.debug("Queue empty and stopping, exiting loop")
                         break
                     continue
                 except Exception as e:

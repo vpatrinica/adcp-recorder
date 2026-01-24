@@ -137,7 +137,7 @@ def test_memory_stability():
         cs = compute_checksum(raw_content)
         sentences.append(f"{raw_content}*{cs}\r\n".encode())
 
-    with tempfile.TemporaryDirectory() as tmp_dir:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp_dir:
         db_path = Path(tmp_dir) / "mem_test.duckdb"
         config = RecorderConfig(
             serial_port="/dev/ttyMem", output_dir=str(tmp_dir), db_path=str(db_path)
@@ -169,7 +169,10 @@ def test_memory_stability():
                 )
             finally:
                 # Ensure recorder is fully stopped and all resources released
-                recorder.stop()
+                if recorder:
+                    recorder.stop()
+                recorder = None  # Release reference
+
                 # On Windows, file handles may take time to release
                 # Force garbage collection and wait longer for threads to fully exit
                 import gc
