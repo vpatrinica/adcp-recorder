@@ -3,7 +3,7 @@
 import time
 from queue import Queue
 from typing import Any
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -467,3 +467,23 @@ class TestSerialConsumer:
         consumer.stop()
 
         mock_file_writer.write_invalid_record.assert_called_with("PNORI", sentence)
+
+    def test_stop_timeout_warning(self, db_path, caplog):
+        """Test that a warning is logged if the consumer thread hangs during stop."""
+        import logging
+
+        queue: Queue[Any] = Queue(maxsize=100)
+        db = DatabaseManager(db_path)
+        router = MessageRouter()
+        consumer = SerialConsumer(queue, db, router)
+
+        consumer.start()
+
+        # Mock the thread object to simulate it's still alive after join
+        with (
+            patch.object(consumer._thread, "join"),
+            patch.object(consumer._thread, "is_alive", return_value=True),
+        ):
+            with caplog.at_level(logging.WARNING):
+                consumer.stop()
+                assert "Consumer thread did not exit cleanly within timeout" in caplog.text

@@ -171,7 +171,7 @@ def test_memory_stability():
                 # Ensure recorder is fully stopped and all resources released
                 if recorder:
                     recorder.stop()
-                recorder = None  # Release reference
+                recorder = None  # type: ignore[assignment] # Release reference
 
                 # On Windows, file handles may take time to release
                 # Force garbage collection and wait longer for threads to fully exit
