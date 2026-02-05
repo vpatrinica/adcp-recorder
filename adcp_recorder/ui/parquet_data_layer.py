@@ -12,7 +12,7 @@ import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -25,7 +25,7 @@ from adcp_recorder.ui.data_layer import DataLayer
 logger = logging.getLogger(__name__)
 
 
-class WritingFileStatus(str, Enum):
+class WritingFileStatus(StrEnum):
     """Status of a stale .writing file check."""
 
     WAITING_FIRST_RETRY = "waiting_first_retry"  # Will retry in 15s

@@ -6,13 +6,13 @@ time-range queries, and aggregation functions for dashboard components.
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 import duckdb
 
 
-class ColumnType(str, Enum):
+class ColumnType(StrEnum):
     """Column data type categories for UI rendering."""
 
     NUMERIC = "numeric"

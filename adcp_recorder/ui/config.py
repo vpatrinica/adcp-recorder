@@ -4,7 +4,7 @@ Provides configuration classes for dashboard layouts, panels, and plot settings.
 Configurations are persisted to ~/.adcp-recorder/dashboards/ as YAML files.
 """
 
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -12,7 +12,7 @@ import yaml  # type: ignore
 from pydantic import BaseModel, Field, field_validator
 
 
-class PanelType(str, Enum):
+class PanelType(StrEnum):
     """Available panel/widget types for dashboards."""
 
     TABLE = "table"
@@ -24,7 +24,7 @@ class PanelType(str, Enum):
     POLAR = "polar"
 
 
-class TimeRange(str, Enum):
+class TimeRange(StrEnum):
     """Preset time range options."""
 
     HOUR_1 = "1h"
