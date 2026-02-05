@@ -65,7 +65,11 @@ class ParquetWriter:
                 date_str = str(record["measurement_date"])
                 time_str = str(record["measurement_time"])
                 if len(date_str) == 6 and len(time_str) == 6:
-                    record["measurement_id"] = int(date_str + time_str)
+                    # NMEA date is MMDDYY, we want YYMMDDHHMMSS for sorting
+                    yy = date_str[4:6]
+                    mm = date_str[0:2]
+                    dd = date_str[2:4]
+                    record["measurement_id"] = int(f"{yy}{mm}{dd}{time_str}")
             except (ValueError, TypeError):
                 pass
 
@@ -93,13 +97,13 @@ class ParquetWriter:
                 records_by_date: dict[date, list[dict[str, Any]]] = {}
                 for rec in buffer:
                     ts = rec.get("received_at")
-                    date = ts.date() if isinstance(ts, datetime) else datetime.now().date()
-                    if date not in records_by_date:
-                        records_by_date[date] = []
-                    records_by_date[date].append(rec)
+                    date_val = ts.date() if isinstance(ts, datetime) else datetime.now().date()
+                    if date_val not in records_by_date:
+                        records_by_date[date_val] = []
+                    records_by_date[date_val].append(rec)
 
-                for date, records in records_by_date.items():
-                    self._write_to_parquet(p, date, records)
+                for date_val, records in records_by_date.items():
+                    self._write_to_parquet(p, date_val, records)
 
                 self._buffers[p] = []
             except Exception as e:
@@ -110,19 +114,27 @@ class ParquetWriter:
     ) -> None:
         """Actually write a batch of records to a Parquet file.
 
+        Ensures maximum 1 file per day per prefix by appending to existing file if it exists.
+        Also compacts legacy files ({prefix}_*.parquet) into the single daily file.
         Uses atomic write signaling: writes to a temporary .writing file first,
         then renames to the final .parquet file. This ensures readers never see
         incomplete files.
         """
         partition_dir = self._get_partition_path(prefix, record_date)
 
-        # Filename: {prefix}_{timestamp}.parquet
-        timestamp_str = datetime.now().strftime("%H%M%S_%f")
-        final_filename = f"{prefix}_{timestamp_str}.parquet"
-        temp_filename = f"{prefix}_{timestamp_str}.parquet.writing"
+        # Filename: {prefix}.parquet (one per daily partition)
+        final_filename = f"{prefix}.parquet"
+        temp_filename = f"{prefix}.parquet.writing"
 
         final_path = partition_dir / final_filename
         temp_path = partition_dir / temp_filename
+
+        # Detect legacy files: {prefix}_*.parquet (but not the final one)
+        legacy_files = [
+            f
+            for f in partition_dir.glob(f"{prefix}_*.parquet")
+            if f.name != final_filename and not f.name.endswith(".writing")
+        ]
 
         # Ensure all records have record_type for consistency
         for r in records:
@@ -133,8 +145,48 @@ class ParquetWriter:
             # Use polars to write Parquet directly - more efficient and no pandas dependency
             import polars as pl
 
-            # Use from_dicts with large infer_schema_length to avoid schema mismatch issues
-            df = pl.from_dicts(records, infer_schema_length=10000)
+            # Create dataframe for new records
+            new_df = pl.from_dicts(records, infer_schema_length=10000)
+
+            # Collect data from existing and legacy files
+            dataframes = []
+            if final_path.exists():
+                try:
+                    dataframes.append(pl.read_parquet(str(final_path)))
+                except Exception as e:
+                    logger.warning(f"Could not read existing Parquet {final_path}: {e}")
+
+            for legacy_path in legacy_files:
+                try:
+                    dataframes.append(pl.read_parquet(str(legacy_path)))
+                except Exception as e:
+                    logger.warning(f"Could not read legacy Parquet {legacy_path}: {e}")
+
+            dataframes.append(new_df)
+
+            # Use diagonal union to handle schema evolutions (new columns)
+            df = pl.concat(dataframes, how="diagonal")
+
+            # Backfill measurement_id for legacy records if missing
+            if "measurement_id" in df.columns:
+                # Fill nulls in measurement_id if date and time are present
+                # This is a bit complex in polars expressions, so we do it if possible
+                if "measurement_date" in df.columns and "measurement_time" in df.columns:
+                    # Only try if we have the necessary strings
+                    df = df.with_columns(
+                        pl.when(pl.col("measurement_id").is_null())
+                        .then(
+                            # YYMMDDHHMMSS
+                            (
+                                pl.col("measurement_date").str.slice(4, 2)
+                                + pl.col("measurement_date").str.slice(0, 2)
+                                + pl.col("measurement_date").str.slice(2, 2)
+                                + pl.col("measurement_time")
+                            ).cast(pl.UInt64)
+                        )
+                        .otherwise(pl.col("measurement_id"))
+                        .alias("measurement_id")
+                    )
 
             # Write to temporary file first
             df.write_parquet(str(temp_path))
@@ -142,7 +194,14 @@ class ParquetWriter:
             # Atomic rename to final path (atomic on POSIX systems)
             os.rename(temp_path, final_path)
 
-            logger.debug(f"Wrote {len(records)} records to {final_path}")
+            # Clean up legacy files after successful write
+            for legacy_path in legacy_files:
+                try:
+                    legacy_path.unlink()
+                except Exception as e:
+                    logger.warning(f"Could not delete legacy file {legacy_path}: {e}")
+
+            logger.debug(f"Wrote {len(records)} records (total {len(df)}) to {final_path}")
         except Exception as e:
             logger.error(f"Polars Parquet write error: {prefix}: {e}")
             # Clean up temp file if it exists

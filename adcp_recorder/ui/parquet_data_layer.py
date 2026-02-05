@@ -559,129 +559,202 @@ class ParquetDataLayer(DataLayer):
     def _create_joined_views(self) -> None:
         """Create joined views (like wave_measurement_full) from parquet views."""
         # Map of joined view names to their SQL definitions
-        # These are adapted from db/schema.py to use pq_ prefixed views
-        # and support both 'received_at' and 'recorded_at' (via COALESCE or metadata)
-
         # Check which base views are loaded
         loaded = self._loaded_views
 
-        # Wave Measurement View
-        if "pq_pnorw" in loaded and "pq_pnore" in loaded:
-            cond = self._get_join_condition("pq_pnorw", "pq_pnore", "w", "e")
-            try:
-                self._conn.execute(f"""
-                    CREATE OR REPLACE VIEW wave_measurement AS
-                    SELECT
-                        w.*,
-                        e.energy_densities,
-                        e.start_frequency AS energy_start_freq,
-                        e.step_frequency AS energy_step_freq,
-                        e.num_frequencies AS energy_num_freq
-                    FROM pq_pnorw w
-                    LEFT JOIN pq_pnore e ON {cond};
-                """)
-                self._loaded_views.add("wave_measurement")
-            except Exception as e:
-                logger.debug(f"Failed to create wave_measurement: {e}")
+        # 1. Wave Measurement View (Comprehensive)
+        if "pq_pnorw" in loaded:
+            cond_e = (
+                self._get_join_condition("pq_pnorw", "pq_pnore", "w", "e")
+                if "pq_pnore" in loaded
+                else None
+            )
+            cond_b = (
+                self._get_join_condition("pq_pnorw", "pq_pnorb", "w", "b")
+                if "pq_pnorb" in loaded
+                else None
+            )
+            cond_f = (
+                self._get_join_condition("pq_pnorw", "pq_pnorf", "w", "f")
+                if "pq_pnorf" in loaded
+                else None
+            )
+            cond_wd = (
+                self._get_join_condition("pq_pnorw", "pq_pnorwd", "w", "wd")
+                if "pq_pnorwd" in loaded
+                else None
+            )
 
-        # Full Wave Measurement View
-        if all(v in loaded for v in ("pq_pnorw", "pq_pnore", "pq_pnorb", "pq_pnorf", "pq_pnorwd")):
-            cond_e = self._get_join_condition("pq_pnorw", "pq_pnore", "w", "e")
-            cond_b = self._get_join_condition("pq_pnorw", "pq_pnorb", "w", "b")
-            cond_f = self._get_join_condition("pq_pnorw", "pq_pnorf", "w", "f")
-            cond_wd = self._get_join_condition("pq_pnorw", "pq_pnorwd", "w", "wd")
             try:
-                self._conn.execute(f"""
-                    CREATE OR REPLACE VIEW wave_measurement_full AS
-                    SELECT
-                        w.*,
-                        e.energy_densities,
-                        e.start_frequency AS energy_start_freq,
-                        e.step_frequency AS energy_step_freq,
-                        b.hmo AS band_hm0,
-                        b.tp AS band_tp,
-                        b.main_dir AS band_main_dir,
-                        f.coefficients,
-                        f.coefficient_flag,
-                        wd.values AS directional_values,
-                        wd.direction_type
-                    FROM pq_pnorw w
-                    LEFT JOIN pq_pnore e ON {cond_e}
-                    LEFT JOIN pq_pnorb b ON {cond_b}
-                    LEFT JOIN pq_pnorf f ON {cond_f}
-                    LEFT JOIN pq_pnorwd wd ON {cond_wd};
-                """)
+                sql = "CREATE OR REPLACE VIEW wave_measurement_full AS SELECT w.*"
+                if cond_e:
+                    sql += (
+                        ", e.energy_densities, e.start_frequency AS energy_start_freq, "
+                        "e.step_frequency AS energy_step_freq"
+                    )
+                if cond_b:
+                    sql += ", b.hm0 AS band_hm0, b.tp AS band_tp, b.main_dir AS band_main_dir"
+                if cond_f:
+                    sql += ", f.coefficients, f.coefficient_flag"
+                if cond_wd:
+                    sql += ", wd.values AS directional_values, wd.direction_type"
+
+                sql += " FROM pq_pnorw w"
+                if cond_e:
+                    sql += f" LEFT JOIN pq_pnore e ON {cond_e}"
+                if cond_b:
+                    sql += f" LEFT JOIN pq_pnorb b ON {cond_b}"
+                if cond_f:
+                    sql += f" LEFT JOIN pq_pnorf f ON {cond_f}"
+                if cond_wd:
+                    sql += f" LEFT JOIN pq_pnorwd wd ON {cond_wd}"
+
+                self._conn.execute(sql)
                 self._loaded_views.add("wave_measurement_full")
             except Exception as e:
-                logger.debug(f"Failed to create wave_measurement_full: {e}")
+                logger.error(f"Failed to create wave_measurement_full: {e}")
 
-        # Current Profile Views (simplified mappings for parquet)
+        # 2. Current Profile Family DF100 (PNORS + PNORC)
         if "pq_pnors" in loaded and "pq_pnorc" in loaded:
             cond = self._get_join_condition("pq_pnors", "pq_pnorc", "s", "c")
+            # Try to include PNORI if available
+            cond_i = (
+                self._get_join_condition("pq_pnors", "pq_pnori", "s", "i")
+                if "pq_pnori" in loaded
+                else None
+            )
             try:
-                self._conn.execute(f"""
-                    CREATE OR REPLACE VIEW current_profile_df100 AS
-                    SELECT s.*, c.cell_index, c.vel1, c.vel2, c.vel3, c.vel4, c.speed, c.direction
-                    FROM pq_pnors s
-                    JOIN pq_pnorc c ON {cond};
-                """)
+                # Use subquery to avoid prefix conflicts on common columns
+                sql = (
+                    "CREATE OR REPLACE VIEW current_profile_df100 AS "
+                    "SELECT s.*, c.cell_index, c.speed, c.direction"
+                )
+                if cond_i:
+                    sql += ", i.instrument_type_name, i.cell_count, i.cell_size"
+                sql += f" FROM pq_pnors s JOIN pq_pnorc c ON {cond}"
+                if cond_i:
+                    sql += f" LEFT JOIN pq_pnori i ON {cond_i}"
+
+                # To handle duplicate columns like measurement_date/time/received_at,
+                # we wrap it to only select what we need if simple wildcard join fails
+                try:
+                    import duckdb
+
+                    self._conn.execute(sql)
+                except duckdb.Error:
+                    # Fallback: project only distinct columns if simple wildcard join fails
+                    sql = (
+                        "CREATE OR REPLACE VIEW current_profile_df100 AS "
+                        "SELECT s.*, c.cell_index, c.speed AS cell_speed, "
+                        "c.direction AS cell_direction"
+                    )
+                    if cond_i:
+                        sql += ", i.instrument_type_name, i.cell_count, i.cell_size"
+                    sql += f" FROM pq_pnors s JOIN pq_pnorc c ON {cond}"
+                    if cond_i:
+                        sql += f" LEFT JOIN pq_pnori i ON {cond_i}"
+                    self._conn.execute(sql)
+
                 self._loaded_views.add("current_profile_df100")
             except Exception as e:
-                logger.debug(f"Failed to create current_profile_df100: {e}")
+                logger.error(f"Failed to create current_profile_df100: {e}")
 
-        if "pq_pnors12" in loaded and "pq_pnorc12" in loaded:
-            cond = self._get_join_condition("pq_pnors12", "pq_pnorc12", "s", "c")
-            try:
-                self._conn.execute(f"""
-                    CREATE OR REPLACE VIEW current_profile_12 AS
-                    SELECT s.*, c.cell_index, c.cell_distance, c.vel1, c.vel2, c.vel3, c.vel4
-                    FROM pq_pnors12 s
-                    JOIN pq_pnorc12 c ON {cond};
-                """)
-                self._loaded_views.add("current_profile_12")
-            except Exception as e:
-                logger.debug(f"Failed to create current_profile_12: {e}")
+        # 3. Current Profile Family DF101/102 (PNORI1/2 + PNORS1/2 + PNORC1/2)
+        for suffix in ["12", "1", "2"]:
+            s_view = f"pq_pnors{suffix}"
+            c_view = f"pq_pnorc{suffix}"
+            i_view = f"pq_pnori{suffix}"
 
-        if all(v in loaded for v in ("pq_pnorh", "pq_pnors34", "pq_pnorc34")):
-            cond_s = self._get_join_condition("pq_pnorh", "pq_pnors34", "h", "s")
-            cond_c = self._get_join_condition("pq_pnorh", "pq_pnorc34", "h", "c")
-            try:
-                self._conn.execute(f"""
-                    CREATE OR REPLACE VIEW current_profile_34 AS
-                    SELECT
-                        h.record_id AS header_id,
-                        h.data_format,
-                        h.received_at,
-                        h.measurement_date,
-                        h.measurement_time,
-                        h.error_code, h.status_code,
-                        s.heading, s.pitch, s.roll, s.pressure, s.temperature,
-                        c.cell_index, c.cell_distance, c.speed, c.direction
-                    FROM pq_pnorh h
-                    JOIN pq_pnors34 s ON {cond_s}
-                    JOIN pq_pnorc34 c ON {cond_c};
-                """)
-                self._loaded_views.add("current_profile_34")
-            except Exception as e:
-                logger.debug(f"Failed to create current_profile_34: {e}")
+            if s_view in loaded and c_view in loaded:
+                cond_sc = self._get_join_condition(s_view, c_view, "s", "c")
+                cond_si = (
+                    self._get_join_condition(s_view, i_view, "s", "i") if i_view in loaded else None
+                )
+                view_name = (
+                    f"current_profile_{suffix}"
+                    if suffix == "12"
+                    else f"view_pnori{suffix}_pnors{suffix}_pnorc{suffix}"
+                )
+
+                try:
+                    cols_s = self._get_view_columns(s_view)
+                    cols_c = self._get_view_columns(c_view)
+                    cols_i = self._get_view_columns(i_view) if i_view in loaded else set()
+
+                    # Build SQL based on existing columns
+                    select_cols = ["s.*"]
+                    for c in ["cell_index", "cell_distance", "vel1", "vel2", "vel3", "vel4"]:
+                        if c in cols_c:
+                            # Avoid duplicates if they exist in s
+                            alias = f"c_{c}" if c in cols_s else c
+                            select_cols.append(f"c.{c} AS {alias}" if alias != c else f"c.{c}")
+
+                    if cond_si:
+                        for c in ["instrument_type_name", "beam_count", "cell_count", "cell_size"]:
+                            if c in cols_i:
+                                alias = f"i_{c}" if c in cols_s or c in cols_c else c
+                                select_cols.append(f"i.{c} AS {alias}" if alias != c else f"i.{c}")
+
+                    sql = (
+                        f"CREATE OR REPLACE VIEW {view_name} AS "
+                        f"SELECT {', '.join(select_cols)} "
+                        f"FROM {s_view} s JOIN {c_view} c ON {cond_sc}"
+                    )
+                    if cond_si:
+                        sql += f" LEFT JOIN {i_view} i ON {cond_si}"
+
+                    self._conn.execute(sql)
+                    self._loaded_views.add(view_name)
+                except Exception as e:
+                    logger.error(f"Failed to create {view_name}: {e}")
+
+        # 4. Current Profile Family DF103/104 (PNORH + PNORS3/4 + PNORC3/4)
+        for suffix in ["34", "3", "4"]:
+            h_view = "pq_pnorh"  # Header is usually shared
+            s_view = f"pq_pnors{suffix}"
+            c_view = f"pq_pnorc{suffix}"
+
+            if all(v in loaded for v in (h_view, s_view, c_view)):
+                cond_hs = self._get_join_condition(h_view, s_view, "h", "s")
+                cond_hc = self._get_join_condition(h_view, c_view, "h", "c")
+                view_name = f"current_profile_{suffix}"
+
+                try:
+                    self._conn.execute(f"""
+                        CREATE OR REPLACE VIEW {view_name} AS
+                        SELECT
+                            h.*,
+                            s.heading, s.pitch, s.roll, s.pressure, s.temperature,
+                            c.cell_index, c.cell_distance, c.speed, c.direction
+                        FROM {h_view} h
+                        JOIN {s_view} s ON {cond_hs}
+                        JOIN {c_view} c ON {cond_hc};
+                    """)
+                    self._loaded_views.add(view_name)
+                except Exception as e:
+                    logger.error(f"Failed to create {view_name}: {e}")
 
     def _get_join_condition(
         self, left_view: str, right_view: str, left_alias: str, right_alias: str
     ) -> str:
         """Get the optimized join condition between two parquet views."""
-        try:
-            cols_left = {c[0] for c in self._conn.execute(f"DESCRIBE {left_view}").fetchall()}
-            cols_right = {c[0] for c in self._conn.execute(f"DESCRIBE {right_view}").fetchall()}
+        cols_left = self._get_view_columns(left_view)
+        cols_right = self._get_view_columns(right_view)
 
-            if "measurement_id" in cols_left and "measurement_id" in cols_right:
-                return f"{left_alias}.measurement_id = {right_alias}.measurement_id"
-        except Exception:
-            pass
+        if "measurement_id" in cols_left and "measurement_id" in cols_right:
+            return f"{left_alias}.measurement_id = {right_alias}.measurement_id"
 
         return (
             f"{left_alias}.measurement_date = {right_alias}.measurement_date "
             f"AND {left_alias}.measurement_time = {right_alias}.measurement_time"
         )
+
+    def _get_view_columns(self, view_name: str) -> set[str]:
+        """Get set of column names for a view."""
+        try:
+            return {c[0] for c in self._conn.execute(f"DESCRIBE {view_name}").fetchall()}
+        except Exception:
+            return set()
 
     def get_loaded_views(self) -> list[str]:
         """Get list of currently loaded view names."""

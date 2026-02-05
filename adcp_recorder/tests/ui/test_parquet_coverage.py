@@ -18,7 +18,8 @@ def sample_parquet_dir(tmp_path):
     # Common metadata
     date_str = "011626"
     time_str = "120000"
-    m_id = 11626120000
+    # New format YYMMDDHHMMSS -> 260116120000
+    m_id = 260116120000
     ts = datetime(2026, 1, 16, 12, 0, 0)
 
     # 1. PNORW (Wave base)
@@ -186,7 +187,7 @@ def sample_parquet_dir(tmp_path):
         p_dir.mkdir(parents=True)
         data: dict[str, Any] = {}
         if p == "PNORB":
-            data = {"hmo": 1.2, "tp": 8.0, "main_dir": 90.0}
+            data = {"hm0": 1.2, "tp": 8.0, "main_dir": 90.0}
         elif p == "PNORF":
             data = {"coefficients": json.dumps([1, 2]), "coefficient_flag": "A1"}
         else:  # PNORWD
@@ -227,7 +228,6 @@ class TestParquetDataLayerCoverage:
         assert "pq_pnorc34" in views
 
         # Check joined views
-        assert "wave_measurement" in views
         assert "wave_measurement_full" in views
         assert "current_profile_df100" in views
         assert "current_profile_12" in views
@@ -238,14 +238,14 @@ class TestParquetDataLayerCoverage:
         layer = ParquetDataLayer(sample_parquet_dir)
         layer.load_data()
 
-        # 1. Wave Measurement
-        wm = layer.conn.execute(
-            "SELECT hs, energy_densities, energy_start_freq FROM wave_measurement"
+        # 1. Wave Measurement Full (replaces wave_measurement)
+        wmf = layer.conn.execute(
+            "SELECT hs, energy_densities, energy_start_freq FROM wave_measurement_full"
         ).fetchone()
-        assert wm is not None
-        assert wm[0] == 1.5
-        assert wm[1] == json.dumps([0.1, 0.2, 0.3])
-        assert wm[2] == 0.05
+        assert wmf is not None
+        assert wmf[0] == 1.5
+        assert wmf[1] == json.dumps([0.1, 0.2, 0.3])
+        assert wmf[2] == 0.05
 
         # 2. Wave Measurement Full
         wmf = layer.conn.execute(
@@ -275,7 +275,7 @@ class TestParquetDataLayerCoverage:
 
         # 5. Current Profile 34
         cp34 = layer.conn.execute(
-            "SELECT header_id, heading, speed FROM current_profile_34"
+            "SELECT record_id, heading, speed FROM current_profile_34"
         ).fetchone()
         assert cp34 is not None
         assert cp34[0] == 1
@@ -326,12 +326,12 @@ class TestParquetDataLayerCoverage:
             layer._loaded_views.add("pq_pnorw")
             layer._loaded_views.add("pq_pnore")
 
-            with patch.object(pdl.logger, "debug") as mock_debug:
+            with patch.object(pdl.logger, "error") as mock_error:
                 layer._create_joined_views()
-                # Verify that debug was called with a message containing "Failed to create"
+                # Verify that error was called with a message containing "Failed to create"
                 found = any(
-                    "Failed to create" in str(args[0]) for args, kwargs in mock_debug.call_args_list
+                    "Failed to create" in str(args[0]) for args, kwargs in mock_error.call_args_list
                 )
                 assert found, (
-                    f"Expected 'Failed to create' log message, got {mock_debug.call_args_list}"
+                    f"Expected 'Failed to create' log message, got {mock_error.call_args_list}"
                 )

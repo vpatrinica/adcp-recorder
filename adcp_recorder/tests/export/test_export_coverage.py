@@ -185,7 +185,7 @@ class TestParquetWriterCoverage:
         writer.write_record("PNORS", record)
 
         buffered = writer._buffers["PNORS"][0]
-        assert buffered["measurement_id"] == 12326123456
+        assert buffered["measurement_id"] == 260123123456
         assert buffered["measurement_date"] == "012326"
         assert buffered["measurement_time"] == "123456"
 
