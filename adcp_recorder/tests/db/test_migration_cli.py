@@ -11,7 +11,9 @@ def test_migration_cli_help():
         ["python", "-m", "adcp_recorder.db.migration", "--help"], capture_output=True, text=True
     )
     assert result.returncode == 0
-    assert "Migrate ADCP database schema" in result.stdout
+    assert result.returncode == 0
+    # Use partial string to avoid issues with argparse line wrapping
+    assert "Migrate ADCP database" in result.stdout
 
 
 def test_migration_cli_basic(tmp_path):

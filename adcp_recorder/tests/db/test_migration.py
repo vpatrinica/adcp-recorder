@@ -441,19 +441,54 @@ def test_migration_pnorc_alternative_column(tmp_path):
 
 
 def test_migration_main(tmp_path, capsys):
-    """Test the main CLI point."""
-
+    """Test the main CLI point with verification and in-place."""
     db_path = tmp_path / "cli_test.duckdb"
     conn = duckdb.connect(str(db_path))
     conn.execute("CREATE TABLE echo_data (id INT)")
     conn.close()
 
-    target = tmp_path / "cli_migrated.duckdb"
-
-    with patch.object(sys, "argv", ["migration.py", str(db_path), "--target", str(target)]):
+    # Test in-place with verify
+    with patch.object(sys, "argv", ["migration.py", str(db_path), "--in-place", "--verify"]):
         main()
 
+    # Test with target and verify
+    target = tmp_path / "cli_migrated.duckdb"
+    # Create again since in-place might have changed it or we want fresh start
+    db_path2 = tmp_path / "cli_test2.duckdb"
+    conn = duckdb.connect(str(db_path2))
+    conn.execute("CREATE TABLE echo_data (id INT)")
+    conn.close()
+    with patch.object(
+        sys, "argv", ["migration.py", str(db_path2), "--target", str(target), "--verify"]
+    ):
+        main()
     assert target.exists()
+
+
+def test_migration_pnorw_empty(tmp_path):
+    """Test migration when pnorw_data is empty."""
+    db_path = tmp_path / "pnorw_empty.duckdb"
+    conn = duckdb.connect(str(db_path))
+    # pnorw_data exists but has old schema names and 0 rows
+    conn.execute("CREATE TABLE pnorw_data (record_id BIGINT, mean_dir DOUBLE)")
+    conn.close()
+
+    target_path = tmp_path / "pnorw_empty_migrated.duckdb"
+    stats = migrate_database(db_path, target_path)
+    assert stats.get("pnorw_data (field update)", 0) == 0
+
+
+def test_migration_secondary_empty_data(tmp_path):
+    """Test migration where secondary tables exist but are empty."""
+    db_path = tmp_path / "empty_data.duckdb"
+    conn = duckdb.connect(str(db_path))
+    conn.execute("CREATE TABLE pnori1 (id INT)")
+    conn.execute("CREATE TABLE pnori2 (id INT)")  # Exists but empty
+    conn.close()
+
+    target_path = tmp_path / "empty_data_migrated.duckdb"
+    stats = migrate_database(db_path, target_path)
+    assert stats.get("pnori1/2->pnori12", 0) == 0
 
 
 def test_utils_exceptions():
@@ -509,10 +544,16 @@ def test_migrate_pnorw_fields_exception(caplog):
     mock_cursor = MagicMock()
     mock_conn.execute.return_value = mock_cursor
 
-    # First check raises exception -> old_schema = False
-    mock_conn.execute.side_effect = Exception("DB Error")
+    # First call (get_old_table_exists) returns True
+    # Second call (execute for column_name) raises Exception
+    def side_effect(query, params=None):
+        if "information_schema.tables" in query:
+            return MagicMock(fetchone=lambda: [1])
+        raise Exception("Inner DB Error")
 
-    # If old_schema is False, it basically skips migration
+    mock_conn.execute.side_effect = side_effect
+
+    # If old_schema is False (via exception), it skips migration and returns 0
     count = migrate_pnorw_fields(mock_conn)
     assert count == 0
 
@@ -618,11 +659,6 @@ def test_ensure_pnorw_h3_table_not_found():
     mock_conn.execute.return_value = mock_cursor
 
     # Mock get_old_table_exists to return False
-    # logic: get_old_table_exists calls execute with
-    # "SELECT COUNT(*) FROM information_schema.tables ..."
-
-    # we want it to return 0 (or not find anything)
-
     def side_effect(query, params=None):
         if "information_schema.tables" in query:
             return Mock(fetchone=lambda: [0])
@@ -631,4 +667,115 @@ def test_ensure_pnorw_h3_table_not_found():
     mock_conn.execute.side_effect = side_effect
 
     count = ensure_pnorw_h3(mock_conn)
+    assert count == 0
+
+
+def test_migration_all_empty_secondary(tmp_path):
+    """Test migration with all secondary tables empty/missing."""
+    db_path = tmp_path / "all_empty_secondary.duckdb"
+    conn = duckdb.connect(str(db_path))
+    # Create all first tables but no second tables
+    tables = [
+        "pnors_df101",
+        "pnors_df103",
+        "pnorc_df101",
+        "pnorc_df103",
+        "pnorh_df103",
+        "pnorw_data",
+    ]
+    for tbl in tables:
+        # Check if table has mean_dir for pnorw
+        if tbl == "pnorw_data":
+            conn.execute(f"CREATE TABLE {tbl} (id INT, mean_dir DOUBLE)")
+        else:
+            conn.execute(f"CREATE TABLE {tbl} (id INT)")
+    conn.close()
+
+    target_path = tmp_path / "all_empty_migrated.duckdb"
+    stats = migrate_database(db_path, target_path)
+    assert stats.get("pnors_df101/102->pnors12", 0) == 0
+
+
+def test_migration_main_default_target(tmp_path):
+    """Test main function default target path logic."""
+    db_path = tmp_path / "default_target.duckdb"
+    conn = duckdb.connect(str(db_path))
+    conn.execute("CREATE TABLE echo_data (id INT)")
+    conn.close()
+
+    with patch.object(sys, "argv", ["migration.py", str(db_path), "--verify"]):
+        main()
+
+    expected = db_path.parent / "default_target_migrated.duckdb"
+    assert expected.exists()
+
+
+def test_migration_error_handling(tmp_path):
+    """Test error handling in migrate_database."""
+    db_path = tmp_path / "error_trigger.duckdb"
+    conn = duckdb.connect(str(db_path))
+    conn.execute("CREATE TABLE echo_data (id INT)")
+    conn.close()
+
+    # Trigger error during migration (by mocking create_new_schema to fail)
+    with patch(
+        "adcp_recorder.db.migration.create_new_schema", side_effect=Exception("Fatal Error")
+    ):
+        with pytest.raises(Exception) as excinfo:
+            migrate_database(db_path, tmp_path / "fail.duckdb")
+        assert "Migration failed" in str(excinfo.value)
+
+
+def test_migration_empty_secondary_tables(tmp_path):
+    """Test migration where secondary tables (e.g., pnori2) are empty/missing."""
+    db_path = tmp_path / "empty_secondary.duckdb"
+    conn = duckdb.connect(str(db_path))
+    conn.execute(
+        "CREATE TABLE pnori1 (config_id BIGINT PRIMARY KEY, received_at TIMESTAMP, "
+        "original_sentence TEXT, instrument_type_name VARCHAR, instrument_type_code TINYINT, "
+        "head_id VARCHAR, beam_count TINYINT, cell_count SMALLINT, blanking_distance DECIMAL, "
+        "cell_size DECIMAL, coord_system_name VARCHAR, coord_system_code TINYINT, checksum VARCHAR)"
+    )
+    conn.execute(
+        "INSERT INTO pnori1 VALUES (1, now(), 'dummy', 'dummy', 0, 'dummy', 4, 4, "
+        "1.0, 1.0, 'ENU', 0, 'AB')"
+    )
+    # pnori2 is missing
+    conn.close()
+
+    target_path = tmp_path / "secondary_migrated.duckdb"
+    # Should skip missing pnori2 without error
+    stats = migrate_database(db_path, target_path)
+    assert stats.get("pnori1/2->pnori12", 0) == 1
+
+
+def test_migration_main_error(tmp_path):
+    """Test migration main function with invalid arguments."""
+    with patch.object(sys, "argv", ["migration.py", "non_existent.duckdb"]):
+        with pytest.raises(SystemExit) as excinfo:
+            main()
+        assert excinfo.value.code == 1
+
+
+def test_copy_existing_tables_missing(tmp_path):
+    """Test copy_existing_tables when some tables are missing."""
+    from adcp_recorder.db.migration import copy_existing_tables
+
+    db_path = tmp_path / "missing_copy.duckdb"
+    conn = duckdb.connect(str(db_path))
+    # No tables created
+    counts = copy_existing_tables(conn)
+    conn.close()
+    assert counts["pnori"] == 0
+
+
+def test_migrate_pnorw_fields_not_found(tmp_path):
+    """Test migrate_pnorw_fields when table does not exist."""
+    mock_conn = MagicMock()
+    # get_old_table_exists returns False (fetchone returns [0] or None)
+    mock_conn.execute.return_value = MagicMock(fetchone=lambda: [0])
+
+    from adcp_recorder.db.migration import migrate_pnorw_fields
+
+    count = migrate_pnorw_fields(mock_conn)
     assert count == 0

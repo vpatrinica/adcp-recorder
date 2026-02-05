@@ -108,8 +108,8 @@ class TestCoreCoverage:
             conf.get_config_path.return_value = "/tmp/cfg"
 
             with patch("adcp_recorder.cli.main.Path.exists", return_value=True):
-                # Patch source because status() does a local import
-                with patch("adcp_recorder.serial.port_manager.list_serial_ports") as mock_list:
+                # Patch main because list_serial_ports is imported at top level
+                with patch("adcp_recorder.cli.main.list_serial_ports") as mock_list:
                     mock_port = MagicMock()
                     mock_port.device = "/dev/ttyTest"
                     mock_list.return_value = [mock_port]
@@ -173,10 +173,8 @@ class TestCoreCoverage:
             with patch("adcp_recorder.cli.main.Path.exists", return_value=False):
                 mock_port = MagicMock()
                 mock_port.device = "/dev/ttyOther"
-                # Patch source because status() does a local import
-                with patch(
-                    "adcp_recorder.serial.port_manager.list_serial_ports", return_value=[mock_port]
-                ):
+                # Patch main because list_serial_ports is imported at top level
+                with patch("adcp_recorder.cli.main.list_serial_ports", return_value=[mock_port]):
                     result = runner.invoke(cli, ["status"])
                     assert "[WARNING] Output directory does not exist" in result.output
                     assert "not found in available ports" in result.output

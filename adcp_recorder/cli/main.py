@@ -6,6 +6,7 @@ import click
 
 from adcp_recorder.config import RecorderConfig
 from adcp_recorder.core.recorder import AdcpRecorder
+from adcp_recorder.db.migration import migrate_database, verify_migration
 from adcp_recorder.serial.port_manager import list_serial_ports
 
 # Configure logging
@@ -111,8 +112,6 @@ def status():
         click.echo("  [WARNING] Output directory does not exist (will be created on start)")
 
     # Check port (simple existence check if possible without opening)
-    from adcp_recorder.serial.port_manager import list_serial_ports
-
     ports = [p.device for p in list_serial_ports()]
     if config.serial_port in ports:
         click.echo(f"  [OK] Serial port {config.serial_port} found")
@@ -196,6 +195,41 @@ def generate_service(platform, out):
         click.echo("Please edit the file to match your system paths/user.")
     except Exception as e:
         click.echo(f"Error generating template: {e}")
+
+
+@cli.command()
+@click.argument("source", type=click.Path(exists=True))
+@click.option("--target", "-t", type=click.Path(), help="Target database path (optional)")
+@click.option("--in-place", "-i", is_flag=True, help="Modify source database directly")
+@click.option("--verify", "-v", is_flag=True, help="Verify migration after completion")
+def migrate(source, target, in_place, verify):
+    """Migrate ADCP database schema."""
+    try:
+        stats = migrate_database(source, target, in_place=in_place)
+
+        click.echo("\nMigration Statistics:")
+        click.echo("-" * 50)
+        for table, count in stats.items():
+            click.echo(f"  {table}: {count} rows")
+
+        if verify:
+            source_path = Path(source)
+            if in_place:
+                target_path = source_path
+            elif target:
+                target_path = Path(target)
+            else:
+                target_path = source_path.parent / f"{source_path.stem}_migrated.duckdb"
+
+            click.echo("\nVerification:")
+            click.echo("-" * 50)
+            verification = verify_migration(target_path)
+            for table, count in verification.items():
+                click.echo(f"  {table}: {count} rows")
+
+    except Exception as e:
+        click.echo(f"Migration failed: {e}", err=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
