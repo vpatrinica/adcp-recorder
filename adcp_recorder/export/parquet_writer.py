@@ -191,8 +191,8 @@ class ParquetWriter:
             # Write to temporary file first
             df.write_parquet(str(temp_path))
 
-            # Atomic rename to final path (atomic on POSIX systems)
-            os.rename(temp_path, final_path)
+            # Atomic replace to final path (atomic on POSIX systems, replaces on Windows if exists)
+            os.replace(temp_path, final_path)
 
             # Clean up legacy files after successful write
             for legacy_path in legacy_files:

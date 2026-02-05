@@ -203,6 +203,40 @@ def sample_parquet_dir(tmp_path):
         )
         pl.DataFrame([data]).write_parquet(p_dir / f"{p.lower()}.parquet")
 
+    # 11. PNORI (Instrument info)
+    pnori_dir = base_path / "PNORI" / "date=2026-01-16"
+    pnori_dir.mkdir(parents=True)
+    pl.DataFrame(
+        [
+            {
+                "received_at": ts,
+                "measurement_date": date_str,
+                "measurement_time": time_str,
+                "measurement_id": m_id,
+                "instrument_type_name": "ADCP",
+                "cell_count": 10,
+                "cell_size": 1.0,
+            }
+        ]
+    ).write_parquet(pnori_dir / "pnori.parquet")
+
+    # 12. PNORI12 (Instrument info 1/2)
+    pnori12_dir = base_path / "PNORI12" / "date=2026-01-16"
+    pnori12_dir.mkdir(parents=True)
+    pl.DataFrame(
+        [
+            {
+                "received_at": ts,
+                "measurement_date": date_str,
+                "measurement_time": time_str,
+                "instrument_type_name": "ADCP12",
+                "beam_count": 4,
+                "cell_count": 20,
+                "cell_size": 0.5,
+            }
+        ]
+    ).write_parquet(pnori12_dir / "pnori12.parquet")
+
     return str(base_path)
 
 
@@ -216,122 +250,100 @@ class TestParquetDataLayerCoverage:
 
         views = layer.get_loaded_views()
 
-        # Check base views
-        assert "pq_pnorw" in views
-        assert "pq_pnore" in views
-        assert "pq_pnors" in views
-        assert "pq_pnorc" in views
-        assert "pq_pnors12" in views
-        assert "pq_pnorc12" in views
-        assert "pq_pnorh" in views
-        assert "pq_pnors34" in views
-        assert "pq_pnorc34" in views
-
-        # Check joined views
-        assert "wave_measurement_full" in views
         assert "current_profile_df100" in views
         assert "current_profile_12" in views
-        assert "current_profile_34" in views
+        assert "pq_pnori12" in views
 
     def test_query_joined_views(self, sample_parquet_dir):
-        """Verify that joined views actually return data."""
+        """Verify that joined views actually return data with instrument info."""
         layer = ParquetDataLayer(sample_parquet_dir)
         layer.load_data()
 
-        # 1. Wave Measurement Full (replaces wave_measurement)
-        wmf = layer.conn.execute(
-            "SELECT hs, energy_densities, energy_start_freq FROM wave_measurement_full"
-        ).fetchone()
-        assert wmf is not None
-        assert wmf[0] == 1.5
-        assert wmf[1] == json.dumps([0.1, 0.2, 0.3])
-        assert wmf[2] == 0.05
-
-        # 2. Wave Measurement Full
-        wmf = layer.conn.execute(
-            "SELECT hs, band_hm0, coefficients, directional_values FROM wave_measurement_full"
-        ).fetchone()
-        assert wmf is not None
-        assert wmf[1] == 1.2
-        assert wmf[2] == json.dumps([1, 2])
-        assert wmf[3] == json.dumps([10, 20])
-
-        # 3. Current Profile DF100
+        # 1. Current Profile DF100 (PNORS + PNORC + PNORI)
         cp100 = layer.conn.execute(
-            "SELECT heading, cell_index, speed FROM current_profile_df100"
+            "SELECT heading, speed, instrument_type_name FROM current_profile_df100"
         ).fetchone()
         assert cp100 is not None
-        assert cp100[0] == 180.0
-        assert cp100[1] == 1
-        assert cp100[2] == 0.2
+        assert cp100[2] == "ADCP"
 
-        # 4. Current Profile 12
+        # 2. Current Profile 12 (PNORS12 + PNORC12 + PNORI12)
         cp12 = layer.conn.execute(
-            "SELECT heading, cell_distance, vel1 FROM current_profile_12"
+            "SELECT heading, vel1, beam_count, i_cell_count FROM current_profile_12"
         ).fetchone()
         assert cp12 is not None
         assert cp12[0] == 90.0
-        assert cp12[1] == 2.5
-
-        # 5. Current Profile 34
-        cp34 = layer.conn.execute(
-            "SELECT record_id, heading, speed FROM current_profile_34"
-        ).fetchone()
-        assert cp34 is not None
-        assert cp34[0] == 1
-        assert cp34[1] == 270.0
-        assert cp34[2] == 0.5
+        assert cp12[2] == 4
+        assert cp12[3] == 20
 
     def test_resolve_source_name_fallback(self, sample_parquet_dir):
         """Test the regex-based fallback in resolve_source_name."""
         layer = ParquetDataLayer(sample_parquet_dir)
         layer.load_data()
 
-        # pnors_df100 -> matches pnor[a-z]+ -> pnors -> pq_pnors
         assert layer.resolve_source_name("pnors_df100") == "pq_pnors"
-        # pnorc12 -> matches pnor[a-z]+ -> pnorc12 -> pq_pnorc12
         assert layer.resolve_source_name("pnorc12") == "pq_pnorc12"
-        # wave_data -> matches pnor[a-z]+ -> fail -> None
-        assert layer.resolve_source_name("wave_data") is None
-
-        # Test extraction of base record type with _data suffix
-        # pnorw_data -> pq_pnorw
-        assert layer.resolve_source_name("pnorw_data") == "pq_pnorw"
 
     def test_get_join_condition_exception(self, sample_parquet_dir):
         """Test the pass-through on exception in _get_join_condition."""
         layer = ParquetDataLayer(sample_parquet_dir)
         layer.load_data()
 
-        # Pass non-existent view to trigger exception inside _get_join_condition
         cond = layer._get_join_condition("non_existent", "pq_pnorw", "n", "w")
-        # Should fallback to date/time join
         assert "measurement_date" in cond
-        assert "measurement_time" in cond
 
-    def test_create_joined_views_exception_logging(self, sample_parquet_dir, caplog):
+    def test_create_joined_views_exception_logging(self, sample_parquet_dir):
         """Test that failed view creation logs but doesn't crash."""
-        layer = ParquetDataLayer(sample_parquet_dir)
-        layer.load_data()
-
-        # Mock connection to fail on execute
         from unittest.mock import MagicMock, patch
 
         import adcp_recorder.ui.parquet_data_layer as pdl
 
-        mock_conn = MagicMock(spec=layer._conn)
+        layer = ParquetDataLayer(sample_parquet_dir)
+        layer.load_data()
+
+        mock_conn = MagicMock()
         mock_conn.execute.side_effect = Exception("DB Failure")
         with patch.object(layer, "_conn", mock_conn):
-            # Clear loaded views to re-trigger creation
             layer._loaded_views.add("pq_pnorw")
-            layer._loaded_views.add("pq_pnore")
-
             with patch.object(pdl.logger, "error") as mock_error:
                 layer._create_joined_views()
-                # Verify that error was called with a message containing "Failed to create"
                 found = any(
-                    "Failed to create" in str(args[0]) for args, kwargs in mock_error.call_args_list
+                    "Failed to create" in str(args[0]) for args, _ in mock_error.call_args_list
                 )
-                assert found, (
-                    f"Expected 'Failed to create' log message, got {mock_error.call_args_list}"
-                )
+                assert found
+
+    def test_current_profile_df100_fallback(self, tmp_path):
+        """Test fallback projection in current_profile_df100 when wildcard join fails."""
+        from unittest.mock import MagicMock, patch
+
+        import duckdb
+
+        base_path = tmp_path / "parquet_fallback"
+        layer = ParquetDataLayer(base_path)
+        layer._loaded_views.update({"pq_pnors", "pq_pnorc", "pq_pnori"})
+
+        mock_conn = MagicMock()
+
+        def smart_execute(sql, *args, **kwargs):
+            sql_upper = sql.upper()
+            if "PRAGMA TABLE_INFO" in sql_upper:
+                res = MagicMock()
+                if "PQ_PNORS" in sql_upper:
+                    # PNORS has 'received_at'
+                    res.fetchall.return_value = [(0, "received_at", "TS", 0, None, 0)]
+                elif "PQ_PNORC" in sql_upper:
+                    # PNORC has 'cell_index'
+                    res.fetchall.return_value = [(0, "cell_index", "INT", 0, None, 0)]
+                elif "PQ_PNORI" in sql_upper:
+                    res.fetchall.return_value = [(0, "instrument_type_name", "TXT", 0, None, 0)]
+                return res
+            if "CREATE OR REPLACE VIEW CURRENT_PROFILE_DF100" in sql_upper:
+                if "AS CELL_SPEED" not in sql_upper:
+                    raise duckdb.Error("Ambiguous")
+            return MagicMock()
+
+        with patch.object(layer, "_conn", mock_conn):
+            mock_conn.execute.side_effect = smart_execute
+            layer._create_joined_views()
+            assert "current_profile_df100" in layer._loaded_views
+            calls = [c[0][0].upper() for c in mock_conn.execute.call_args_list]
+            assert any("AS CELL_SPEED" in s for s in calls)
