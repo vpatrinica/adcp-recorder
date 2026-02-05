@@ -268,10 +268,11 @@ class TestParquetDataLayerCoverage:
 
         # 2. Current Profile 12 (PNORS12 + PNORC12 + PNORI12)
         cp12 = layer.conn.execute(
-            "SELECT heading, vel1, beam_count, i_cell_count FROM current_profile_12"
+            "SELECT heading, vel1, beam_count, cell_count FROM current_profile_12"
         ).fetchone()
         assert cp12 is not None
         assert cp12[0] == 90.0
+        assert cp12[1] == 0.2
         assert cp12[2] == 4
         assert cp12[3] == 20
 
