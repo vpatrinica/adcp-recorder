@@ -293,11 +293,17 @@ class TestPersistenceConstraints:
         }
 
         # Violation: invalid type for hm0
+        # sanitize_float handles this now (returns None), so it should NOT raise
         invalid = valid.copy()
         invalid["hm0"] = "NOT A NUMBER"
 
-        with pytest.raises((duckdb.ConversionException, duckdb.BinderException)):
-            insert_pnorw_data(db, "$PNORW...", invalid)
+        record_id = insert_pnorw_data(db, "$PNORW...", invalid)
+        assert record_id > 0
+
+        # Verify it was inserted as NULL
+        results = query_pnorw_data(db)
+        assert len(results) == 1
+        assert results[0]["hm0"] is None
 
     def test_pnorb_constraint(self, db):
         valid = {
@@ -376,5 +382,12 @@ class TestPersistenceConstraints:
             "roll": 0.0,
             "checksum": "XX",
         }
-        with pytest.raises(Exception):
-            insert_pnora_data(db, "$PNORA...", valid)
+
+        # sanitize_float converts "NAN" string or nan float to None
+        # So this should succeed with NULL distance
+        record_id = insert_pnora_data(db, "$PNORA...", valid)
+        assert record_id > 0
+
+        results = query_pnora_data(db)
+        assert len(results) == 1
+        assert results[0]["altimeter_distance"] is None

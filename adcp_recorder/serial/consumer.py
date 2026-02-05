@@ -239,6 +239,25 @@ class SerialConsumer:
                                 self._file_writer.write_invalid_record(
                                     "BINARY", item.data.decode("ascii", errors="replace")
                                 )
+                                # Add to parquet
+                                self._file_writer.write_record(
+                                    "errors",
+                                    {
+                                        "raw_content": item.data.decode("ascii", errors="replace"),
+                                        "error_type": "BINARY_DATA",
+                                        "error_message": "Binary blob captured",
+                                        "attempted_prefix": "BINARY",
+                                    },
+                                )
+                                self._file_writer.write_record(
+                                    "raw_lines",
+                                    {
+                                        "content": item.data.decode("ascii", errors="replace"),
+                                        "parse_status": "FAIL",
+                                        "record_type": "BINARY",
+                                        "error_message": "Binary blob captured",
+                                    },
+                                )
                         elif item.end:
                             path = self._binary_writer.finish_blob()
                             logger.info(f"Binary blob saved to {path}")
@@ -298,6 +317,25 @@ class SerialConsumer:
                 self._file_writer.write_invalid_record(
                     "BINARY", line_bytes.decode("ascii", errors="replace")
                 )
+                # Add to parquet
+                self._file_writer.write_record(
+                    "errors",
+                    {
+                        "raw_content": line_bytes.decode("ascii", errors="replace"),
+                        "error_type": "BINARY_DATA",
+                        "error_message": "Binary data detected",
+                        "attempted_prefix": "BINARY",
+                    },
+                )
+                self._file_writer.write_record(
+                    "raw_lines",
+                    {
+                        "content": line_bytes.decode("ascii", errors="replace"),
+                        "parse_status": "FAIL",
+                        "record_type": "BINARY",
+                        "error_message": "Binary data",
+                    },
+                )
             return
 
         # Decode to string
@@ -314,6 +352,25 @@ class SerialConsumer:
             if self._file_writer:
                 self._file_writer.write_error(
                     f"Decode error: {line_bytes.decode('ascii', errors='replace')} - {e}"
+                )
+                # Add to parquet
+                self._file_writer.write_record(
+                    "errors",
+                    {
+                        "raw_content": line_bytes.decode("ascii", errors="replace"),
+                        "error_type": "DECODE_ERROR",
+                        "error_message": str(e),
+                        "attempted_prefix": "UNKNOWN",
+                    },
+                )
+                self._file_writer.write_record(
+                    "raw_lines",
+                    {
+                        "content": line_bytes.decode("ascii", errors="replace"),
+                        "parse_status": "FAIL",
+                        "record_type": "UNKNOWN",
+                        "error_message": str(e),
+                    },
                 )
             return
 
@@ -341,6 +398,15 @@ class SerialConsumer:
                 )
                 if self._file_writer:
                     self._file_writer.write(prefix, sentence)
+                    self._file_writer.write_record(
+                        "raw_lines",
+                        {
+                            "content": sentence,
+                            "parse_status": "PENDING",
+                            "record_type": prefix,
+                            "error_message": f"No parser for {prefix}",
+                        },
+                    )
                 return
 
             # Successfully parsed - insert to database
@@ -357,6 +423,15 @@ class SerialConsumer:
 
             if self._file_writer:
                 self._file_writer.write(prefix, sentence)
+                self._file_writer.write_record(
+                    "raw_lines",
+                    {
+                        "content": sentence,
+                        "parse_status": "OK",
+                        "record_type": prefix,
+                        "checksum_valid": True,
+                    },
+                )
 
         except ValueError as e:
             # Parse failed
@@ -378,6 +453,24 @@ class SerialConsumer:
 
             if self._file_writer:
                 self._file_writer.write_invalid_record(prefix, sentence)
+                self._file_writer.write_record(
+                    "errors",
+                    {
+                        "raw_content": sentence,
+                        "error_type": "PARSE_ERROR",
+                        "error_message": str(e),
+                        "attempted_prefix": prefix,
+                    },
+                )
+                self._file_writer.write_record(
+                    "raw_lines",
+                    {
+                        "content": sentence,
+                        "parse_status": "FAIL",
+                        "record_type": prefix,
+                        "error_message": str(e),
+                    },
+                )
 
     def _store_parsed_message(
         self, conn: duckdb.DuckDBPyConnection, sentence: str, prefix: str, parsed: Any

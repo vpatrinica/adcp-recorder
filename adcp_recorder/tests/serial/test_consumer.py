@@ -363,7 +363,7 @@ class TestSerialConsumer:
         if raw_count < 10:
             # If failed, let's see why
             raw_lines = conn.execute(
-                "SELECT sentence_type, parse_status, error_message FROM raw_lines"
+                "SELECT record_type, parse_status, error_message FROM raw_lines"
             ).fetchall()
             print(f"Raw lines: {raw_lines}")
             parse_errors = conn.execute(
@@ -407,6 +407,15 @@ class TestSerialConsumer:
         consumer.stop()
 
         mock_file_writer.write.assert_called_with("PNORI", sentence)
+        mock_file_writer.write_record.assert_any_call(
+            "raw_lines",
+            {
+                "content": sentence,
+                "parse_status": "OK",
+                "record_type": "PNORI",
+                "checksum_valid": True,
+            },
+        )
 
     def test_consume_writes_binary_errors_to_file(self, db_path):
         """Test that consumer writes binary errors to file writer."""
@@ -430,6 +439,21 @@ class TestSerialConsumer:
         assert args[0] == "BINARY"
         assert "\x00\x01\x02" in args[1]
 
+        # Should also write to parquet errors and raw_lines
+        assert mock_file_writer.write_record.call_count >= 2
+        calls = mock_file_writer.write_record.call_args_list
+
+        # Check error record
+        error_call = next(c for c in calls if c[0][0] == "errors")
+        assert error_call[0][1]["error_type"] == "BINARY_DATA"
+        # Since we use errors="replace", valid ascii control chars are kept
+        assert error_call[0][1]["raw_content"] == "\x00\x01\x02"
+
+        # Check raw_lines record
+        raw_lines_call = next(c for c in calls if c[0][0] == "raw_lines")
+        assert raw_lines_call[0][1]["record_type"] == "BINARY"
+        assert raw_lines_call[0][1]["content"] == "\x00\x01\x02"
+
     def test_consume_writes_unknown_to_file(self, db_path):
         """Test that consumer writes unknown messages to file writer."""
         queue: Queue[Any] = Queue(maxsize=100)
@@ -447,6 +471,15 @@ class TestSerialConsumer:
         consumer.stop()
 
         mock_file_writer.write.assert_called_with("UNKNOWN", sentence)
+        mock_file_writer.write_record.assert_any_call(
+            "raw_lines",
+            {
+                "content": sentence,
+                "parse_status": "PENDING",
+                "record_type": "UNKNOWN",
+                "error_message": "No parser for UNKNOWN",
+            },
+        )
 
     def test_consume_writes_invalid_record_to_file(self, db_path):
         """Test that consumer writes invalid records to file writer."""
@@ -467,6 +500,26 @@ class TestSerialConsumer:
         consumer.stop()
 
         mock_file_writer.write_invalid_record.assert_called_with("PNORI", sentence)
+
+        # Check parquet calls
+        mock_file_writer.write_record.assert_any_call(
+            "errors",
+            {
+                "raw_content": sentence,
+                "error_type": "PARSE_ERROR",
+                "error_message": "Expected 8 fields, got 3",
+                "attempted_prefix": "PNORI",
+            },
+        )
+        mock_file_writer.write_record.assert_any_call(
+            "raw_lines",
+            {
+                "content": sentence,
+                "parse_status": "FAIL",
+                "record_type": "PNORI",
+                "error_message": "Expected 8 fields, got 3",
+            },
+        )
 
     def test_stop_timeout_warning(self, db_path, caplog):
         """Test that a warning is logged if the consumer thread hangs during stop."""

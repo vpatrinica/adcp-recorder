@@ -190,6 +190,7 @@ class DashboardConfig(BaseModel):
         from adcp_recorder.config import RecorderConfig
 
         base_dir = RecorderConfig.get_default_config_dir()
+        print(base_dir, cls.CONFIG_DIR_NAME)
         return base_dir / cls.CONFIG_DIR_NAME
 
     @classmethod

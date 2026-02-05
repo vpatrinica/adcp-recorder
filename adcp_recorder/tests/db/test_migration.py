@@ -1,12 +1,21 @@
-"""Unit tests for database migration logic."""
-
+import logging
+import sys
 from datetime import datetime
 from typing import Any
+from unittest.mock import MagicMock, Mock, patch
 
 import duckdb
 import pytest
 
-from adcp_recorder.db.migration import migrate_database, verify_migration
+from adcp_recorder.db.migration import (
+    ensure_pnorw_h3,
+    get_old_table_exists,
+    get_table_row_count,
+    main,
+    migrate_database,
+    migrate_pnorw_fields,
+    verify_migration,
+)
 
 
 @pytest.fixture
@@ -318,3 +327,308 @@ def test_migration_already_migrated(tmp_path):
     stats = migrate_database(db_path, in_place=True)
     # Should not crash and should skip migrations
     assert stats.get("echo_data->pnore_data", 0) == 0
+
+
+def test_migration_intermediate_schema_missing_h3(tmp_path):
+    """Test migration when database is in intermediate schema state (missing h3)."""
+    db_path = tmp_path / "intermediate.duckdb"
+    conn = duckdb.connect(str(db_path))
+
+    # Create pnorw_data with NEW field names but MISSING h3
+    # This simulates a state where pnorw_data was migrated/created partially
+    conn.execute("""
+        CREATE SEQUENCE pnorw_data_seq;
+        CREATE TABLE pnorw_data (
+            record_id BIGINT PRIMARY KEY,
+            received_at TIMESTAMP,
+            sentence_type VARCHAR,
+            original_sentence TEXT,
+            measurement_date VARCHAR,
+            measurement_time VARCHAR,
+            spectrum_basis INTEGER,
+            processing_method INTEGER,
+            hm0 DOUBLE,
+            hmax DOUBLE,
+            tm02 DOUBLE,
+            tp DOUBLE,
+            tz DOUBLE,       -- was mean_period (new name)
+            dir_tp DOUBLE,   -- was peak_dir (new name)
+            spr_tp DOUBLE,   -- was peak_directional_spread (new name)
+            main_dir DOUBLE, -- was mean_dir (new name)
+            wave_error_code INTEGER,
+            checksum VARCHAR
+            -- Missing: h3, h10, uni_index, mean_pressure, num_detects, near_surface...
+        )
+    """)
+    conn.execute(
+        "INSERT INTO pnorw_data VALUES (1, null, 'PNORW', 'src', '010101', '000000', "
+        "1, 1, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0, 'CS')"
+    )
+    conn.close()
+
+    target_path = tmp_path / "intermediate_migrated.duckdb"
+    stats = migrate_database(db_path, target_path)
+
+    # Verify ensure_pnorw_h3 ran
+    # migrate_pnorw_fields should return 0 (skipped because new names present)
+    # ensure_pnorw_h3 should return 1 (added columns)
+    assert stats.get("pnorw_data (field update)", 0) == 0
+    assert stats.get("pnorw_data (h3 fix)", 0) == 1
+
+    # Verify h3 exists in target
+    conn = duckdb.connect(str(target_path))
+    cols = [
+        row[0]
+        for row in conn.execute(
+            "SELECT column_name FROM information_schema.columns WHERE table_name = 'pnorw_data'"
+        ).fetchall()
+    ]
+    conn.close()
+
+    assert "h3" in cols
+    assert "h10" in cols
+    assert "uni_index" in cols
+
+
+def test_migration_intermediate_schema_already_has_h3(tmp_path):
+    """Test ensure_pnorw_h3 when h3 already exists."""
+    db_path = tmp_path / "intermediate_with_h3.duckdb"
+    conn = duckdb.connect(str(db_path))
+    conn.execute("CREATE TABLE pnorw_data (record_id BIGINT, h3 DECIMAL(5,2))")
+    conn.close()
+
+    from adcp_recorder.db.migration import ensure_pnorw_h3
+
+    conn = duckdb.connect(str(db_path))
+    count = ensure_pnorw_h3(conn)
+    conn.close()
+
+    # Should perform no ops and return row count (0)
+    assert count == 0
+
+
+def test_migration_pnorc_alternative_column(tmp_path):
+    """Test migration of pnorc tables with 'distance' instead of 'cell_distance'."""
+    db_path = tmp_path / "pnorc_dist.duckdb"
+    conn = duckdb.connect(str(db_path))
+
+    # Create pnorc_df101 with 'distance' column
+    conn.execute(
+        "CREATE TABLE pnorc_df101 (record_id BIGINT PRIMARY KEY, received_at TIMESTAMP, "
+        "original_sentence TEXT, measurement_date VARCHAR, measurement_time VARCHAR, "
+        "cell_index SMALLINT, distance DECIMAL, vel1 DECIMAL, vel2 DECIMAL, "
+        "vel3 DECIMAL, vel4 DECIMAL, amp1 DECIMAL, amp2 DECIMAL, amp3 DECIMAL, amp4 DECIMAL, "
+        "corr1 SMALLINT, corr2 SMALLINT, corr3 SMALLINT, corr4 SMALLINT, checksum VARCHAR)"
+    )
+    conn.execute(
+        "INSERT INTO pnorc_df101 VALUES (1, null, 'src', '010101', '000000', 1, 10.5, "
+        "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'CS')"
+    )
+    conn.close()
+
+    target_path = tmp_path / "pnorc_migrated.duckdb"
+    stats = migrate_database(db_path, target_path)
+
+    assert stats["pnorc_df101/102->pnorc12"] == 1
+
+    # Verify migration picked up 'distance' value
+    conn = duckdb.connect(str(target_path))
+    res = conn.execute("SELECT cell_distance FROM pnorc12").fetchone()
+    conn.close()
+
+    assert res is not None
+    assert float(res[0]) == 10.5
+
+
+def test_migration_main(tmp_path, capsys):
+    """Test the main CLI point."""
+
+    db_path = tmp_path / "cli_test.duckdb"
+    conn = duckdb.connect(str(db_path))
+    conn.execute("CREATE TABLE echo_data (id INT)")
+    conn.close()
+
+    target = tmp_path / "cli_migrated.duckdb"
+
+    with patch.object(sys, "argv", ["migration.py", str(db_path), "--target", str(target)]):
+        main()
+
+    assert target.exists()
+
+
+def test_utils_exceptions():
+    """Test exception handling in utility functions."""
+
+    # Mock connection that raises exception
+    bad_conn = Mock()
+    bad_conn.execute.side_effect = Exception("DB Error")
+
+    assert get_old_table_exists(bad_conn, "some_table") is False
+    assert get_table_row_count(bad_conn, "some_table") == 0
+
+
+def test_ensure_pnorw_h3_exception(tmp_path, caplog):
+    """Test exception handling during column addition in ensure_pnorw_h3."""
+
+    db_path = tmp_path / "h3_error.duckdb"
+    conn = duckdb.connect(str(db_path))
+    conn.execute("CREATE TABLE pnorw_data (id INT)")  # Exists but missing h3
+
+    mock_conn = MagicMock()
+    # first call: get_old_table_exists -> execute(...).fetchone() -> [1] (exists)
+    # second call: check h3 -> execute(...).fetchone() -> None (missing)
+    # third call: get_table_row_count -> execute(...).fetchone() -> [0]
+    # fourth call: ALTER TABLE -> raise Exception
+
+    mock_cursor = MagicMock()
+    mock_conn.execute.return_value = mock_cursor
+
+    def side_effect(query, params=None):
+        if "information_schema.tables" in query:
+            mock_cursor.fetchone.return_value = [1]
+        elif "information_schema.columns" in query:
+            mock_cursor.fetchone.return_value = None
+        elif "COUNT(*)" in query:
+            mock_cursor.fetchone.return_value = [0]
+        elif "ALTER TABLE" in query:
+            raise Exception("Serious Error")
+        return mock_cursor
+
+    mock_conn.execute.side_effect = side_effect
+
+    with caplog.at_level(logging.WARNING):
+        ensure_pnorw_h3(mock_conn)
+        assert "Failed to add column" in caplog.text
+
+
+def test_migrate_pnorw_fields_exception(caplog):
+    """Test exception handling in migrate_pnorw_fields version check."""
+
+    # Mock connection that raises exception during schema check
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_conn.execute.return_value = mock_cursor
+
+    # First check raises exception -> old_schema = False
+    mock_conn.execute.side_effect = Exception("DB Error")
+
+    # If old_schema is False, it basically skips migration
+    count = migrate_pnorw_fields(mock_conn)
+    assert count == 0
+
+
+def test_ensure_pnorw_h3_check_exception(tmp_path, caplog):
+    """Test exception handling during h3 check in ensure_pnorw_h3."""
+    db_path = tmp_path / "h3_check_error.duckdb"
+    conn = duckdb.connect(str(db_path))
+    conn.execute("CREATE TABLE pnorw_data (id INT)")
+
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_conn.execute.return_value = mock_cursor
+
+    def side_effect(query, params=None):
+        if "information_schema.tables" in query:
+            # Table exists
+            mock_cursor.fetchone.return_value = [1]
+        elif "AND column_name = 'h3'" in query:
+            # Checking for h3 raises exception
+            raise Exception("DB Error checking column")
+        return mock_cursor
+
+    mock_conn.execute.side_effect = side_effect
+
+    # Should handle exception and return 0
+    count = ensure_pnorw_h3(mock_conn)
+    assert count == 0
+
+
+def test_migrate_pnorc_df101_102_exception(tmp_path):
+    """Test exception handling in migrate_pnorc_df101_102 column check."""
+    from adcp_recorder.db.migration import migrate_pnorc_df101_102
+
+    # Mock connection that exists but fails on PRAGMA table_info
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_conn.execute.return_value = mock_cursor
+
+    def side_effect(query, params=None):
+        if "information_schema.tables" in query:
+            return Mock(fetchone=lambda: [1])
+        elif "COUNT(*)" in query:
+            return Mock(fetchone=lambda: [10])
+        elif "PRAGMA table_info" in query:
+            raise Exception("DB Error reading schema")
+        return mock_cursor
+
+    mock_conn.execute.side_effect = side_effect
+
+    # Should fall back to cell_distance and try insert
+    # The insert will fail (mock doesn't handle it) but we check if it tried to run
+    try:
+        migrate_pnorc_df101_102(mock_conn)
+    except Exception:
+        pass  # Expected since our mock setup is minimal
+
+    # Verify that it tried to insert using cell_distance (default fallback)
+    calls = mock_conn.execute.call_args_list
+    insert_call = next((c for c in calls if "INSERT INTO pnorc12" in str(c)), None)
+    assert insert_call is not None
+    assert "COALESCE(cell_distance, 0.0)" in insert_call[0][0]
+
+
+def test_migrate_pnorc_df103_104_exception(tmp_path):
+    """Test exception handling in migrate_pnorc_df103_104 column check."""
+    from adcp_recorder.db.migration import migrate_pnorc_df103_104
+
+    # Mock connection that exists but fails on PRAGMA table_info
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_conn.execute.return_value = mock_cursor
+
+    def side_effect(query, params=None):
+        if "information_schema.tables" in query:
+            return Mock(fetchone=lambda: [1])
+        elif "COUNT(*)" in query:
+            return Mock(fetchone=lambda: [10])
+        elif "PRAGMA table_info" in query:
+            raise Exception("DB Error reading schema")
+        return mock_cursor
+
+    mock_conn.execute.side_effect = side_effect
+
+    # Should fall back to cell_distance and try insert
+    try:
+        migrate_pnorc_df103_104(mock_conn)
+    except Exception:
+        pass
+
+    # Verify that it tried to insert using cell_distance (default fallback)
+    calls = mock_conn.execute.call_args_list
+    insert_call = next((c for c in calls if "INSERT INTO pnorc34" in str(c)), None)
+    assert insert_call is not None
+    assert "COALESCE(cell_distance, 0.0)" in insert_call[0][0]
+
+
+def test_ensure_pnorw_h3_table_not_found():
+    """Test ensure_pnorw_h3 returns 0 when pnorw_data table does not exist."""
+    # Mock connection
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_conn.execute.return_value = mock_cursor
+
+    # Mock get_old_table_exists to return False
+    # logic: get_old_table_exists calls execute with
+    # "SELECT COUNT(*) FROM information_schema.tables ..."
+
+    # we want it to return 0 (or not find anything)
+
+    def side_effect(query, params=None):
+        if "information_schema.tables" in query:
+            return Mock(fetchone=lambda: [0])
+        return mock_cursor
+
+    mock_conn.execute.side_effect = side_effect
+
+    count = ensure_pnorw_h3(mock_conn)
+    assert count == 0

@@ -2,8 +2,6 @@ __pycache__
 __pycache__/
 *.pyc
 
-errors_binary
-errors_binary/
 build/
 build/*
 debug_data
@@ -24,9 +22,6 @@ adcp_recorder.egg-info
 adcp_recorder.egg-info/*
 test_output
 test_output/*
-errors
-errors/*
-.adcp-data 
-adcp-data/* 
 adcp_recorder/tests/tgt.db
 tgt.db
+.coverage

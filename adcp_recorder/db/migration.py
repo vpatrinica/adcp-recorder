@@ -74,7 +74,7 @@ def migrate_echo_data_to_pnore(conn: duckdb.DuckDBPyConnection) -> int:
             start_frequency, step_frequency, num_frequencies, energy_densities, checksum
         )
         SELECT
-            record_id, received_at, 'PNORE', original_sentence,
+            nextval('pnore_data_seq'), received_at, 'PNORE', original_sentence,
             SUBSTRING(measurement_date, 1, 6), SUBSTRING(measurement_time, 1, 6),
             spectrum_basis, start_frequency, step_frequency,
             num_frequencies, energy_densities, SUBSTRING(checksum, 1, 2)
@@ -211,7 +211,16 @@ def migrate_pnorc_df101_102(conn: duckdb.DuckDBPyConnection) -> int:
             logger.info(f"{old_table} is empty, skipping")
             continue
 
-        logger.info(f"Migrating {count} rows from {old_table} to pnorc12")
+        # Check if table has 'cell_distance' or 'distance'
+        try:
+            # Get column names (index 1 is name, 0 is cid)
+            cols = [row[1] for row in conn.execute(f"PRAGMA table_info({old_table})").fetchall()]
+            distance_col = "cell_distance" if "cell_distance" in cols else "distance"
+        except Exception:
+            # Fallback to cell_distance if check fails
+            distance_col = "cell_distance"
+
+        logger.info(f"Migrating {count} rows from {old_table} to pnorc12 (using {distance_col})")
 
         conn.execute(f"""
             INSERT INTO pnorc12 (
@@ -223,7 +232,7 @@ def migrate_pnorc_df101_102(conn: duckdb.DuckDBPyConnection) -> int:
             SELECT
                 nextval('pnorc12_seq'), received_at, {data_format}, original_sentence,
                 SUBSTRING(measurement_date, 1, 6), SUBSTRING(measurement_time, 1, 6),
-                cell_index, COALESCE(cell_distance, 0.0),
+                cell_index, COALESCE({distance_col}, 0.0),
                 vel1, vel2, vel3, vel4,
                 COALESCE(amp1, 0.0), COALESCE(amp2, 0.0), COALESCE(amp3, 0.0), COALESCE(amp4, 0.0),
                 COALESCE(corr1, 0), COALESCE(corr2, 0), COALESCE(corr3, 0), COALESCE(corr4, 0),
@@ -250,7 +259,17 @@ def migrate_pnorc_df103_104(conn: duckdb.DuckDBPyConnection) -> int:
             logger.info(f"{old_table} is empty, skipping")
             continue
 
-        logger.info(f"Migrating {count} rows from {old_table} to pnorc34")
+        # Check if table has 'cell_distance' or 'distance'
+        try:
+            # Get column names
+            # Get column names (index 1 is name, 0 is cid)
+            cols = [row[1] for row in conn.execute(f"PRAGMA table_info({old_table})").fetchall()]
+            distance_col = "cell_distance" if "cell_distance" in cols else "distance"
+        except Exception:
+            # Fallback to cell_distance if check fails
+            distance_col = "cell_distance"
+
+        logger.info(f"Migrating {count} rows from {old_table} to pnorc34 (using {distance_col})")
 
         conn.execute(f"""
             INSERT INTO pnorc34 (
@@ -261,7 +280,7 @@ def migrate_pnorc_df103_104(conn: duckdb.DuckDBPyConnection) -> int:
             SELECT
                 nextval('pnorc34_seq'), received_at, {data_format}, original_sentence,
                 SUBSTRING(measurement_date, 1, 6), SUBSTRING(measurement_time, 1, 6),
-                cell_index, COALESCE(cell_distance, 0.0),
+                cell_index, COALESCE({distance_col}, 0.0),
                 COALESCE(speed, 0.0), COALESCE(direction, 0.0),
                 SUBSTRING(checksum, 1, 2)
             FROM {old_table}
@@ -372,6 +391,50 @@ def migrate_pnorw_fields(conn: duckdb.DuckDBPyConnection) -> int:
     return count
 
 
+def ensure_pnorw_h3(conn: duckdb.DuckDBPyConnection) -> int:
+    """Ensure pnorw_data has h3 and other new columns (fixes intermediate schema)."""
+    if not get_old_table_exists(conn, "pnorw_data"):
+        return 0
+
+    # Check if h3 exists
+    try:
+        result = conn.execute(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = 'pnorw_data' AND column_name = 'h3'"
+        ).fetchone()
+        if result:
+            return 0  # Already has h3
+    except Exception:
+        return 0
+
+    logger.info("pnorw_data missing h3 column (intermediate schema detected), adding columns...")
+
+    count = get_table_row_count(conn, "pnorw_data")
+
+    # Add missing columns
+    columns_to_add = [
+        ("h3", "DECIMAL(5,2)"),
+        ("h10", "DECIMAL(5,2)"),
+        ("uni_index", "DECIMAL(5,2)"),
+        ("mean_pressure", "DECIMAL(5,2)"),
+        ("num_no_detects", "INTEGER"),
+        ("num_bad_detects", "INTEGER"),
+        ("near_surface_speed", "DECIMAL(5,2)"),
+        ("near_surface_dir", "DECIMAL(6,2)"),
+    ]
+
+    for col, dtype in columns_to_add:
+        try:
+            # DuckDB supports IF NOT EXISTS for ADD COLUMN in newer versions,
+            # but to be safe we use try-except or just ADD COLUMN and ignore specific error
+            conn.execute(f"ALTER TABLE pnorw_data ADD COLUMN {col} {dtype}")
+        except Exception as e:
+            if "already exists" not in str(e).lower():
+                logger.warning(f"Failed to add column {col}: {e}")
+
+    return count
+
+
 def copy_existing_tables(conn: duckdb.DuckDBPyConnection) -> dict[str, int]:
     """Copy data from tables that don't need structural changes.
 
@@ -470,6 +533,7 @@ def migrate_database(
         stats["pnorc_df103/104->pnorc34"] = migrate_pnorc_df103_104(conn)
         stats["pnorh_df103/104->pnorh"] = migrate_pnorh_consolidated(conn)
         stats["pnorw_data (field update)"] = migrate_pnorw_fields(conn)
+        stats["pnorw_data (h3 fix)"] = ensure_pnorw_h3(conn)
 
         # Report existing table counts
         existing_counts = copy_existing_tables(conn)

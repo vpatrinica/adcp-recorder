@@ -4,6 +4,7 @@ Provides functions for inserting, updating, and querying NMEA sentence records.
 """
 
 import json
+import math
 from datetime import datetime
 from typing import Any
 
@@ -345,6 +346,22 @@ def query_parse_errors(
     ]
 
 
+def sanitize_float(value: Any | None) -> float | None:
+    """Sanitize float value for DuckDB insertion.
+
+    Converts NaN and Infinity to None to avoid conversion errors.
+    """
+    if value is None:
+        return None
+    try:
+        f_val = float(value)
+        if math.isnan(f_val) or math.isinf(f_val):
+            return None
+        return f_val
+    except (ValueError, TypeError):
+        return None
+
+
 # PNORI Configuration Operations
 
 
@@ -547,17 +564,18 @@ def insert_sensor_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
             data["time"],
             data.get("error_code"),
             data.get("status_code"),
-            data.get("battery"),
-            data.get("sound_speed"),
-            data.get("heading"),
-            data.get("pitch"),
-            data.get("roll"),
-            data.get("pressure"),
-            data.get("temperature"),
+            sanitize_float(data.get("battery")),
+            sanitize_float(data.get("sound_speed")),
+            sanitize_float(data.get("heading")),
+            sanitize_float(data.get("pitch")),
+            sanitize_float(data.get("roll")),
+            sanitize_float(data.get("pressure")),
+            sanitize_float(data.get("temperature")),
             data.get("analog1"),
             data.get("analog2"),
             data.get("checksum"),
         )
+
         result = conn.execute(query, params_df100).fetchone()
     elif sentence_type in ("PNORS1", "PNORS2"):
         # DF101/102 consolidated into pnors12
@@ -582,19 +600,20 @@ def insert_sensor_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
             data["time"],
             data.get("error_code"),
             data.get("status_code"),
-            data.get("battery"),
-            data.get("sound_speed"),
-            data.get("heading_std_dev"),
-            data.get("heading"),
-            data.get("pitch"),
-            data.get("pitch_std_dev"),
-            data.get("roll"),
-            data.get("roll_std_dev"),
-            data.get("pressure"),
-            data.get("pressure_std_dev"),
-            data.get("temperature"),
+            sanitize_float(data.get("battery")),
+            sanitize_float(data.get("sound_speed")),
+            sanitize_float(data.get("heading_std_dev")),
+            sanitize_float(data.get("heading")),
+            sanitize_float(data.get("pitch")),
+            sanitize_float(data.get("pitch_std_dev")),
+            sanitize_float(data.get("roll")),
+            sanitize_float(data.get("roll_std_dev")),
+            sanitize_float(data.get("pressure")),
+            sanitize_float(data.get("pressure_std_dev")),
+            sanitize_float(data.get("temperature")),
             data.get("checksum"),
         )
+
         result = conn.execute(query, params_df101).fetchone()
     elif sentence_type in ("PNORS3", "PNORS4"):
         # DF103/104 consolidated into pnors34
@@ -613,15 +632,16 @@ def insert_sensor_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
             original_sentence,
             data["date"],
             data["time"],
-            data.get("battery"),
-            data.get("sound_speed"),
-            data.get("heading"),
-            data.get("pitch"),
-            data.get("roll"),
-            data.get("pressure"),
-            data.get("temperature"),
+            sanitize_float(data.get("battery")),
+            sanitize_float(data.get("sound_speed")),
+            sanitize_float(data.get("heading")),
+            sanitize_float(data.get("pitch")),
+            sanitize_float(data.get("roll")),
+            sanitize_float(data.get("pressure")),
+            sanitize_float(data.get("temperature")),
             data.get("checksum"),
         )
+
         result = conn.execute(query, params_df103).fetchone()
     else:
         raise ValueError(f"Unknown sensor sentence type: {sentence_type}")
@@ -693,15 +713,15 @@ def insert_velocity_data(
             data["date"],
             data["time"],
             data["cell_index"],
-            data.get("distance"),
-            data["vel1"],
-            data["vel2"],
-            data["vel3"],
-            data["vel4"],
-            data["amp1"],
-            data["amp2"],
-            data["amp3"],
-            data["amp4"],
+            sanitize_float(data.get("distance")),
+            sanitize_float(data["vel1"]),
+            sanitize_float(data["vel2"]),
+            sanitize_float(data["vel3"]),
+            sanitize_float(data["vel4"]),
+            sanitize_float(data["amp1"]),
+            sanitize_float(data["amp2"]),
+            sanitize_float(data["amp3"]),
+            sanitize_float(data["amp4"]),
             data["corr1"],
             data["corr2"],
             data["corr3"],
@@ -727,11 +747,12 @@ def insert_velocity_data(
             data["date"],
             data["time"],
             data.get("cell_index", 1),
-            data.get("distance"),
-            data["speed"],
-            data["direction"],
+            sanitize_float(data.get("distance")),
+            sanitize_float(data["speed"]),
+            sanitize_float(data["direction"]),
             data.get("checksum"),
         )
+
         result = conn.execute(query, params_df103).fetchone()
     else:
         raise ValueError(f"Unknown velocity sentence type: {sentence_type}")
@@ -854,22 +875,22 @@ def insert_pnorw_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
         data["time"],
         data.get("spectrum_basis"),
         data.get("processing_method"),
-        data.get("hm0"),
-        data.get("h3"),
-        data.get("h10"),
-        data.get("hmax"),
-        data.get("tm02"),
-        data.get("tp"),
-        data.get("tz"),
-        data.get("dir_tp"),
-        data.get("spr_tp"),
-        data.get("main_dir"),
-        data.get("uni_index"),
-        data.get("mean_pressure"),
+        sanitize_float(data.get("hm0")),
+        sanitize_float(data.get("h3")),
+        sanitize_float(data.get("h10")),
+        sanitize_float(data.get("hmax")),
+        sanitize_float(data.get("tm02")),
+        sanitize_float(data.get("tp")),
+        sanitize_float(data.get("tz")),
+        sanitize_float(data.get("dir_tp")),
+        sanitize_float(data.get("spr_tp")),
+        sanitize_float(data.get("main_dir")),
+        sanitize_float(data.get("uni_index")),
+        sanitize_float(data.get("mean_pressure")),
         data.get("num_no_detects"),
         data.get("num_bad_detects"),
-        data.get("near_surface_speed"),
-        data.get("near_surface_dir"),
+        sanitize_float(data.get("near_surface_speed")),
+        sanitize_float(data.get("near_surface_dir")),
         data.get("wave_error_code"),
         data.get("checksum"),
     )
@@ -896,8 +917,8 @@ def insert_pnorb_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
         measurement_date, measurement_time,
         spectrum_basis, processing_method,
         freq_low, freq_high,
-        hmo, tm02, tp,
-        dirtp, sprtp, main_dir,
+        hm0, tm02, tp,
+        dir_tp, spr_tp, main_dir,
         wave_error_code, checksum
     ) VALUES (
         nextval('pnorb_data_seq'), ?, ?,
@@ -917,14 +938,14 @@ def insert_pnorb_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
         data["time"],
         data["spectrum_basis"],
         data["processing_method"],
-        data["freq_low"],
-        data["freq_high"],
-        data["hm0"],
-        data["tm02"],
-        data["tp"],
-        data["dir_tp"],
-        data["spr_tp"],
-        data["main_dir"],
+        sanitize_float(data["freq_low"]),
+        sanitize_float(data["freq_high"]),
+        sanitize_float(data["hm0"]),
+        sanitize_float(data["tm02"]),
+        sanitize_float(data["tp"]),
+        sanitize_float(data["dir_tp"]),
+        sanitize_float(data["spr_tp"]),
+        sanitize_float(data["main_dir"]),
         data["wave_error_code"],
         data.get("checksum"),
     )
@@ -1056,12 +1077,12 @@ def insert_pnora_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
         data["sentence_type"],
         data["date"],
         data["time"],
-        data["pressure"],
-        data["distance"],
+        sanitize_float(data["pressure"]),
+        sanitize_float(data["distance"]),
         data["quality"],
         data["status"],
-        data["pitch"],
-        data["roll"],
+        sanitize_float(data["pitch"]),
+        sanitize_float(data["roll"]),
         data.get("checksum"),
     )
     result = conn.execute(query, params).fetchone()
