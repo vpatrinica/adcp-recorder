@@ -184,8 +184,8 @@ duckdb ~/adcp_data/adcp.duckdb
 
 # Query examples
 SELECT COUNT(*) FROM raw_lines;
-SELECT * FROM pnors ORDER BY timestamp DESC LIMIT 10;
-SELECT AVG(temperature) FROM pnors WHERE temperature IS NOT NULL;
+SELECT * FROM pnors12 ORDER BY received_at DESC LIMIT 10;
+SELECT AVG(temperature) FROM pnors12 WHERE temperature IS NOT NULL;
 ```
 
 ### CSV Files
@@ -323,11 +323,11 @@ Get-EventLog -LogName Application -Source adcp-recorder -Newest 20
 ```bash
 # Check data collection rate
 duckdb ~/adcp_data/adcp.duckdb \
-  "SELECT COUNT(*) FROM raw_lines WHERE timestamp > NOW() - INTERVAL 5 MINUTES"
+  "SELECT COUNT(*) FROM raw_lines WHERE received_at > NOW() - INTERVAL 5 MINUTES"
 
 # Check for errors
 duckdb ~/adcp_data/adcp.duckdb \
-  "SELECT * FROM errors ORDER BY timestamp DESC LIMIT 10"
+  "SELECT * FROM parse_errors ORDER BY received_at DESC LIMIT 10"
 ```
 
 ## Troubleshooting

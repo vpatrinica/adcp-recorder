@@ -1,12 +1,12 @@
-[🏠 Home](../README.md) > Architecture
-
 # System Architecture Overview
+
+[🏠 Home](../README.md) > Architecture
 
 The ADCP Recorder is a Python-based system designed to receive, parse, and store NMEA-format telemetry data from Nortek ADCP (Acoustic Doppler Current Profiler) instruments.
 
 ## System Components
 
-```
+```text
 ┌─────────────────┐
 │  Serial Port    │
 │   (COM Port)    │
@@ -41,17 +41,16 @@ The ADCP Recorder is a Python-based system designed to receive, parse, and store
      v                  v
 ┌─────────┐      ┌────────────┐
 │ DuckDB  │      │ Daily Files│
-│ Tables  │      │  (*.dat)   │
+│ Tables  │      │  (*.csv)   │
 └─────────┘      └────────────┘
      │                  │
      v                  v
 ┌─────────┐      ┌────────────┐
 │Raw Lines│      │ Per-Type   │
-│Parsed   │      │ Records    │
-│Records  │      │PNORI_*.dat │
-│Errors   │      │PNORS_*.dat │
-└─────────┘      │PNORC_*.dat │
-                 └────────────┘
+│Parsed   │      │ Directories│
+│Records  │      │PNORI/      │
+│Errors   │      │PNORS/      │
+└─────────┘      └────────────┘
 ```
 
 ## CLI/Control Plane
@@ -71,15 +70,18 @@ The command-line interface provides control over the recording system:
 The service runs continuously with these responsibilities:
 
 ### Monitoring
+
 - Health checks on serial connection
 - Heartbeat tracking for producer and consumer threads
 - Automatic restart on failure (configurable)
 
 ### Data Flow
+
 1. **Producer**: Reads from serial port, fills FIFO queue
 2. **Consumer**: Processes FIFO queue, parses sentences, stores data
 
 ### Error Handling
+
 - Automatic serial reconnection on disconnect
 - Graceful degradation on parse errors
 - Binary data detection and isolation
@@ -89,29 +91,30 @@ The service runs continuously with these responsibilities:
 ### DuckDB Backend
 
 **Raw Lines Table**: All received data with metadata
+
 - Timestamp of reception
 - Raw sentence text
 - Parse status flag (OK/FAIL)
 - Detected record type (or ERROR)
 
 **Record Type Tables**: Parsed data by message type
+
 - One table per NMEA message family
 - Structured fields from parsed sentences
 - Validation flags
 
 **Error Table**: Unparseable sentences
+
 - Parse error details
 - Malformed sentence text
 - Error classification
 
-### Daily File Output
+Daily file output: {output_dir}/{MESSAGE_TYPE}/{YYYY-MM-DD}.csv
 
-Configurable output to daily files per record type:
-
-```
-data_report/PNORI_2025_12_30.dat
-data_report/PNORC_2025_12_30.dat
-data_report/PNORS_2025_12_30.dat
+```text
+data_report/PNORI/2026-02-07.csv
+data_report/PNORC/2026-02-07.csv
+data_report/PNORS/2026-02-07.csv
 ...
 ```
 

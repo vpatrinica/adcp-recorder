@@ -1,6 +1,6 @@
-[🏠 Home](../../README.md) > [Implementation](../README.md) > DuckDB
-
 # DuckDB Schema Patterns
+
+[🏠 Home](../../README.md) > [Implementation](../README.md) > DuckDB
 
 Table definition patterns for NMEA message storage.
 
@@ -8,36 +8,44 @@ Table definition patterns for NMEA message storage.
 
 ```sql
 CREATE TABLE message_type_table (
-    -- Primary key
-    record_id UUID PRIMARY KEY DEFAULT uuid(),
+    -- Primary key (using BIGINT and sequences for better performance)
+    record_id BIGINT PRIMARY KEY,
     
     -- Metadata
     received_at TIMESTAMP DEFAULT current_timestamp,
     original_sentence TEXT NOT NULL,
-    sentence_type VARCHAR(10) NOT NULL,
     
-    -- Data fields
+    -- Data fields (using DECIMAL for precision)
     field1 INTEGER NOT NULL,
     field2 DECIMAL(10,2) NOT NULL,
-    field3 VARCHAR(50) NOT NULL,
     
     -- Validation
-    checksum CHAR(2),
-    checksum_valid BOOLEAN NOT NULL
+    checksum CHAR(2)
 );
+```
+
+### Sequence Pattern
+
+Each table family uses a dedicated sequence for primary key generation:
+
+```sql
+CREATE SEQUENCE IF NOT EXISTS table_name_seq START 1;
+-- Usage: nextval('table_name_seq')
 ```
 
 ## Type Mapping
 
 | Python Type | DuckDB Type | Notes |
-|-------------|-------------|-------|
+| :--- | :--- | :--- |
+| int (ID) | BIGINT | Used for primary keys with sequences |
 | int | INTEGER / TINYINT / SMALLINT | Choose based on range |
 | float | DECIMAL(p,s) / DOUBLE | DECIMAL for precision |
 | str | VARCHAR(n) / TEXT | VARCHAR for bounded, TEXT for unbounded |
-| datetime.date | DATE | Native date type |
-| datetime.time | TIME | Native time type |
-| datetime.datetime | TIMESTAMP | Native timestamp type |
+| datetime.date | CHAR(6) | Stored as 'YYMMDD' string for NMEA compatibility |
+| datetime.time | CHAR(6) | Stored as 'HHMMSS' string for NMEA compatibility |
+| datetime.datetime | TIMESTAMP | Native timestamp type for `received_at` |
 | bool | BOOLEAN | True/False |
+| list / dict | JSON | Stored using DuckDB's JSON extension |
 | Optional[T] | T (nullable) | NULL allowed by default |
 
 ## Constraint Patterns
@@ -79,17 +87,16 @@ CREATE INDEX idx_head_id ON table_name(head_id);
 CREATE INDEX idx_type_time ON table_name(sentence_type, received_at);
 ```
 
-## Partitioning Pattern
+## Consolidation Pattern
+
+Tables are consolidated into families with a discriminator field (e.g., `data_format`) to simplify management:
 
 ```sql
--- Monthly partitions for large datasets
-CREATE TABLE raw_lines_2025_01 AS
-SELECT * FROM raw_lines
-WHERE received_at >= '2025-01-01' 
-  AND received_at < '2025-02-01';
-
-CREATE INDEX idx_lines_2025_01_time 
-ON raw_lines_2025_01(received_at);
+CREATE TABLE pnors12 (
+    record_id BIGINT PRIMARY KEY,
+    data_format TINYINT NOT NULL CHECK (data_format IN (101, 102)),
+    -- ... common fields
+);
 ```
 
 ## Related Documents

@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Any
 
 import duckdb
+import polars as pl
 
 
 def insert_raw_line(
@@ -73,46 +74,56 @@ def batch_insert_raw_lines(conn: duckdb.DuckDBPyConnection, records: list[dict[s
     if not records:
         return 0
 
-    # Pre-fetch IDs to avoid nextval() overhead in executemany loop
-    count = len(records)
+    # Convert list of dicts to Polars DataFrame for high-performance insertion
+    df = pl.DataFrame(records)
 
-    ids_result = conn.execute(f"SELECT nextval('raw_lines_seq') FROM range({count})").fetchall()
+    # Ensure required columns exist and rename 'sentence' to 'raw_sentence' for table compatibility
+    if "sentence" in df.columns:
+        df = df.rename({"sentence": "raw_sentence"})
 
-    # Prepare data for executemany
-    data = [
-        (
-            ids_result[i][0],
-            r.get("sentence"),
-            r.get("parse_status", "PENDING"),
-            r.get("record_type"),
-            r.get("checksum_valid"),
-            r.get("error_message"),
-        )
-        for i, r in enumerate(records)
-    ]
+    # Set default values for missing columns if any (though usually provided by records)
+    required_cols = {
+        "parse_status": "PENDING",
+        "record_type": None,
+        "checksum_valid": None,
+        "error_message": None,
+    }
+    for col, default in required_cols.items():
+        if col not in df.columns:
+            df = df.with_columns(pl.lit(default).alias(col))
 
+    # Perform optimized batch insert using DuckDB's native support for Polars DataFrames
     conn.execute("BEGIN TRANSACTION")
     try:
-        # Chunked insert for performance
-        batch_size = 1000
-        for i in range(0, len(data), batch_size):
-            chunk = data[i : i + batch_size]
-            placeholders = ", ".join(["(?, ?, ?, ?, ?, ?)"] * len(chunk))
-            # Flatten list of tuples
-            params = [val for row in chunk for val in row]
-            conn.execute(
-                f"""
-                INSERT INTO raw_lines (
-                    line_id, raw_sentence, parse_status, record_type, checksum_valid, error_message
-                )
-                VALUES {placeholders}
-                """,
-                params,
+        # Register the DataFrame as a temporary view
+        conn.register("records_batch_df", df)
+
+        # Insert into the table using in-engine sequence generation for line_id
+        # This avoids the overhead of manual ID pre-fetching and Python-side chunking
+        conn.execute(
+            """
+            INSERT INTO raw_lines (
+                line_id, raw_sentence, parse_status, record_type, checksum_valid, error_message
             )
+            SELECT
+                nextval('raw_lines_seq'),
+                raw_sentence,
+                parse_status,
+                record_type,
+                checksum_valid,
+                error_message
+            FROM records_batch_df
+            """
+        )
         conn.commit()
     except Exception:
         conn.rollback()
         raise
+    finally:
+        # Clean up the temporary view
+        conn.unregister("records_batch_df")
+
+    return len(records)
 
     return len(records)
 

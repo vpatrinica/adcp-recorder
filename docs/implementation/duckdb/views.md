@@ -1,97 +1,60 @@
-[🏠 Home](../../README.md) > [Implementation](../README.md) > DuckDB
-
 # DuckDB View Patterns
+
+[🏠 Home](../../README.md) > [Implementation](../README.md) > DuckDB
 
 Views and materialized views for data access and aggregation.
 
-## Normalized View Pattern
+## Consolidating View Pattern
+
+Views are used to join consolidated tables across families.
+
+### Current Profile View (DF101/102)
 
 ```sql
--- Hide implementation details, present clean interface
-CREATE VIEW vw_sensor_data_normalized AS
-SELECT 
-    record_id,
-    received_at,
-    measurement_datetime,
-    
-    -- Mapped enumerations
-    CASE instrument_type_code
-        WHEN 0 THEN 'AQUADOPP'
-        WHEN 2 THEN 'AQUADOPP_PROFILER'
-        WHEN 4 THEN 'SIGNATURE'
-    END AS instrument_type,
-    
-    CASE coord_system_code
-        WHEN 0 THEN 'ENU'
-        WHEN 1 THEN 'XYZ'
-        WHEN 2 THEN 'BEAM'
-    END AS coord_system,
-    
-    -- Physical values
-    temperature,
-    pressure,
-    heading,
-    pitch,
-    roll
-FROM sensor_data
-WHERE checksum_valid = TRUE;
+CREATE OR REPLACE VIEW current_profile_12 AS
+SELECT
+    s.record_id AS sensor_id,
+    s.data_format,
+    s.received_at,
+    s.measurement_date,
+    s.measurement_time,
+    s.heading, s.pitch, s.roll, s.pressure, s.temperature,
+    c.cell_index, c.cell_distance, c.vel1, c.vel2, c.vel3, c.vel4
+FROM pnors12 s
+JOIN pnorc12 c
+    ON s.measurement_date = c.measurement_date
+    AND s.measurement_time = c.measurement_time
+    AND s.data_format = c.data_format;
 ```
 
-## Statistics View Pattern
+### Wave Measurement View
 
 ```sql
-CREATE VIEW vw_instrument_statistics AS
-SELECT 
-    instrument_type_name,
-    head_id,
-    COUNT(*) as total_records,
-    MIN(received_at) as first_seen,
-    MAX(received_at) as last_seen,
-    AVG(temperature) as avg_temperature,
-    MIN(pressure) as min_pressure,
-    MAX(pressure) as max_pressure
-FROM sensor_data
-WHERE checksum_valid = TRUE
-GROUP BY instrument_type_name, head_id;
+CREATE OR REPLACE VIEW wave_measurement AS
+SELECT
+    w.record_id,
+    w.received_at,
+    w.measurement_date,
+    w.measurement_time,
+    w.hm0, w.h3, w.h10, w.hmax,
+    w.tm02, w.tp, w.tz,
+    w.dir_tp, w.spr_tp, w.main_dir,
+    e.energy_densities
+FROM pnorw_data w
+LEFT JOIN pnore_data e
+    ON w.measurement_date = e.measurement_date
+    AND w.measurement_time = e.measurement_time;
 ```
 
-## Materialized View Pattern
+## Union Pattern
+
+Used to present a unified interface for configuration across all formats:
 
 ```sql
--- Pre-compute expensive aggregations
-CREATE MATERIALIZED VIEW mv_daily_statistics AS
-SELECT 
-    DATE_TRUNC('day', received_at) as measurement_date,
-    sentence_type,
-    COUNT(*) as record_count,
-    COUNT(DISTINCT head_id) as instrument_count,
-    SUM(CASE WHEN checksum_valid THEN 1 ELSE 0 END) as valid_count,
-    SUM(CASE WHEN NOT checksum_valid THEN 1 ELSE 0 END) as invalid_count
-FROM raw_lines
-GROUP BY DATE_TRUNC('day', received_at), sentence_type;
-
--- Refresh periodically
-CREATE OR REPLACE PROCEDURE refresh_daily_stats()
-AS $$
-BEGIN
-    REFRESH MATERIALIZED VIEW mv_daily_statistics;
-END;
-$$;
-```
-
-## Union View Pattern
-
-```sql
--- Combine multiple message types
 CREATE VIEW vw_all_configurations AS
-SELECT config_id, sentence_type, instrument_type_name, head_id, received_at
-FROM pnori_configurations
+SELECT config_id, 'PNORI' as sentence_type, head_id, received_at FROM pnori
 UNION ALL
-SELECT config_id, sentence_type, instrument_type_name, head_id, received_at
-FROM pnori1_configurations
-UNION ALL
-SELECT config_id, sentence_type, instrument_type_name, head_id, received_at
-FROM pnori2_configurations;
+SELECT config_id, CASE WHEN data_format = 101 THEN 'PNORI1' ELSE 'PNORI2' END, head_id, received_at FROM pnori12;
 ```
 
 ## Related Documents
