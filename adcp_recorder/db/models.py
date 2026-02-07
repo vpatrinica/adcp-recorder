@@ -404,11 +404,11 @@ class PnorbData(ADCPBase, table=True):
     processing_method: int
     freq_low: float | None = None
     freq_high: float | None = None
-    hmo: float | None = None
+    hm0: float | None = None
     tm02: float | None = None
     tp: float | None = None
-    dirtp: float | None = None
-    sprtp: float | None = None
+    dir_tp: float | None = None
+    spr_tp: float | None = None
     main_dir: float | None = None
     wave_error_code: str | None = Field(default=None, sa_column=Column(CHAR(4)))
     checksum: str | None = Field(default=None, sa_column=Column(CHAR(2)))

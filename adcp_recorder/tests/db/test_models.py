@@ -247,12 +247,12 @@ def test_pnorb_data_roundtrip(session: Session):
         measurement_time="234500",
         spectrum_basis=1,
         processing_method=1,
-        hmo=1.2,
+        hm0=1.2,
     )
     session.add(data)
     session.commit()
     session.refresh(data)
-    assert data.hmo == pytest.approx(1.2)
+    assert data.hm0 == pytest.approx(1.2)
 
 
 def test_pnorf_data_roundtrip(session: Session):

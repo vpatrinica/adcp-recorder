@@ -1,7 +1,6 @@
 __pycache__
 __pycache__/
 *.pyc
-
 build/
 build/*
 debug_data
@@ -25,3 +24,8 @@ test_output/*
 adcp_recorder/tests/tgt.db
 tgt.db
 .coverage
+*.dat 
+*.nmea
+*.parquet
+htmlcov
+htmlcov/*

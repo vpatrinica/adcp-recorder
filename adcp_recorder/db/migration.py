@@ -435,6 +435,41 @@ def ensure_pnorw_h3(conn: duckdb.DuckDBPyConnection) -> int:
     return count
 
 
+def fix_pnorb_typos(conn: duckdb.DuckDBPyConnection) -> int:
+    """Fix typos in pnorb_data column names from early development.
+
+    Returns 1 if any column was renamed, 0 otherwise.
+    """
+    if not get_old_table_exists(conn, "pnorb_data"):
+        return 0
+
+    # Check for hmo, dirtp, sprtp
+    try:
+        cols = [row[1] for row in conn.execute("PRAGMA table_info(pnorb_data)").fetchall()]
+    except Exception:
+        return 0
+
+    renames = []
+    if "hmo" in cols and "hm0" not in cols:
+        renames.append(("hmo", "hm0"))
+    if "dirtp" in cols and "dir_tp" not in cols:
+        renames.append(("dirtp", "dir_tp"))
+    if "sprtp" in cols and "spr_tp" not in cols:
+        renames.append(("sprtp", "spr_tp"))
+
+    if not renames:
+        return 0
+
+    logger.info(f"Fixing typos in pnorb_data columns: {renames}")
+    for old_col, new_col in renames:
+        try:
+            conn.execute(f"ALTER TABLE pnorb_data RENAME COLUMN {old_col} TO {new_col}")
+        except Exception as e:
+            logger.warning(f"Failed to rename column {old_col} to {new_col}: {e}")
+
+    return 1
+
+
 def copy_existing_tables(conn: duckdb.DuckDBPyConnection) -> dict[str, int]:
     """Copy data from tables that don't need structural changes.
 
@@ -534,6 +569,7 @@ def migrate_database(
         stats["pnorh_df103/104->pnorh"] = migrate_pnorh_consolidated(conn)
         stats["pnorw_data (field update)"] = migrate_pnorw_fields(conn)
         stats["pnorw_data (h3 fix)"] = ensure_pnorw_h3(conn)
+        stats["pnorb_data (typo fix)"] = fix_pnorb_typos(conn)
 
         # Report existing table counts
         existing_counts = copy_existing_tables(conn)

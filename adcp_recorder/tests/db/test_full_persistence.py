@@ -133,15 +133,13 @@ class TestPersistenceSuccess:
 
         results = db.execute("SELECT * FROM pnorb_data WHERE record_id = ?", [record_id]).fetchall()
         assert len(results) == 1
-        # Check new wave band parameter fields (columns: record_id,
-        # received_at, sentence_type, original_sentence, date, time,
-        # spectrum_basis, processing_method, freq_low, freq_high, hmo, tm02,
-        # tp, dirtp, sprtp, main_dir, wave_error_code, checksum)
+        # spectrum_basis, processing_method, freq_low, freq_high, hm0, tm02,
+        # tp, dir_tp, spr_tp, main_dir, wave_error_code, checksum)
         assert results[0][6] == 1  # spectrum_basis
         assert results[0][7] == 4  # processing_method
         assert float(results[0][8]) == 0.02  # freq_low
         assert float(results[0][9]) == 0.20  # freq_high
-        assert float(results[0][10]) == 0.27  # hmo
+        assert float(results[0][10]) == 0.27  # hm0
 
     def test_pnore_persistence(self, db):
         # PNORE now uses energy density spectrum format
@@ -310,14 +308,17 @@ class TestPersistenceConstraints:
             "sentence_type": "PNORB",
             "date": "101010",
             "time": "101010",
-            "vel_east": 0,
-            "vel_north": 0,
-            "vel_up": 0,
-            "bottom_dist": "garbage",  # VIOLATION
-            "quality": 100,
+            "spectrum_basis": 1,
+            "processing_method": 1,
+            "freq_low": 0.02,
+            "freq_high": 0.20,
+            "hm0": "garbage",  # sanitize_float will return None
+            "wave_error_code": "0000",
             "checksum": "XX",
         }
-        with pytest.raises(Exception):
+        # hm0 is not forbidden to be NULL in schema, but processing_method MUST be in (1,2,3,4)
+        valid["processing_method"] = 99  # VIOLATION
+        with pytest.raises(duckdb.ConstraintException):
             insert_pnorb_data(db, "$PNORB...", valid)
 
     def test_pnore_constraint(self, db):
