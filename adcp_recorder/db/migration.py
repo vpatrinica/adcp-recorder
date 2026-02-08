@@ -51,11 +51,15 @@ def get_table_row_count(conn: duckdb.DuckDBPyConnection, table_name: str) -> int
 
 
 def drop_all_views(conn: duckdb.DuckDBPyConnection) -> None:
-    """Drop all views to avoid dependency errors during migration."""
+    """Drop all views to avoid dependency errors during migration.
+
+    Only targets views in the 'main' schema to avoid internal catalog views.
+    """
     try:
-        # information_schema.views might not show everything in DuckDB,
-        # so we also check duckdb_views()
-        views = conn.execute("SELECT view_name FROM duckdb_views()").fetchall()
+        # Filter for views in the 'main' schema (user-defined)
+        views = conn.execute(
+            "SELECT view_name FROM duckdb_views() WHERE schema_name = 'main'"
+        ).fetchall()
         for (view_name,) in views:
             logger.info(f"Dropping view: {view_name}")
             conn.execute(f"DROP VIEW IF EXISTS {view_name}")
