@@ -635,9 +635,10 @@ JOIN pnorc34 c
 
 
 # ============================================================================
-# ALL SCHEMA SQL - Complete list in dependency order
+# SCHEMA GROUPS
 # ============================================================================
-ALL_SCHEMA_SQL = [
+
+TABLE_SCHEMA_SQL = [
     # Core tables
     RAW_LINES_SEQUENCE_SQL,
     RAW_LINES_TABLE_SQL,
@@ -695,6 +696,9 @@ ALL_SCHEMA_SQL = [
     PNORA_DATA_SEQUENCE_SQL,
     PNORA_DATA_TABLE_SQL,
     *PNORA_DATA_INDEXES_SQL,
+]
+
+VIEW_SCHEMA_SQL = [
     # Linking views
     WAVE_MEASUREMENT_VIEW_SQL,
     WAVE_MEASUREMENT_FULL_VIEW_SQL,
@@ -702,3 +706,8 @@ ALL_SCHEMA_SQL = [
     CURRENT_PROFILE_12_VIEW_SQL,
     CURRENT_PROFILE_34_VIEW_SQL,
 ]
+
+# ============================================================================
+# ALL SCHEMA SQL - Complete list in dependency order
+# ============================================================================
+ALL_SCHEMA_SQL = TABLE_SCHEMA_SQL + VIEW_SCHEMA_SQL

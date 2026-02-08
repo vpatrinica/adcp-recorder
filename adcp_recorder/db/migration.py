@@ -20,8 +20,6 @@ from pathlib import Path
 
 import duckdb
 
-from adcp_recorder.db.schema import ALL_SCHEMA_SQL
-
 logger = logging.getLogger(__name__)
 
 
@@ -502,11 +500,22 @@ def copy_existing_tables(conn: duckdb.DuckDBPyConnection) -> dict[str, int]:
     return counts
 
 
-def create_new_schema(conn: duckdb.DuckDBPyConnection) -> None:
-    """Create all new schema tables and sequences."""
-    logger.info("Creating new schema tables...")
+def create_new_schema(conn: duckdb.DuckDBPyConnection, schema_sql: list[str] | None = None) -> None:
+    """Create all new schema tables and sequences.
 
-    for sql in ALL_SCHEMA_SQL:
+    Args:
+        conn: DuckDB connection
+        schema_sql: Optional list of SQL statements to execute.
+                   If None, uses ALL_SCHEMA_SQL from schema.py.
+    """
+    if schema_sql is None:
+        from adcp_recorder.db.schema import ALL_SCHEMA_SQL
+
+        schema_sql = ALL_SCHEMA_SQL
+
+    logger.info("Applying schema statements...")
+
+    for sql in schema_sql:
         try:
             conn.execute(sql)
         except Exception as e:
@@ -556,10 +565,20 @@ def migrate_database(
     stats: dict[str, int] = {}
 
     try:
-        # Create new schema tables
-        create_new_schema(conn)
+        from adcp_recorder.db.schema import TABLE_SCHEMA_SQL, VIEW_SCHEMA_SQL
 
-        # Migrate data
+        # 1. Fix existing tables that might have typos or old field names
+        # These MUST happen before views are created to avoid Dependency Errors
+        # and Binder Errors.
+        stats["pnorw_data (field update)"] = migrate_pnorw_fields(conn)
+        stats["pnorw_data (h3 fix)"] = ensure_pnorw_h3(conn)
+        stats["pnorb_data (typo fix)"] = fix_pnorb_typos(conn)
+
+        # 2. Create new schema tables only
+        logger.info("Creating new schema tables...")
+        create_new_schema(conn, TABLE_SCHEMA_SQL)
+
+        # 3. Migrate data into new tables
         stats["echo_data->pnore_data"] = migrate_echo_data_to_pnore(conn)
         stats["pnori1/2->pnori12"] = migrate_pnori_consolidated(conn)
         stats["pnors_df101/102->pnors12"] = migrate_pnors_df101_102(conn)
@@ -567,15 +586,12 @@ def migrate_database(
         stats["pnorc_df101/102->pnorc12"] = migrate_pnorc_df101_102(conn)
         stats["pnorc_df103/104->pnorc34"] = migrate_pnorc_df103_104(conn)
         stats["pnorh_df103/104->pnorh"] = migrate_pnorh_consolidated(conn)
-        stats["pnorw_data (field update)"] = migrate_pnorw_fields(conn)
-        stats["pnorw_data (h3 fix)"] = ensure_pnorw_h3(conn)
-        stats["pnorb_data (typo fix)"] = fix_pnorb_typos(conn)
 
-        # Report existing table counts
+        # Report existing table counts (preserved tables)
         existing_counts = copy_existing_tables(conn)
         stats.update({f"{k} (preserved)": v for k, v in existing_counts.items()})
 
-        # Drop old tables if migration was successful
+        # 4. Drop old tables if migration was successful
         old_tables_to_drop = [
             "echo_data",
             "pnori1",
@@ -598,10 +614,9 @@ def migrate_database(
                 logger.info(f"Dropping old table: {table} ({count} rows migrated)")
                 conn.execute(f"DROP TABLE IF EXISTS {table}")
 
-        # Re-run schema creation to ensure views are created/updated
-        # (views depend on tables like pnorw_data which might have been updated during migration)
-        logger.info("Re-applying schema to update views...")
-        create_new_schema(conn)
+        # 5. Create views now that all tables have correct column names
+        logger.info("Creating schema views...")
+        create_new_schema(conn, VIEW_SCHEMA_SQL)
 
         # Checkpoint to persist changes
         conn.execute("CHECKPOINT")
