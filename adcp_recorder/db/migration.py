@@ -50,6 +50,32 @@ def get_table_row_count(conn: duckdb.DuckDBPyConnection, table_name: str) -> int
         return 0
 
 
+def drop_all_views(conn: duckdb.DuckDBPyConnection) -> None:
+    """Drop all views to avoid dependency errors during migration."""
+    try:
+        # information_schema.views might not show everything in DuckDB,
+        # so we also check duckdb_views()
+        views = conn.execute("SELECT view_name FROM duckdb_views()").fetchall()
+        for (view_name,) in views:
+            logger.info(f"Dropping view: {view_name}")
+            conn.execute(f"DROP VIEW IF EXISTS {view_name}")
+    except Exception as e:
+        logger.warning(f"Failed to drop some views: {e}")
+
+
+def drop_all_indexes(conn: duckdb.DuckDBPyConnection, table_name: str) -> None:
+    """Drop all indexes on a specific table to allow column renaming."""
+    try:
+        indexes = conn.execute(
+            "SELECT index_name FROM duckdb_indexes WHERE table_name = ?", [table_name]
+        ).fetchall()
+        for (idx_name,) in indexes:
+            logger.info(f"Dropping index {idx_name} on {table_name}")
+            conn.execute(f"DROP INDEX IF EXISTS {idx_name}")
+    except Exception as e:
+        logger.warning(f"Failed to drop indexes on {table_name}: {e}")
+
+
 def migrate_echo_data_to_pnore(conn: duckdb.DuckDBPyConnection) -> int:
     """Migrate echo_data to pnore_data table."""
     if not get_old_table_exists(conn, "echo_data"):
@@ -459,6 +485,10 @@ def fix_pnorb_typos(conn: duckdb.DuckDBPyConnection) -> int:
         return 0
 
     logger.info(f"Fixing typos in pnorb_data columns: {renames}")
+
+    # Drop indexes that might block renaming
+    drop_all_indexes(conn, "pnorb_data")
+
     for old_col, new_col in renames:
         try:
             conn.execute(f"ALTER TABLE pnorb_data RENAME COLUMN {old_col} TO {new_col}")
@@ -566,6 +596,9 @@ def migrate_database(
 
     try:
         from adcp_recorder.db.schema import TABLE_SCHEMA_SQL, VIEW_SCHEMA_SQL
+
+        # 0. Drop all views first to avoid dependency blocks
+        drop_all_views(conn)
 
         # 1. Fix existing tables that might have typos or old field names
         # These MUST happen before views are created to avoid Dependency Errors

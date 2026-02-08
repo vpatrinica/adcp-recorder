@@ -87,6 +87,9 @@ def test_migration_dependency_with_typos(tmp_path):
     # Create an old view that might cause dependency
     conn.execute("CREATE VIEW old_v AS SELECT hmo FROM pnorb_data")
 
+    # Create an index that WILL block rename if not dropped
+    conn.execute("CREATE INDEX idx_hmo_old ON pnorb_data(hmo)")
+
     conn.close()
 
     # 2. Run migration in-place
