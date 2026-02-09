@@ -56,9 +56,9 @@ def drop_all_views(conn: duckdb.DuckDBPyConnection) -> None:
     Only targets views in the 'main' schema to avoid internal catalog views.
     """
     try:
-        # Filter for views in the 'main' schema (user-defined)
+        # Filter for views in the 'main' schema (user-defined) and non-internal
         views = conn.execute(
-            "SELECT view_name FROM duckdb_views() WHERE schema_name = 'main'"
+            "SELECT view_name FROM duckdb_views() WHERE schema_name = 'main' AND internal = false"
         ).fetchall()
         for (view_name,) in views:
             logger.info(f"Dropping view: {view_name}")
