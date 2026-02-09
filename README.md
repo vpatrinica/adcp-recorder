@@ -16,10 +16,9 @@
 - ✅ **Graceful Signal Handling** - Clean shutdown on SIGTERM/SIGINT
 - ✅ **Health Monitoring** - Built-in health checks with optional webhook alerting
 - ✅ **Binary Data Detection** - Separate error logging for non-NMEA data
-- ✅ **Daily File Export** - Automatic CSV export per message type
-- ✅ **Cross-Platform** - Full support for Linux and Windows
-- ✅ **Service Integration** - Systemd (Linux) and Windows Service support
-- ✅ **Production Ready** - Comprehensive testing, logging, and error handling
+- ✅ **Daily Parquet Compaction** - Automatic merging of records into a single file per day to minimize file fragmentation
+- ✅ **Optimized Database Migration** - Robust schema migration tool with view/index protection and typo correction
+- ✅ **High-Performance Filtering** - Integrated `measurement_id` for lightning-fast querying across tables
 - ✅ **Advanced Dashboard** - Multi-page Streamlit dashboard with customizable plots and YAML persistence
 
 ## Supported NMEA Message Types

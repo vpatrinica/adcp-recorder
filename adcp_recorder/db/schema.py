@@ -422,12 +422,12 @@ CREATE TABLE IF NOT EXISTS pnorb_data (
     processing_method TINYINT NOT NULL CHECK (processing_method IN (1, 2, 3, 4)),
     freq_low DECIMAL(4,2) CHECK (freq_low >= 0 AND freq_low <= 9.99),
     freq_high DECIMAL(4,2) CHECK (freq_high >= 0 AND freq_high <= 9.99),
-    hm0 DECIMAL(5,2) CHECK (hm0 >= 0 AND hm0 <= 99.99),
-    tm02 DECIMAL(5,2) CHECK (tm02 >= 0 AND tm02 <= 99.99),
-    tp DECIMAL(5,2) CHECK (tp >= 0 AND tp <= 99.99),
-    dir_tp DECIMAL(5,2) CHECK (dir_tp >= 0 AND dir_tp <= 359.99),
-    spr_tp DECIMAL(5,2) CHECK (spr_tp >= 0 AND spr_tp <= 359.99),
-    main_dir DECIMAL(5,2) CHECK (main_dir >= 0 AND main_dir <= 359.99),
+    hm0 DECIMAL(5,2) CHECK (hm0 >= 0 AND hm0 <= 1000.0),
+    tm02 DECIMAL(5,2) CHECK (tm02 >= 0 AND tm02 <= 1000.0),
+    tp DECIMAL(5,2) CHECK (tp >= 0 AND tp <= 1000.0),
+    dir_tp DECIMAL(5,2) CHECK (dir_tp >= 0 AND dir_tp <= 360.0),
+    spr_tp DECIMAL(5,2) CHECK (spr_tp >= 0 AND spr_tp <= 360.0),
+    main_dir DECIMAL(5,2) CHECK (main_dir >= 0 AND main_dir <= 360.0),
     wave_error_code CHAR(4),
     checksum CHAR(2)
 );

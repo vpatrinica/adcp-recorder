@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Directional spectrum polar plots for wave analysis
 
+## [0.2.3] - 2026-02-09
+
+### Added
+
+- **Daily Parquet Compaction**: Implemented automatic compaction of Parquet files to ensure a maximum of one file per day per message prefix.
+- **Legacy Parquet Migration**: `ParquetWriter` now automatically detects, merges, and cleans up legacy Parquet files (e.g., `{prefix}_*.parquet`) into the daily file.
+- **Optimized Filtering (`measurement_id`)**: Added a `uint64` column based on `YYMMDDHHMMSS` to all structured records and Parquet files for high-performance filtering and joining.
+- **Enhanced Joined Views**: Improved `ParquetDataLayer` with more robust view creation (`wave_measurement_full`, `current_profile_12`, etc.) and duplicate column handling.
+- **CI Dependency Support**: Added `pyarrow` to core dependencies for reliable high-speed data interchange between Polars and DuckDB.
+
+### Fixed
+
+- **Migration Robustness**: The migration tool now drops existing views and indexes before structural table changes to avoid dependency errors.
+- **Migration Typo Correction**: Added automatic fixing of typos in intermediate schema versions (e.g., `hmo` to `hm0`).
+- **Intermediate Schema Handling**: Added automatic column backfilling for intermediate schema versions (e.g., adding missing `h3` to `pnorw_data`).
+- **Verification Tests**: Added comprehensive tests for compaction, view creation, and `measurement_id` generation.
+
 ## [0.2.2] - 2026-02-07
 
 ### Added

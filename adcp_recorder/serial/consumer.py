@@ -314,28 +314,31 @@ class SerialConsumer:
                 error_message="Binary data",
             )
             if self._file_writer:
-                self._file_writer.write_invalid_record(
-                    "BINARY", line_bytes.decode("ascii", errors="replace")
-                )
+                with contextlib.suppress(Exception):
+                    self._file_writer.write_invalid_record(
+                        "BINARY", line_bytes.decode("ascii", errors="replace")
+                    )
                 # Add to parquet
-                self._file_writer.write_record(
-                    "errors",
-                    {
-                        "raw_content": line_bytes.decode("ascii", errors="replace"),
-                        "error_type": "BINARY_DATA",
-                        "error_message": "Binary data detected",
-                        "attempted_prefix": "BINARY",
-                    },
-                )
-                self._file_writer.write_record(
-                    "raw_lines",
-                    {
-                        "content": line_bytes.decode("ascii", errors="replace"),
-                        "parse_status": "FAIL",
-                        "record_type": "BINARY",
-                        "error_message": "Binary data",
-                    },
-                )
+                with contextlib.suppress(Exception):
+                    self._file_writer.write_record(
+                        "errors",
+                        {
+                            "raw_content": line_bytes.decode("ascii", errors="replace"),
+                            "error_type": "BINARY_DATA",
+                            "error_message": "Binary data detected",
+                            "attempted_prefix": "BINARY",
+                        },
+                    )
+                with contextlib.suppress(Exception):
+                    self._file_writer.write_record(
+                        "raw_lines",
+                        {
+                            "content": line_bytes.decode("ascii", errors="replace"),
+                            "parse_status": "FAIL",
+                            "record_type": "BINARY",
+                            "error_message": "Binary data",
+                        },
+                    )
             return
 
         # Decode to string
@@ -350,28 +353,31 @@ class SerialConsumer:
                 error_message=str(e),
             )
             if self._file_writer:
-                self._file_writer.write_error(
-                    f"Decode error: {line_bytes.decode('ascii', errors='replace')} - {e}"
-                )
+                with contextlib.suppress(Exception):
+                    self._file_writer.write_error(
+                        f"Decode error: {line_bytes.decode('ascii', errors='replace')} - {e}"
+                    )
                 # Add to parquet
-                self._file_writer.write_record(
-                    "errors",
-                    {
-                        "raw_content": line_bytes.decode("ascii", errors="replace"),
-                        "error_type": "DECODE_ERROR",
-                        "error_message": str(e),
-                        "attempted_prefix": "UNKNOWN",
-                    },
-                )
-                self._file_writer.write_record(
-                    "raw_lines",
-                    {
-                        "content": line_bytes.decode("ascii", errors="replace"),
-                        "parse_status": "FAIL",
-                        "record_type": "UNKNOWN",
-                        "error_message": str(e),
-                    },
-                )
+                with contextlib.suppress(Exception):
+                    self._file_writer.write_record(
+                        "errors",
+                        {
+                            "raw_content": line_bytes.decode("ascii", errors="replace"),
+                            "error_type": "DECODE_ERROR",
+                            "error_message": str(e),
+                            "attempted_prefix": "UNKNOWN",
+                        },
+                    )
+                with contextlib.suppress(Exception):
+                    self._file_writer.write_record(
+                        "raw_lines",
+                        {
+                            "content": line_bytes.decode("ascii", errors="replace"),
+                            "parse_status": "FAIL",
+                            "record_type": "UNKNOWN",
+                            "error_message": str(e),
+                        },
+                    )
             return
 
         if not sentence:
@@ -397,16 +403,18 @@ class SerialConsumer:
                     error_message=f"No parser for {prefix}",
                 )
                 if self._file_writer:
-                    self._file_writer.write(prefix, sentence)
-                    self._file_writer.write_record(
-                        "raw_lines",
-                        {
-                            "content": sentence,
-                            "parse_status": "PENDING",
-                            "record_type": prefix,
-                            "error_message": f"No parser for {prefix}",
-                        },
-                    )
+                    with contextlib.suppress(Exception):
+                        self._file_writer.write(prefix, sentence)
+                    with contextlib.suppress(Exception):
+                        self._file_writer.write_record(
+                            "raw_lines",
+                            {
+                                "content": sentence,
+                                "parse_status": "PENDING",
+                                "record_type": prefix,
+                                "error_message": f"No parser for {prefix}",
+                            },
+                        )
                 return
 
             # Successfully parsed - insert to database
@@ -422,16 +430,18 @@ class SerialConsumer:
             )
 
             if self._file_writer:
-                self._file_writer.write(prefix, sentence)
-                self._file_writer.write_record(
-                    "raw_lines",
-                    {
-                        "content": sentence,
-                        "parse_status": "OK",
-                        "record_type": prefix,
-                        "checksum_valid": True,
-                    },
-                )
+                with contextlib.suppress(Exception):
+                    self._file_writer.write(prefix, sentence)
+                with contextlib.suppress(Exception):
+                    self._file_writer.write_record(
+                        "raw_lines",
+                        {
+                            "content": sentence,
+                            "parse_status": "OK",
+                            "record_type": prefix,
+                            "checksum_valid": True,
+                        },
+                    )
 
         except ValueError as e:
             # Parse failed
@@ -452,25 +462,28 @@ class SerialConsumer:
             )
 
             if self._file_writer:
-                self._file_writer.write_invalid_record(prefix, sentence)
-                self._file_writer.write_record(
-                    "errors",
-                    {
-                        "raw_content": sentence,
-                        "error_type": "PARSE_ERROR",
-                        "error_message": str(e),
-                        "attempted_prefix": prefix,
-                    },
-                )
-                self._file_writer.write_record(
-                    "raw_lines",
-                    {
-                        "content": sentence,
-                        "parse_status": "FAIL",
-                        "record_type": prefix,
-                        "error_message": str(e),
-                    },
-                )
+                with contextlib.suppress(Exception):
+                    self._file_writer.write_invalid_record(prefix, sentence)
+                with contextlib.suppress(Exception):
+                    self._file_writer.write_record(
+                        "errors",
+                        {
+                            "raw_content": sentence,
+                            "error_type": "PARSE_ERROR",
+                            "error_message": str(e),
+                            "attempted_prefix": prefix,
+                        },
+                    )
+                with contextlib.suppress(Exception):
+                    self._file_writer.write_record(
+                        "raw_lines",
+                        {
+                            "content": sentence,
+                            "parse_status": "FAIL",
+                            "record_type": prefix,
+                            "error_message": str(e),
+                        },
+                    )
 
     def _store_parsed_message(
         self, conn: duckdb.DuckDBPyConnection, sentence: str, prefix: str, parsed: Any
@@ -478,29 +491,36 @@ class SerialConsumer:
         """Store parsed message to appropriate table and export to Parquet."""
         data = parsed.to_dict()
 
-        # Export structured data to DuckLake (Parquet)
+        # 1. Export structured data to DuckLake (Parquet) - ISOLATED
         if self._file_writer:
-            self._file_writer.write_record(prefix, data)
+            try:
+                self._file_writer.write_record(prefix, data)
+            except Exception as e:
+                logger.error(f"Parquet export failed for {prefix}: {e}")
 
-        if prefix in ("PNORI", "PNORI1", "PNORI2"):
-            insert_pnori_configuration(conn, data, sentence)
-        elif prefix in ("PNORS", "PNORS1", "PNORS2", "PNORS3", "PNORS4"):
-            insert_sensor_data(conn, sentence, data)
-        elif prefix in ("PNORC", "PNORC1", "PNORC2", "PNORC3", "PNORC4"):
-            insert_velocity_data(conn, sentence, data)
-        elif prefix in ("PNORH3", "PNORH4"):
-            insert_header_data(conn, sentence, data)
-        elif prefix == "PNORW":
-            insert_pnorw_data(conn, sentence, data)
-        elif prefix == "PNORB":
-            insert_pnorb_data(conn, sentence, data)
-        elif prefix == "PNORE":
-            insert_pnore_data(conn, sentence, data)
-        elif prefix == "PNORF":
-            insert_pnorf_data(conn, sentence, data)
-        elif prefix == "PNORWD":
-            insert_pnorwd_data(conn, sentence, data)
-        elif prefix == "PNORA":
-            insert_pnora_data(conn, sentence, data)
-        else:
-            logger.warning(f"No database insert for {prefix}")
+        # 2. Insert into database - ISOLATED
+        try:
+            if prefix in ("PNORI", "PNORI1", "PNORI2"):
+                insert_pnori_configuration(conn, data, sentence)
+            elif prefix in ("PNORS", "PNORS1", "PNORS2", "PNORS3", "PNORS4"):
+                insert_sensor_data(conn, sentence, data)
+            elif prefix in ("PNORC", "PNORC1", "PNORC2", "PNORC3", "PNORC4"):
+                insert_velocity_data(conn, sentence, data)
+            elif prefix in ("PNORH3", "PNORH4"):
+                insert_header_data(conn, sentence, data)
+            elif prefix == "PNORW":
+                insert_pnorw_data(conn, sentence, data)
+            elif prefix == "PNORB":
+                insert_pnorb_data(conn, sentence, data)
+            elif prefix == "PNORE":
+                insert_pnore_data(conn, sentence, data)
+            elif prefix == "PNORF":
+                insert_pnorf_data(conn, sentence, data)
+            elif prefix == "PNORWD":
+                insert_pnorwd_data(conn, sentence, data)
+            elif prefix == "PNORA":
+                insert_pnora_data(conn, sentence, data)
+            else:
+                logger.warning(f"No database insert for {prefix}")
+        except Exception as e:
+            logger.error(f"Database insertion failed for {prefix}: {e}")

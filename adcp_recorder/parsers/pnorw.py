@@ -47,11 +47,17 @@ class PNORW:
         validate_range(self.spectrum_basis, "Spectrum basis", 0, 3)
         validate_range(self.processing_method, "Processing method", 1, 4)
         if self.hm0 is not None:
-            validate_range(self.hm0, "Hm0", 0.0, 100.0)
+            validate_range(self.hm0, "Hm0", 0.0, 1000.0)
         if self.tm02 is not None:
-            validate_range(self.tm02, "Tm02", 0.0, 100.0)
+            validate_range(self.tm02, "Tm02", 0.0, 1000.0)
         if self.tp is not None:
-            validate_range(self.tp, "Tp", 0.0, 100.0)
+            validate_range(self.tp, "Tp", 0.0, 1000.0)
+        if self.dir_tp is not None:
+            validate_range(self.dir_tp, "DirTp", 0.0, 360.0)
+        if self.spr_tp is not None:
+            validate_range(self.spr_tp, "SprTp", 0.0, 360.0)
+        if self.main_dir is not None:
+            validate_range(self.main_dir, "MainDir", 0.0, 360.0)
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORW":
