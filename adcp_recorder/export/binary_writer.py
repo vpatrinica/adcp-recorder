@@ -5,10 +5,13 @@ base path and writes binary data into timestamped files with a sequential
 identifier when multiple blobs start in the same second.
 """
 
+import logging
 import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import BinaryIO
+
+logger = logging.getLogger(__name__)
 
 
 class BinaryBlobWriter:
@@ -43,12 +46,16 @@ class BinaryBlobWriter:
             self.finish_blob()
 
         path = self._next_filepath()
-        f = open(path, "wb")
-        f.write(initial_chunk)
-        f.flush()
+        try:
+            f = open(path, "wb")
+            f.write(initial_chunk)
+            f.flush()
 
-        self._current_file = f
-        self._current_filepath = path
+            self._current_file = f
+            self._current_filepath = path
+        except Exception as e:
+            logger.error(f"Failed to start binary blob at {path}: {e}")
+            return ""
 
         return path
 
@@ -58,8 +65,12 @@ class BinaryBlobWriter:
             self.start_blob(chunk)
             return
 
-        self._current_file.write(chunk)
-        self._current_file.flush()
+        if self._current_file:
+            try:
+                self._current_file.write(chunk)
+                self._current_file.flush()
+            except Exception as e:
+                logger.error(f"Failed to append chunk to binary blob {self._current_filepath}: {e}")
 
     def finish_blob(self) -> str | None:
         """Finish current blob and close file. Returns path or None."""
@@ -67,8 +78,11 @@ class BinaryBlobWriter:
             return None
 
         try:
-            self._current_file.flush()
-            self._current_file.close()
+            if self._current_file:
+                self._current_file.flush()
+                self._current_file.close()
+        except Exception as e:
+            logger.error(f"Failed to finish binary blob {self._current_filepath}: {e}")
         finally:
             path = self._current_filepath
             self._current_file = None

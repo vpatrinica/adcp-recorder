@@ -1,13 +1,15 @@
 """Interactive table view component with column selection and filtering."""
 
-from typing import Any
+from typing import Any, cast
 
 try:
-    import streamlit as st
+    import streamlit as st  # type: ignore
 except ImportError:
     st = None  # type: ignore
 
-from adcp_recorder.ui.data_layer import DataLayer, DataSource
+from datetime import UTC
+
+from adcp_recorder.ui.data_layer import DataLayer, DataSource  # type: ignore
 
 
 def render_table_view(
@@ -15,6 +17,7 @@ def render_table_view(
     source_name: str,
     config: dict[str, Any] | None = None,
     key_prefix: str = "table",
+    default_time_range: str = "24h",
 ) -> None:
     """Render an interactive data table with column selection and filtering.
 
@@ -23,6 +26,7 @@ def render_table_view(
         source_name: Name of the data source (table/view)
         config: Optional configuration dict with columns, limit, sortable, filterable
         key_prefix: Unique key prefix for Streamlit session state
+        default_time_range: Default time range to show if source has timestamps
 
     """
     if st is None:
@@ -50,10 +54,12 @@ def render_table_view(
             )
 
         with col2:
-            available_columns = [c.name for c in source.columns]
-            default_columns = config.get("columns") or available_columns[:10]
+            available_columns: list[str] = [c.name for c in source.columns]
+            initial_count = 10 if len(available_columns) >= 10 else len(available_columns)
+            initial_columns = [available_columns[cast(int, i)] for i in range(initial_count)]
+            default_columns = config.get("columns") or initial_columns
 
-            selected_columns = st.multiselect(
+            selected_columns: list[str] = st.multiselect(
                 "Columns to display",
                 options=available_columns,
                 default=[c for c in default_columns if c in available_columns],
@@ -66,7 +72,8 @@ def render_table_view(
             selected_columns.append(mandatory)
 
     if not selected_columns:
-        selected_columns = available_columns[:5]
+        default_count = 5 if len(available_columns) >= 5 else len(available_columns)
+        selected_columns = [available_columns[cast(int, i)] for i in range(default_count)]
 
     # Filtering section
     filters_key = f"{key_prefix}_filters"
@@ -101,12 +108,48 @@ def render_table_view(
     time_range = "24h"
     start_time = None
     end_time = None
+    selected_ts_col = None
 
     if source.has_timestamp:
+        # Timestamp column selector
+        # We prefer received_at and measurement_datetime
+        available_ts_cols: list[str] = []
+        source_col_names = [c.name for c in source.columns]
+
+        if "received_at" in source_col_names:
+            available_ts_cols.append("received_at")
+        if "measurement_datetime" in source_col_names:
+            available_ts_cols.append("measurement_datetime")
+
+        # If we have choices, show selector
+        if len(available_ts_cols) > 1:
+            default_idx = 0
+            if source.timestamp_column in available_ts_cols:
+                default_idx = available_ts_cols.index(source.timestamp_column)
+
+            selected_ts_col = st.selectbox(
+                "Time Column",
+                options=available_ts_cols,
+                index=default_idx,
+                key=f"{key_prefix}_ts_col_select",
+            )
+        elif available_ts_cols:
+            selected_ts_col = available_ts_cols[0]
+        else:
+            selected_ts_col = source.timestamp_column
+
+        time_range_options = ["1h", "6h", "24h", "7d", "30d", "All", "Custom"]
+        try:
+            # Handle case difference ("All" vs "all")
+            match_range = "All" if default_time_range.lower() == "all" else default_time_range
+            default_idx = time_range_options.index(match_range)
+        except (ValueError, AttributeError):
+            default_idx = 2  # Default to 24h
+
         time_range = st.selectbox(
             "Time range",
-            options=["1h", "6h", "24h", "7d", "30d", "all", "Custom"],
-            index=2,
+            options=time_range_options,
+            index=default_idx,
             key=f"{key_prefix}_time_range",
         )
 
@@ -124,8 +167,13 @@ def render_table_view(
             if start_date and end_date:
                 from datetime import datetime
 
-                start_time = datetime.combine(start_date, start_time_val)
-                end_time = datetime.combine(end_date, end_time_val)
+                # User input is in local time, but we need to query against UTC stored in DB
+                start_time_local = datetime.combine(start_date, start_time_val)
+                end_time_local = datetime.combine(end_date, end_time_val)
+
+                # Assume local system time and convert to UTC
+                start_time = start_time_local.astimezone().astimezone(UTC).replace(tzinfo=None)
+                end_time = end_time_local.astimezone().astimezone(UTC).replace(tzinfo=None)
         elif time_range != "all":
             start_time = data_layer._parse_time_range(time_range)
 
@@ -133,15 +181,24 @@ def render_table_view(
     try:
         data = data_layer.query_data(
             source_name=source_name,
+            timestamp_col=selected_ts_col,
             columns=selected_columns,
             start_time=start_time,
             end_time=end_time,
             limit=int(limit),
         )
+        st.write(f"Data source: {source_name}")
+        st.write(f"Columns: {selected_columns}")
+        st.write(f"Start time: {start_time}")
+        st.write(f"End time: {end_time}")
+        st.write(f"Limit: {limit}")
+        st.write(f"Data: {data}")
         # Apply client‑side filters stored in session_state
         if data:
-            filtered = []
+            filtered: list[dict[str, Any]] = []
             for row in data:
+                if not isinstance(row, dict):
+                    continue
                 keep = True
                 for col in selected_columns:
                     state_key = f"{key_prefix}_filter_state_{col}"
@@ -153,8 +210,9 @@ def render_table_view(
                             and state[0] == "contains"
                         ):
                             # op, val = state
-                            val = state[1]
-                            if val.lower() not in str(row.get(col, "")).lower():
+                            val = str(state[1])
+                            row_val = str(row.get(col, ""))
+                            if val.lower() not in row_val.lower():
                                 keep = False
                                 break
                 if keep:
@@ -223,8 +281,9 @@ def render_column_selector(
     """
     if st is None:
         raise ImportError("Streamlit is required for this component.")
-    available = [c.name for c in source.columns]
-    defaults = default_columns or available[:5]
+    available: list[str] = [c.name for c in source.columns]
+    initial_count = 5 if len(available) >= 5 else len(available)
+    defaults = default_columns or [available[cast(int, i)] for i in range(initial_count)]
 
     return st.multiselect(
         "Select columns",

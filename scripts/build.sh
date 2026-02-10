@@ -52,8 +52,17 @@ python3 -m pip install --quiet --upgrade pip setuptools wheel build
 echo -e "${GREEN}✓ Build dependencies installed${NC}"
 echo ""
 
-# Step 4: Run tests
-echo -e "${YELLOW}[4/7] Running test suite...${NC}"
+# Step 4: Run quality checks
+echo -e "${YELLOW}[4/8] Running quality checks...${NC}"
+bash "$SCRIPT_DIR/check_quality.sh" || {
+    echo -e "${RED}✗ Quality checks failed${NC}"
+    exit 1
+}
+echo -e "${GREEN}✓ Quality checks passed${NC}"
+echo ""
+
+# Step 5: Run tests
+echo -e "${YELLOW}[5/8] Running test suite...${NC}"
 if [ -d "adcp_recorder/tests" ]; then
     # Install test dependencies
     python3 -m pip install --quiet -e ".[dev]"

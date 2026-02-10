@@ -9,15 +9,39 @@ from adcp_recorder.ui.data_layer import DataLayer
 MISSING_UNIT_PLACEHOLDER = ""
 
 
-def render_data_explorer(data_layer: DataLayer) -> None:
+def render_data_explorer(data_layer: DataLayer, time_range: str = "24h") -> None:
     """Render the Data Explorer page.
 
     Args:
         data_layer: DataLayer instance for data access
+        time_range: Time range for quality metrics and initial views
 
     """
     st.header("📊 Data Explorer")
     st.caption("Browse and filter ADCP data from all available sources")
+
+    # Quality Overview
+    with st.expander("🛡️ Quality Overview", expanded=True):
+        try:
+            metrics = data_layer.get_quality_metrics(time_range)
+            q_cols = st.columns(4)
+            with q_cols[0]:
+                st.metric("Total Records", f"{metrics.get('total_records', 0):,}")
+            with q_cols[1]:
+                error_count = metrics.get("error_count", 0)
+                st.metric(
+                    "Errors",
+                    f"{error_count:,}",
+                    delta=None if error_count == 0 else f"{error_count}",
+                    delta_color="inverse",
+                )
+            with q_cols[2]:
+                error_rate = metrics.get("error_rate", 0.0) * 100
+                st.metric("Error Rate", f"{error_rate:.2f}%")
+            with q_cols[3]:
+                st.metric("Report Range", time_range)
+        except Exception as e:
+            st.warning(f"Could not load quality metrics: {e}")
 
     # Get available sources grouped by category
     sources = data_layer.get_available_sources(include_views=True)
@@ -89,6 +113,7 @@ def render_data_explorer(data_layer: DataLayer) -> None:
         data_layer=data_layer,
         source_name=selected_source,
         key_prefix=f"explorer_{selected_source}",
+        default_time_range=time_range,
     )
 
     # Quick stats for numeric columns

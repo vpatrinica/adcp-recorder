@@ -62,7 +62,7 @@ class BulkExporter:
             logger.error(f"Database not found: {self.db_path}")
             return {}
 
-        conn = duckdb.connect(self.db_path)
+        conn = duckdb.connect(self.db_path, read_only=True)
         try:
             # Get list of base tables
             tables_info = conn.execute(

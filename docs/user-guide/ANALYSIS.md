@@ -26,7 +26,7 @@ response = requests.get("http://localhost:8000/ducklake/pnors?limit=10")
 data = response.json()
 
 for record in data:
-    print(f"Time: {record['recorded_at']}, Temp: {record['temperature']}°C")
+    print(f"Time: {record['recieved_at']}, Temp: {record['temperature']}°C")
 ```
 
 ## 📊 Streamlit Dashboard

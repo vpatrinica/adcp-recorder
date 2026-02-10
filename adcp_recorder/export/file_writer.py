@@ -113,6 +113,20 @@ class FileWriter:
         except Exception as e:
             logger.error(f"Failed to write record for {prefix} to Parquet: {e}")
 
+    def flush_stale(self, max_age_seconds: int = 300) -> None:
+        """Flush stale Parquet buffers.
+
+        Args:
+            max_age_seconds: Threshold for flushing stale buffers.
+        """
+        if self._closed:
+            return
+
+        try:
+            self.parquet_writer.flush_stale(max_age_seconds)
+        except Exception as e:
+            logger.error(f"Failed to flush stale Parquet records: {e}")
+
     def write_invalid_record(self, prefix: str, data: str) -> None:
         """Write invalid record to error file.
 

@@ -211,6 +211,13 @@ class SerialConsumer:
                     if not self._running:
                         logger.debug("Queue empty and stopping, exiting loop")
                         break
+
+                    # Periodic flush of stale buffers
+                    if self._file_writer:
+                        try:
+                            self._file_writer.flush_stale(max_age_seconds=300)
+                        except Exception as e:
+                            logger.error(f"Failed to flush stale Parquet records: {e}")
                     continue
                 except Exception as e:
                     logger.error(f"Unexpected error getting from queue: {e}", exc_info=True)
@@ -353,12 +360,15 @@ class SerialConsumer:
                 error_message=str(e),
             )
             if self._file_writer:
-                with contextlib.suppress(Exception):
+                try:
                     self._file_writer.write_error(
                         f"Decode error: {line_bytes.decode('ascii', errors='replace')} - {e}"
                     )
+                except Exception as writer_err:
+                    logger.error(f"Failed to write error to text log: {writer_err}")
+
                 # Add to parquet
-                with contextlib.suppress(Exception):
+                try:
                     self._file_writer.write_record(
                         "errors",
                         {
@@ -368,7 +378,10 @@ class SerialConsumer:
                             "attempted_prefix": "UNKNOWN",
                         },
                     )
-                with contextlib.suppress(Exception):
+                except Exception as writer_err:
+                    logger.error(f"Failed to write DECODE_ERROR to parquet: {writer_err}")
+
+                try:
                     self._file_writer.write_record(
                         "raw_lines",
                         {
@@ -377,6 +390,10 @@ class SerialConsumer:
                             "record_type": "UNKNOWN",
                             "error_message": str(e),
                         },
+                    )
+                except Exception as writer_err:
+                    logger.error(
+                        f"Failed to write raw_line to parquet for DECODE_ERROR: {writer_err}"
                     )
             return
 
@@ -403,9 +420,12 @@ class SerialConsumer:
                     error_message=f"No parser for {prefix}",
                 )
                 if self._file_writer:
-                    with contextlib.suppress(Exception):
+                    try:
                         self._file_writer.write(prefix, sentence)
-                    with contextlib.suppress(Exception):
+                    except Exception as writer_err:
+                        logger.error(f"Failed to write {prefix} to text log: {writer_err}")
+
+                    try:
                         self._file_writer.write_record(
                             "raw_lines",
                             {
@@ -415,6 +435,8 @@ class SerialConsumer:
                                 "error_message": f"No parser for {prefix}",
                             },
                         )
+                    except Exception as writer_err:
+                        logger.error(f"Failed to write {prefix} raw_line to parquet: {writer_err}")
                 return
 
             # Successfully parsed - insert to database
@@ -430,9 +452,12 @@ class SerialConsumer:
             )
 
             if self._file_writer:
-                with contextlib.suppress(Exception):
+                try:
                     self._file_writer.write(prefix, sentence)
-                with contextlib.suppress(Exception):
+                except Exception as writer_err:
+                    logger.error(f"Failed to write structured {prefix} to text log: {writer_err}")
+
+                try:
                     self._file_writer.write_record(
                         "raw_lines",
                         {
@@ -441,6 +466,10 @@ class SerialConsumer:
                             "record_type": prefix,
                             "checksum_valid": True,
                         },
+                    )
+                except Exception as writer_err:
+                    logger.error(
+                        f"Failed to write structured {prefix} raw_line to parquet: {writer_err}"
                     )
 
         except ValueError as e:
@@ -462,9 +491,12 @@ class SerialConsumer:
             )
 
             if self._file_writer:
-                with contextlib.suppress(Exception):
+                try:
                     self._file_writer.write_invalid_record(prefix, sentence)
-                with contextlib.suppress(Exception):
+                except Exception as writer_err:
+                    logger.error(f"Failed to write invalid {prefix} to text log: {writer_err}")
+
+                try:
                     self._file_writer.write_record(
                         "errors",
                         {
@@ -474,7 +506,12 @@ class SerialConsumer:
                             "attempted_prefix": prefix,
                         },
                     )
-                with contextlib.suppress(Exception):
+                except Exception as writer_err:
+                    logger.error(
+                        f"Failed to write PARSE_ERROR for {prefix} to parquet: {writer_err}"
+                    )
+
+                try:
                     self._file_writer.write_record(
                         "raw_lines",
                         {
@@ -483,6 +520,11 @@ class SerialConsumer:
                             "record_type": prefix,
                             "error_message": str(e),
                         },
+                    )
+                except Exception as writer_err:
+                    logger.error(
+                        f"Failed to write raw_line for {prefix} parse failure "
+                        f"to parquet: {writer_err}"
                     )
 
     def _store_parsed_message(

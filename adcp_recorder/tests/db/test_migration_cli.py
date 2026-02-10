@@ -1,6 +1,7 @@
 """Tests for migration.py CLI."""
 
 import subprocess
+import sys
 
 import duckdb
 
@@ -8,7 +9,9 @@ import duckdb
 def test_migration_cli_help():
     """Test migration.py --help."""
     result = subprocess.run(
-        ["python", "-m", "adcp_recorder.db.migration", "--help"], capture_output=True, text=True
+        [sys.executable, "-m", "adcp_recorder.db.migration", "--help"],
+        capture_output=True,
+        text=True,
     )
     assert result.returncode == 0
     assert result.returncode == 0
@@ -48,7 +51,7 @@ def test_migration_cli_basic(tmp_path):
 
     # Run migration CLI
     result = subprocess.run(
-        ["python", "-m", "adcp_recorder.db.migration", str(old_db), "-t", str(new_db)],
+        [sys.executable, "-m", "adcp_recorder.db.migration", str(old_db), "-t", str(new_db)],
         capture_output=True,
         text=True,
     )

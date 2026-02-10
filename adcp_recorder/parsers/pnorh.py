@@ -6,33 +6,14 @@ Implements parsers for:
 """
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
-from .utils import (
+from adcp_recorder.parsers.utils import (
     parse_tagged_field,
     validate_date_yy_mm_dd,
     validate_hex_string,
-    validate_range,
     validate_time_string,
 )
-
-
-def _validate_common_header(
-    instrument_type: int,
-    num_beams: int,
-    num_cells: int,
-    blanking: float,
-    cell_size: float,
-    coordinate_system: str,
-) -> None:
-    """Validate common configuration fields."""
-    validate_range(instrument_type, "Instrument type", 0, 100)
-    validate_range(num_beams, "Number of beams", 1, 4)
-    validate_range(num_cells, "Number of cells", 1, 1000)
-    validate_range(blanking, "Blanking distance", 0.0, 100.0)
-    validate_range(cell_size, "Cell size", 0.0, 100.0)
-    if coordinate_system not in {"BEAM", "XYZ", "ENU"}:
-        raise ValueError(f"Invalid coordinate system: {coordinate_system}")
 
 
 @dataclass(frozen=True)
@@ -62,17 +43,18 @@ class PNORH3:
             data_part, checksum = sentence.rsplit("*", 1)
             checksum = checksum.strip().upper()
 
-        fields = [f.strip() for f in data_part.split(",")]
+        fields: list[str] = [f.strip() for f in data_part.split(",")]
         if fields[0] != "$PNORH3":
             raise ValueError(f"Invalid prefix: {fields[0]}")
 
         data: dict[str, Any] = {}
-        for field_str in fields[1:]:
+        for i in range(1, len(fields)):
+            field_str: str = fields[i]
             tag, val = parse_tagged_field(field_str)
             if tag not in cls.TAG_IDS:
                 raise ValueError(f"Unknown tag in PNORH3: {tag}")
 
-            field_name = cls.TAG_IDS[tag]
+            field_name = cls.TAG_IDS[cast(str, tag)]
             if field_name == "error_code":
                 data[field_name] = int(val)
             else:
@@ -82,7 +64,13 @@ class PNORH3:
             missing = set(cls.TAG_IDS.values()) - set(data.keys())
             raise ValueError(f"Missing required tags in PNORH3: {missing}")
 
-        return cls(**data, checksum=checksum)
+        return cls(
+            date=str(data["date"]),
+            time=str(data["time"]),
+            error_code=int(data["error_code"]),
+            status_code=str(data["status_code"]),
+            checksum=checksum,
+        )
 
     def to_dict(self) -> dict:
         return {

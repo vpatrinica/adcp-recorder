@@ -309,9 +309,9 @@ CREATE OR REPLACE VIEW view_pnors AS
 SELECT * FROM read_parquet('data/parquet/pnors/**/*.parquet');
 
 -- You can query it like a normal table
-SELECT AVG(temperature), recorded_at 
+SELECT AVG(temperature), recieved_at 
 FROM view_pnors 
-WHERE recorded_at > '2026-01-15 00:00:00'
+WHERE recieved_at > '2026-01-15 00:00:00'
 GROUP BY 2;
 ```
 

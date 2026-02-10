@@ -290,7 +290,7 @@ class TestParquetDataLayerCoverage:
         layer.load_data()
 
         cond = layer._get_join_condition("non_existent", "pq_pnorw", "n", "w")
-        assert "measurement_date" in cond
+        assert cond == "1=1"
 
     def test_create_joined_views_exception_logging(self, sample_parquet_dir):
         """Test that failed view creation logs but doesn't crash."""

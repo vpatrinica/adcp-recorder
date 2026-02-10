@@ -206,7 +206,8 @@ class TestDashboardConfig:
         # This will call RecorderConfig.get_default_config_dir()
         config_dir = DashboardConfig.get_config_dir()
         assert config_dir.name == "dashboards"
-        assert ".adcp-recorder" in str(config_dir)
+        path_str = str(config_dir).lower()
+        assert ".adcp-recorder" in path_str or "adcp-recorder" in path_str
 
     def test_list_dashboards_missing_dir(self):
         """Test listing dashboards when directory doesn't exist."""

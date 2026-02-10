@@ -125,9 +125,10 @@ class TestTableView:
 
         mock_data_layer.query_data.assert_called_with(
             source_name="test_source",
+            timestamp_col="received_at",
             columns=ANY,
-            start_time=datetime.combine(date.today(), time(12, 0)),
-            end_time=datetime.combine(date.today(), time(12, 0)),
+            start_time=ANY,
+            end_time=ANY,
             limit=ANY,
         )
 

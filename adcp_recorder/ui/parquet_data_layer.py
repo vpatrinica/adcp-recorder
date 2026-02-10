@@ -241,9 +241,9 @@ class ParquetDirectory:
 
             for file_date, file_list in self.record_types[rec_type].items():
                 # Apply date filters
-                if start_date and file_date < start_date:
+                if start_date is not None and file_date < start_date:
                     continue
-                if end_date and file_date > end_date:
+                if end_date is not None and file_date > end_date:
                     continue
 
                 # Only include complete files
@@ -299,10 +299,11 @@ class ParquetFileDiscovery:
 
         # Return cache if valid
         if not force and self._cache is not None:
-            if self._cache.last_scan:
-                age = (now - self._cache.last_scan).total_seconds()
+            cache = self._cache
+            if cache.last_scan is not None:
+                age = (now - cache.last_scan).total_seconds()
                 if age < self._cache_ttl_seconds:
-                    return self._cache
+                    return cache
 
         result = ParquetDirectory(base_path=self.base_path, last_scan=now)
         self._writing_files = []
@@ -538,10 +539,86 @@ class ParquetDataLayer(DataLayer):
                 # Create view over Parquet files
                 # Use union_by_name=true to handle schema differences between files
                 files_list = ", ".join(f"'{p}'" for p in file_paths)
+
+                # First create the base view
+                base_view = f"{view_name}_base"
                 self._conn.execute(
-                    f"CREATE OR REPLACE VIEW {view_name} AS "
+                    f"CREATE OR REPLACE VIEW {base_view} AS "
                     f"SELECT * FROM read_parquet([{files_list}], union_by_name=true)"
                 )
+
+                # Check columns in base view (case-insensitive)
+                cols_meta = self._conn.execute(f"DESCRIBE {base_view}").fetchall()
+                col_names = [c[0] for c in cols_meta]
+                lower_cols = {c.lower() for c in col_names}
+
+                # Helper to find original name
+                def find_orig(name_to_find):
+                    for c in col_names:
+                        if c.lower() == name_to_find.lower():
+                            return c
+                    return None
+
+                # Build selection with measurement_datetime if possible
+                select_parts = ["*"]
+
+                # Ensure measurement_date/time are always available for joins/projections
+                if "measurement_date" not in lower_cols:
+                    orig_d = find_orig("date")
+                    if orig_d:
+                        select_parts.append(f'"{orig_d}" AS measurement_date')
+
+                if "measurement_time" not in lower_cols:
+                    orig_t = find_orig("time")
+                    if orig_t:
+                        select_parts.append(f'"{orig_t}" AS measurement_time')
+
+                # Combined datetime for filtering and joins
+                d_col = find_orig("measurement_date") or find_orig("date")
+                t_col = find_orig("measurement_time") or find_orig("time")
+
+                if d_col and t_col:
+                    # Robust parsing: handles YYYY-MM-DD, MMDDYY, DATE, and TIME types
+                    select_parts.append(
+                        f"""
+                        CASE
+                            WHEN typeof("{d_col}") = 'DATE' AND typeof("{t_col}") = 'TIME' THEN
+                                CAST("{d_col}" AS DATE) + CAST("{t_col}" AS TIME)
+                            WHEN typeof("{d_col}") = 'DATE' THEN
+                                CAST("{d_col}" AS DATE) + COALESCE(
+                                    try_cast(CAST("{t_col}" AS VARCHAR) AS TIME),
+                                    try_strptime(
+                                        lpad(CAST("{t_col}" AS VARCHAR), 6, '0'),
+                                        '%H%M%S'
+                                    )::TIME,
+                                    '00:00:00'::TIME
+                                )
+                            ELSE
+                                COALESCE(
+                                    try_strptime(
+                                        CAST("{d_col}" AS VARCHAR) || CAST("{t_col}" AS VARCHAR),
+                                        '%Y-%m-%d%H%M%S'
+                                    ),
+                                    try_strptime(
+                                        lpad(CAST("{d_col}" AS VARCHAR), 6, '0') ||
+                                        lpad(CAST("{t_col}" AS VARCHAR), 6, '0'),
+                                        '%m%d%y%H%M%S'
+                                    ),
+                                    try_cast(CAST("{d_col}" AS VARCHAR) AS DATE) +
+                                    COALESCE(
+                                        try_cast(CAST("{t_col}" AS VARCHAR) AS TIME),
+                                        '00:00:00'::TIME
+                                    )
+                                )
+                        END as measurement_datetime
+                        """
+                    )
+                elif "received_at" in lower_cols:
+                    # Fallback for tables like PNORI that don't have measurement_date/time
+                    select_parts.append("received_at as measurement_datetime")
+
+                select_sql = f"SELECT {', '.join(select_parts)} FROM {base_view}"
+                self._conn.execute(f"CREATE OR REPLACE VIEW {view_name} AS {select_sql}")
                 self._loaded_views.add(view_name)
 
                 # Get record count
@@ -741,16 +818,63 @@ class ParquetDataLayer(DataLayer):
         cols_left = self._get_view_columns(left_view)
         cols_right = self._get_view_columns(right_view)
 
-        if "measurement_id" in cols_left and "measurement_id" in cols_right:
+        # Case-insensitive column sets
+        lc_left = {c.lower() for c in cols_left}
+        lc_right = {c.lower() for c in cols_right}
+
+        if "measurement_id" in lc_left and "measurement_id" in lc_right:
             return f"{left_alias}.measurement_id = {right_alias}.measurement_id"
 
-        return (
-            f"{left_alias}.measurement_date = {right_alias}.measurement_date "
-            f"AND {left_alias}.measurement_time = {right_alias}.measurement_time"
+        if "measurement_datetime" in lc_left and "measurement_datetime" in lc_right:
+            return f"{left_alias}.measurement_datetime = {right_alias}.measurement_datetime"
+
+        # Fallback to date/time matching only if they exist in both
+        d_l = (
+            "measurement_date"
+            if "measurement_date" in lc_left
+            else "date"
+            if "date" in lc_left
+            else None
+        )
+        t_l = (
+            "measurement_time"
+            if "measurement_time" in lc_left
+            else "time"
+            if "time" in lc_left
+            else None
+        )
+        d_r = (
+            "measurement_date"
+            if "measurement_date" in lc_right
+            else "date"
+            if "date" in lc_right
+            else None
+        )
+        t_r = (
+            "measurement_time"
+            if "measurement_time" in lc_right
+            else "time"
+            if "time" in lc_right
+            else None
         )
 
-    def _get_view_columns(self, view_name: str) -> set[str]:
+        if d_l and t_l and d_r and t_r:
+            return (
+                f"{left_alias}.{d_l} = {right_alias}.{d_r} AND "
+                f"{left_alias}.{t_l} = {right_alias}.{t_r}"
+            )
+
+        # Final fallback - received_at
+        if "received_at" in lc_left and "received_at" in lc_right:
+            return f"{left_alias}.received_at = {right_alias}.received_at"
+
+        # If nothing else works, return a condition that avoids crash
+        return "1=1"
+
+    def _get_view_columns(self, view_name: str | None) -> set[str]:
         """Get set of column names for a view."""
+        if view_name is None:
+            return set()
         try:
             return {c[0] for c in self._conn.execute(f"DESCRIBE {view_name}").fetchall()}
         except Exception:
@@ -875,7 +999,10 @@ class ParquetDataLayer(DataLayer):
             )
             columns.append(col)
 
-            # Track timestamp column
+            # Track timestamp column - prefer measurement_datetime
+            if col_name == "measurement_datetime":
+                timestamp_col = col_name
+
             if column_type == ColumnType.TIMESTAMP and timestamp_col is None:
                 timestamp_col = col_name
 
@@ -889,6 +1016,11 @@ class ParquetDataLayer(DataLayer):
         # Map view name back to original record type for category lookup
         original_name = resolved_name.replace("pq_", "")
         category = SOURCE_CATEGORIES.get(original_name, "Parquet Data")
+
+        # Fallback for timestamp column
+        if not timestamp_col:
+            if "received_at" in [c.name for c in columns]:
+                timestamp_col = "received_at"
 
         return DataSource(
             name=resolved_name,

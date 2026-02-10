@@ -235,6 +235,17 @@ def main() -> None:
     )
 
     page_key = pages.get(selected, "explorer")
+
+    # Global Time Range Selector
+    st.sidebar.divider()
+    st.sidebar.subheader("🕒 Global Time Filter")
+    global_time_range = st.sidebar.selectbox(
+        "Select range:",
+        options=["1h", "6h", "24h", "7d", "30d", "All"],
+        index=2,  # Default to 24h
+        key="global_time_range",
+    )
+
     with st.sidebar.expander("⚡ Quick Actions", expanded=True):
         if st.button("🔄 Refresh Data", width=250):
             # use numerical width or "use_container_width=True" in newer streamlit,
@@ -275,7 +286,7 @@ def main() -> None:
 
     # Main content area
     if page_key == "explorer":
-        render_data_explorer(data_layer)
+        render_data_explorer(data_layer, time_range=global_time_range)
 
     elif page_key == "plot_builder":
         render_plot_builder(data_layer)

@@ -4,7 +4,7 @@ from adcp_recorder.parsers.pnora import PNORA
 from adcp_recorder.parsers.pnorc import PNORC, PNORC1, PNORC2, PNORC3, PNORC4
 from adcp_recorder.parsers.pnore import PNORE
 from adcp_recorder.parsers.pnorf import PNORF
-from adcp_recorder.parsers.pnorh import PNORH3, _validate_common_header
+from adcp_recorder.parsers.pnorh import PNORH3
 from adcp_recorder.parsers.pnors import PNORS1, PNORS2, PNORS3, PNORS4
 from adcp_recorder.parsers.pnorwd import PNORWD
 from adcp_recorder.parsers.utils import (
@@ -100,11 +100,6 @@ class TestParserCoverage:
 
     def test_pnorh_coverage(self):
         """Cover pnorh.py gaps."""
-        # Lines 28-34: _validate_common_header (unused but needs coverage)
-        _validate_common_header(0, 1, 1, 0.0, 0.0, "BEAM")
-        with pytest.raises(ValueError, match="Invalid coordinate system"):
-            _validate_common_header(0, 1, 1, 0.0, 0.0, "INVALID")
-
         # Line 72: Unknown tag PNORH3
         with pytest.raises(ValueError, match="Unknown tag"):
             PNORH3.from_nmea("$PNORH3,DATE=230101,TIME=120000,EC=0,SC=00000000,UNKNOWN=1")

@@ -1,6 +1,5 @@
 """Parquet writer for efficient storage of structured ADCP records."""
 
-import contextlib
 import logging
 import os
 from datetime import date, datetime
@@ -29,6 +28,7 @@ class ParquetWriter:
         self.base_path = Path(base_path) / "parquet"
         self.buffer_size = buffer_size
         self._buffers: dict[str, list[dict[str, Any]]] = {}
+        self._last_flush: dict[str, datetime] = {}
         self._conn = duckdb.connect(database=":memory:")
         self._ensure_base_path()
 
@@ -54,6 +54,7 @@ class ParquetWriter:
         """
         if prefix not in self._buffers:
             self._buffers[prefix] = []
+            self._last_flush[prefix] = datetime.now()
 
         # Add timestamp if not present
         if "received_at" not in record:
@@ -77,6 +78,27 @@ class ParquetWriter:
 
         if len(self._buffers[prefix]) >= self.buffer_size:
             self.flush(prefix)
+        else:
+            # Check for stale buffers occasionally even if not full
+            # We don't want to check on every single record for high-freq ones,
+            # but for low-freq it's fine.
+            self.flush_stale(max_age_seconds=300)  # 5 minutes default
+
+    def flush_stale(self, max_age_seconds: int = 300) -> None:
+        """Flush buffers that haven't been flushed in a while.
+
+        Args:
+            max_age_seconds: Threshold for flushing stale buffers.
+        """
+        now = datetime.now()
+        for prefix in list(self._buffers.keys()):
+            if not self._buffers[prefix]:
+                continue
+
+            last_flush = self._last_flush.get(prefix)
+            if last_flush is None or (now - last_flush).total_seconds() > max_age_seconds:
+                logger.info(f"Time-based flush for {prefix} ({len(self._buffers[prefix])} records)")
+                self.flush(prefix)
 
     def flush(self, prefix: str | None = None) -> None:
         """Flush buffered records to Parquet files.
@@ -106,6 +128,7 @@ class ParquetWriter:
                     self._write_to_parquet(p, date_val, records)
 
                 self._buffers[p] = []
+                self._last_flush[p] = datetime.now()
             except Exception as e:
                 logger.error(f"Failed to flush Parquet records for {p}: {e}")
 
@@ -164,6 +187,38 @@ class ParquetWriter:
 
             dataframes.append(new_df)
 
+            # Align types to handle schema conflicts (e.g., Int64 vs Float64)
+            if dataframes:
+                # Get common columns
+                all_cols = set(new_df.columns)
+                for df_existing in dataframes[:-1]:  # new_df is at the end
+                    all_cols.update(df_existing.columns)
+
+                # For all columns in new_df, align with existing dataframes if types differ
+                for col in new_df.columns:
+                    for df_existing in dataframes[:-1]:
+                        if col in df_existing.columns:
+                            existing_dtype = df_existing[col].dtype
+                            if new_df[col].dtype != existing_dtype:
+                                try:
+                                    # If target is float-ish, promote to float
+                                    if "Float" in str(existing_dtype):
+                                        new_df = new_df.with_columns(pl.col(col).cast(pl.Float64))
+                                    else:
+                                        new_df = new_df.with_columns(
+                                            pl.col(col).cast(existing_dtype)
+                                        )
+                                except Exception as e:
+                                    logger.warning(
+                                        f"Failed to align column {col} type from "
+                                        f"{new_df[col].dtype} to {existing_dtype}: {e}"
+                                    )
+                                break
+                            break
+
+                # Update the reference in the dataframes list to use the aligned version
+                dataframes[-1] = new_df
+
             # Use diagonal union to handle schema evolutions (new columns)
             df = pl.concat(dataframes, how="diagonal")
 
@@ -215,5 +270,7 @@ class ParquetWriter:
     def close(self) -> None:
         """Flush all buffers and close connections."""
         self.flush()
-        with contextlib.suppress(Exception):
+        try:
             self._conn.close()
+        except Exception as e:
+            logger.error(f"Error closing DuckDB connection in ParquetWriter: {e}")

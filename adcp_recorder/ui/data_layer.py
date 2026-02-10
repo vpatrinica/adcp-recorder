@@ -5,7 +5,7 @@ time-range queries, and aggregation functions for dashboard components.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any
 
@@ -185,7 +185,21 @@ class DataLayer:
                 # Views may not exist yet
                 pass
 
-        return sources
+        return sorted(sources, key=self._sort_sources)
+
+    def _sort_sources(self, source: DataSource) -> tuple[int, str]:
+        """Sort sources with custom priority."""
+        name = source.name.lower()
+        # Priorities: 0 = Highest
+        if "pnori1" in name:
+            return 0, name
+        if "pnors1" in name:
+            return 1, name
+        if "pnorc1" in name:
+            return 2, name
+        if "df501" in name:
+            return 3, name
+        return 99, name
 
     def get_source_metadata(self, source_name: str) -> DataSource | None:
         """Get detailed metadata for a specific data source."""
@@ -230,7 +244,9 @@ class DataLayer:
             columns=columns,
             record_count=count,
             has_timestamp=timestamp_col is not None,
-            timestamp_column=timestamp_col or "received_at",
+            timestamp_column="received_at"
+            if any(c.name == "received_at" for c in columns)
+            else timestamp_col or "received_at",
             category=SOURCE_CATEGORIES.get(source_name, "Other"),
         )
 
@@ -301,6 +317,7 @@ class DataLayer:
         end_time: datetime | None = None,
         limit: int = 100,
         order_desc: bool = True,
+        timestamp_col: str | None = None,
     ) -> list[dict[str, Any]]:
         """Query data from a source with optional filters."""
         source = self.get_source_metadata(source_name)
@@ -329,19 +346,22 @@ class DataLayer:
                 conditions.append(f"{col} = ?")
                 params.append(value)
 
+        # Determine timestamp column to use
+        ts_column = timestamp_col or (source.timestamp_column if source.has_timestamp else None)
+
         # Add time filters
-        if start_time and source.has_timestamp:
-            conditions.append(f"{source.timestamp_column} >= ?")
+        if start_time and ts_column:
+            conditions.append(f"{ts_column} >= ?")
             params.append(start_time)
-        if end_time and source.has_timestamp:
-            conditions.append(f"{source.timestamp_column} <= ?")
+        if end_time and ts_column:
+            conditions.append(f"{ts_column} <= ?")
             params.append(end_time)
 
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
 
         # Add ordering (default to timestamp if available)
-        order_by_col = source.timestamp_column if source.has_timestamp else None
+        order_by_col = ts_column
         if order_by_col:
             query += f" ORDER BY {order_by_col} {'DESC' if order_desc else 'ASC'}"
 
@@ -350,6 +370,9 @@ class DataLayer:
 
         # Execute and convert to dicts
         result = self.conn.execute(query, params).fetchall()
+        if not self.conn.description:
+            return []
+
         col_names = [d[0] for d in self.conn.description]
         return [dict(zip(col_names, row, strict=False)) for row in result]
 
@@ -749,6 +772,8 @@ class DataLayer:
                     return {}
 
                 start_f, step_f, num_f, energy_densities_json, ts = energy_data
+                if energy_densities_json is None:
+                    return {}
                 energy = json.loads(energy_densities_json)
 
             # Mean Direction
@@ -772,7 +797,10 @@ class DataLayer:
             spreads = json.loads(ds_data[0]) if ds_data else [0.0] * num_f
 
             # 3. Reconstruct frequencies
-            frequencies = [round(float(start_f + i * step_f), 4) for i in range(num_f)]
+            if start_f is not None and step_f is not None and num_f is not None:
+                frequencies = [round(float(start_f + i * step_f), 4) for i in range(int(num_f))]
+            else:
+                frequencies = []
 
             return {
                 "timestamp": ts,
@@ -824,8 +852,10 @@ class DataLayer:
         return {}
 
     def _parse_time_range(self, time_range: str) -> datetime | None:
-        """Parse time range string to start datetime."""
-        now = datetime.now()
+        """Parse time range string to start datetime (UTC)."""
+        # DB stores naive UTC timestamps, so we need naive UTC start time
+
+        now = datetime.now(UTC).replace(tzinfo=None)
         parse_map = {
             "1h": timedelta(hours=1),
             "6h": timedelta(hours=6),
@@ -878,3 +908,53 @@ class DataLayer:
             "x": [row[0] for row in result],
             "y": [row[1] for row in result],
         }
+
+    def get_quality_metrics(self, time_range: str = "24h") -> dict[str, Any]:
+        """Get quality metrics (record counts, errors, gaps)."""
+        start_time = self._parse_time_range(time_range)
+
+        metrics: dict[str, Any] = {"total_records": 0, "error_rate": 0.0, "sources": {}}
+
+        # Get record counts for all sources
+        sources = self.get_available_sources()
+        for source in sources:
+            # Skip error tables
+            if "error" in source.name.lower():
+                continue
+
+            query = f"SELECT COUNT(*) FROM {source.name}"
+            params = []
+            if start_time and source.has_timestamp:
+                query += f" WHERE {source.timestamp_column} >= ?"
+                params.append(start_time)
+
+            try:
+                row = self.conn.execute(query, params).fetchone()
+                if row:
+                    count = row[0]
+                    metrics["total_records"] += count
+                    metrics["sources"][source.name] = count
+            except Exception:
+                pass
+
+        # Get error counts if parse_errors exists
+        if self.get_source_metadata("parse_errors"):
+            query = "SELECT COUNT(*) FROM parse_errors"
+            params = []
+            if start_time:
+                query += " WHERE received_at >= ?"
+                params.append(start_time)
+
+            try:
+                row = self.conn.execute(query, params).fetchone()
+                if row:
+                    error_count = row[0]
+                    metrics["error_count"] = error_count
+                    if metrics["total_records"] > 0:
+                        metrics["error_rate"] = error_count / (
+                            metrics["total_records"] + error_count
+                        )
+            except Exception:
+                pass
+
+        return metrics
