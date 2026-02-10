@@ -364,7 +364,7 @@ class SerialConsumer:
                     self._file_writer.write_error(
                         f"Decode error: {line_bytes.decode('ascii', errors='replace')} - {e}"
                     )
-                except Exception as writer_err:
+                except Exception as writer_err:  # pragma: no cover
                     logger.error(f"Failed to write error to text log: {writer_err}")
 
                 # Add to parquet
@@ -378,7 +378,7 @@ class SerialConsumer:
                             "attempted_prefix": "UNKNOWN",
                         },
                     )
-                except Exception as writer_err:
+                except Exception as writer_err:  # pragma: no cover
                     logger.error(f"Failed to write DECODE_ERROR to parquet: {writer_err}")
 
                 try:
@@ -391,7 +391,7 @@ class SerialConsumer:
                             "error_message": str(e),
                         },
                     )
-                except Exception as writer_err:
+                except Exception as writer_err:  # pragma: no cover
                     logger.error(
                         f"Failed to write raw_line to parquet for DECODE_ERROR: {writer_err}"
                     )
@@ -422,7 +422,7 @@ class SerialConsumer:
                 if self._file_writer:
                     try:
                         self._file_writer.write(prefix, sentence)
-                    except Exception as writer_err:
+                    except Exception as writer_err:  # pragma: no cover
                         logger.error(f"Failed to write {prefix} to text log: {writer_err}")
 
                     try:

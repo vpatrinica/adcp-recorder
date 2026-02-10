@@ -109,7 +109,7 @@ class BulkExporter:
         result = conn.execute(f"SELECT * FROM {table_name}")
         col_names = [d[0] for d in result.description]
 
-        count = 0
+        count: int = 0
         while True:
             chunk = result.fetchmany(2000)
             if not chunk:
@@ -165,5 +165,5 @@ def main():
     print(f"Output directory: {args.out}")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()

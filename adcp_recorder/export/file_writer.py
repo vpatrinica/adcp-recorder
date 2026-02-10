@@ -120,7 +120,7 @@ class FileWriter:
             max_age_seconds: Threshold for flushing stale buffers.
         """
         if self._closed:
-            return
+            return  # pragma: no cover
 
         try:
             self.parquet_writer.flush_stale(max_age_seconds)

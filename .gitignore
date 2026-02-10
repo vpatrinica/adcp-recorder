@@ -24,6 +24,7 @@ test_output/*
 adcp_recorder/tests/tgt.db
 tgt.db
 .coverage
+*.txt
 *.dat 
 *.nmea
 *.parquet

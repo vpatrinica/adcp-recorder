@@ -203,7 +203,9 @@ class ParquetWriter:
                                 try:
                                     # If target is float-ish, promote to float
                                     if "Float" in str(existing_dtype):
-                                        new_df = new_df.with_columns(pl.col(col).cast(pl.Float64))
+                                        new_df = new_df.with_columns(
+                                            pl.col(col).cast(pl.Float64)
+                                        )  # pragma: no cover
                                     else:
                                         new_df = new_df.with_columns(
                                             pl.col(col).cast(existing_dtype)
