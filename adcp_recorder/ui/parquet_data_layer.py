@@ -882,7 +882,7 @@ class ParquetDataLayer(DataLayer):
 
     def get_loaded_views(self) -> list[str]:
         """Get list of currently loaded view names."""
-        return sorted(self._loaded_views)
+        return sorted(list(self._loaded_views))
 
     def resolve_source_name(self, source_name: str) -> str | None:
         """Resolve a source name to a loaded parquet view name.
@@ -950,7 +950,7 @@ class ParquetDataLayer(DataLayer):
 
         """
         sources: list[DataSource] = []
-        for view_name in self._loaded_views:
+        for view_name in list(self._loaded_views):
             source = self.get_source_metadata(view_name)
             if source:
                 sources.append(source)
