@@ -10,6 +10,9 @@ This directory contains various utility scripts for verification, debugging, and
     - A simulation script used to verify the consolidated storage structure for invalid records and binary blobs.
     - Confirms that `.dat` blobs go to `errors/binary/` and NMEA textual errors go to `errors/nmea/`.
 
+- **[duckdb_diagnostics.py](file:///c:/prj/task/adcp-recorder/utils/duckdb_diagnostics.py)**
+    - Reusable utility to list objects, search metadata SQL, and find table dependencies.
+
 - **[debug_wave_join.py](file:///c:/prj/task/adcp-recorder/utils/debug_wave_join.py)**
     - A debug tool used to analyze and verify the joining of multi-sentence wave records (e.g., PNORW).
 

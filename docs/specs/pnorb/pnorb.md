@@ -23,9 +23,9 @@ $PNORB,Date,Time,Basis,Method,FreqLow,FreqHigh,Hm0,Tm02,Tp,DirTp,SprTp,MainDir,E
 | 4 | Processing Method | int | TINYINT | - | N | 1-4 | 1=PUV, 2=SUV, 3=MLM, 4=MLMST |
 | 5 | Freq Low | float | DECIMAL(4,2) | Hz | d.dd | 0-9.99 | Band start frequency |
 | 6 | Freq High | float | DECIMAL(4,2) | Hz | d.dd | 0-9.99 | Band end frequency |
-| 7 | Hm0 | float | DECIMAL(5,2) | m | dd.dd | 0-99.99 | Significant wave height in band |
-| 8 | Tm02 | float | DECIMAL(5,2) | s | dd.dd | 0-99.99 | Mean period in band |
-| 9 | Tp | float | DECIMAL(5,2) | s | dd.dd | 0-99.99 | Peak period in band |
+| 7 | Hm0 | float | DECIMAL(5,2) | m | ddd.dd | 0-999.99 | Significant wave height in band |
+| 8 | Tm02 | float | DECIMAL(5,2) | s | ddd.dd | 0-999.99 | Mean period in band |
+| 9 | Tp | float | DECIMAL(5,2) | s | ddd.dd | 0-999.99 | Peak period in band |
 | 10 | DirTp | float | DECIMAL(6,2) | deg | ddd.dd | 0-360 | Peak direction in band |
 | 11 | SprTp | float | DECIMAL(6,2) | deg | ddd.dd | 0-360 | Directional spread in band |
 | 12 | MainDir | float | DECIMAL(6,2) | deg | ddd.dd | 0-360 | Mean direction in band |

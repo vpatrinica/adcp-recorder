@@ -15,12 +15,12 @@ class TestPNORBExtended:
 
     def test_pnorb_max_range(self):
         sentence = (
-            "$PNORB,102115,090715,1,4,0.02,0.20,1000.0,1000.0,1000.0,360.0,360.0,360.0,0000*00"
+            "$PNORB,102115,090715,1,4,0.02,0.20,999.99,999.99,999.99,360.0,360.0,360.0,0000*00"
         )
         msg = PNORB.from_nmea(sentence)
-        assert msg.hm0 == 1000.0
-        assert msg.tm02 == 1000.0
-        assert msg.tp == 1000.0
+        assert msg.hm0 == 999.99
+        assert msg.tm02 == 999.99
+        assert msg.tp == 999.99
         assert msg.dir_tp == 360.0
         assert msg.spr_tp == 360.0
         assert msg.main_dir == 360.0
@@ -34,7 +34,7 @@ class TestPNORBExtended:
                 processing_method=4,
                 freq_low=0.02,
                 freq_high=0.20,
-                hm0=1000.1,
+                hm0=1000.0,
                 tm02=7.54,
                 tp=12.00,
                 dir_tp=82.42,

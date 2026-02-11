@@ -40,11 +40,11 @@ class PNORB:
         validate_range(self.freq_low, "Frequency low", 0.0, 10.0)
         validate_range(self.freq_high, "Frequency high", 0.0, 10.0)
         if self.hm0 is not None:
-            validate_range(self.hm0, "Hm0", 0.0, 1000.0)
+            validate_range(self.hm0, "Hm0", 0.0, 999.99)
         if self.tm02 is not None:
-            validate_range(self.tm02, "Tm02", 0.0, 1000.0)
+            validate_range(self.tm02, "Tm02", 0.0, 999.99)
         if self.tp is not None:
-            validate_range(self.tp, "Tp", 0.0, 1000.0)
+            validate_range(self.tp, "Tp", 0.0, 999.99)
         if self.dir_tp is not None:
             validate_range(self.dir_tp, "DirTp", 0.0, 360.0)
         if self.spr_tp is not None:

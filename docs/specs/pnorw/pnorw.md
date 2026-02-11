@@ -21,21 +21,21 @@ $PNORW,Date,Time,Basis,Method,Hm0,H3,H10,Hmax,Tm02,Tp,Tz,DirTp,SprTp,MainDir,UI,
 | 2 | Time | str | CHAR(6) | - | hhmmss | - | Measurement time |
 | 3 | Spectrum Basis | int | TINYINT | - | N | 0,1,3 | 0=Pressure, 1=Velocity, 3=AST |
 | 4 | Processing Method | int | TINYINT | - | N | 1-4 | 1=PUV, 2=SUV, 3=MLM, 4=MLMST |
-| 5 | Hm0 | float | DECIMAL(5,2) | m | dd.dd | 0-99.99 | Significant wave height |
-| 6 | H3 | float | DECIMAL(5,2) | m | dd.dd | 0-99.99 | Mean height of largest 1/3 |
-| 7 | H10 | float | DECIMAL(5,2) | m | dd.dd | 0-99.99 | Mean height of largest 1/10 |
-| 8 | Hmax | float | DECIMAL(5,2) | m | dd.dd | 0-99.99 | Max wave height |
-| 9 | Tm02 | float | DECIMAL(5,2) | s | dd.dd | 0-99.99 | Mean wave period |
-| 10 | Tp | float | DECIMAL(5,2) | s | dd.dd | 0-99.99 | Peak wave period |
-| 11 | Tz | float | DECIMAL(5,2) | s | dd.dd | 0-99.99 | Zero-crossing period |
+| 5 | Hm0 | float | DECIMAL(5,2) | m | ddd.dd | 0-999.99 | Significant wave height |
+| 6 | H3 | float | DECIMAL(5,2) | m | ddd.dd | 0-999.99 | Mean height of largest 1/3 |
+| 7 | H10 | float | DECIMAL(5,2) | m | ddd.dd | 0-999.99 | Mean height of largest 1/10 |
+| 8 | Hmax | float | DECIMAL(5,2) | m | ddd.dd | 0-999.99 | Max wave height |
+| 9 | Tm02 | float | DECIMAL(5,2) | s | ddd.dd | 0-999.99 | Mean wave period |
+| 10 | Tp | float | DECIMAL(5,2) | s | ddd.dd | 0-999.99 | Peak wave period |
+| 11 | Tz | float | DECIMAL(5,2) | s | ddd.dd | 0-999.99 | Zero-crossing period |
 | 12 | DirTp | float | DECIMAL(6,2) | deg | ddd.dd | 0-360 | Peak direction |
 | 13 | SprTp | float | DECIMAL(6,2) | deg | ddd.dd | 0-360 | Directional spread at peak |
 | 14 | MainDir | float | DECIMAL(6,2) | deg | ddd.dd | 0-360 | Mean direction |
-| 15 | UI | float | DECIMAL(5,2) | - | dd.dd | 0-99.99 | Unidirectivity index |
-| 16 | Mean Pressure | float | DECIMAL(5,2) | dBar | dd.dd | 0-99.99 | Mean pressure |
+| 15 | UI | float | DECIMAL(5,2) | - | ddd.dd | 0-999.99 | Unidirectivity index |
+| 16 | Mean Pressure | float | DECIMAL(5,2) | dBar | ddd.dd | 0-999.99 | Mean pressure |
 | 17 | Num No Detects | int | INTEGER | - | N | ≥0 | Count of no detects |
 | 18 | Num Bad Detects | int | INTEGER | - | N | ≥0 | Count of bad detects |
-| 19 | Near Surf Speed | float | DECIMAL(5,2) | m/s | dd.dd | 0-99.99 | Current speed near surface |
+| 19 | Near Surf Speed | float | DECIMAL(5,2) | m/s | ddd.dd | 0-999.99 | Current speed near surface |
 | 20 | Near Surf Dir | float | DECIMAL(6,2) | deg | ddd.dd | 0-360 | Current dir near surface |
 | 21 | Error Code | str | CHAR(4) | - | hhhh | - | Wave error code (4 hex) |
 

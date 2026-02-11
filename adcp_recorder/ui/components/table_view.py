@@ -187,12 +187,12 @@ def render_table_view(
             end_time=end_time,
             limit=int(limit),
         )
-        st.write(f"Data source: {source_name}")
-        st.write(f"Columns: {selected_columns}")
-        st.write(f"Start time: {start_time}")
-        st.write(f"End time: {end_time}")
-        st.write(f"Limit: {limit}")
-        st.write(f"Data: {data}")
+        # st.write(f"Data source: {source_name}")
+        # st.write(f"Columns: {selected_columns}")
+        # st.write(f"Start time: {start_time}")
+        # st.write(f"End time: {end_time}")
+        # st.write(f"Limit: {limit}")
+        # st.write(f"Data: {data}")
         # Apply client‑side filters stored in session_state
         if data:
             filtered: list[dict[str, Any]] = []
