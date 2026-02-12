@@ -201,8 +201,14 @@ class ParquetWriter:
                             existing_dtype = df_existing[col].dtype
                             if new_df[col].dtype != existing_dtype:
                                 try:
+                                    # Handle Null inner types (e.g. List(Null) → List(Float64))
+                                    # Polars cannot cast from Null, so rebuild the column
+                                    if "Null" in str(new_df[col].dtype):
+                                        new_df = new_df.with_columns(
+                                            pl.lit(None, dtype=existing_dtype).alias(col)
+                                        )
                                     # If target is float-ish, promote to float
-                                    if "Float" in str(existing_dtype):
+                                    elif "Float" in str(existing_dtype):
                                         new_df = new_df.with_columns(
                                             pl.col(col).cast(pl.Float64)
                                         )  # pragma: no cover

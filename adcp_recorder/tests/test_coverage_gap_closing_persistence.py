@@ -230,6 +230,39 @@ def test_parquet_writer_schema_alignment_failure(tmp_path: Path):
     writer.flush("ALIGN_FAIL")
 
 
+def test_parquet_writer_list_null_to_list_float_alignment(tmp_path: Path):
+    """Records with all-null list columns (List(Null)) must not be dropped.
+
+    When coefficients are all None, Polars infers List(Null).
+    The schema alignment must convert this to List(Float64) so that
+    pl.concat preserves every row.
+    """
+    writer = ParquetWriter(str(tmp_path))
+    date_val = date.today()
+    existing_path = (
+        tmp_path
+        / "parquet"
+        / "PNORF"
+        / f"date={date_val.isoformat()}"
+        / "PNORF.parquet"
+    )
+    existing_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Seed with a valid List(Float64) column
+    pl.DataFrame(
+        {"coefficients": [[1.0, 2.0, 3.0]], "flag": ["A1"]}
+    ).write_parquet(existing_path)
+
+    # Append a record where coefficients is None (→ List(Null) in Polars)
+    writer.write_record("PNORF", {"coefficients": None, "flag": "B1"})
+    writer.flush("PNORF")
+
+    result = pl.read_parquet(existing_path)
+    assert len(result) == 2, f"Expected 2 rows, got {len(result)}"
+    assert result["coefficients"].dtype == pl.List(pl.Float64)
+
+
+
 def test_consumer_loop_exceptions(tmp_path: Path):
     """Cover Exception blocks in _consume_loop."""
     queue: Queue = Queue()
