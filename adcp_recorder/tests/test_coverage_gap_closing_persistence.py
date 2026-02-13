@@ -240,18 +240,12 @@ def test_parquet_writer_list_null_to_list_float_alignment(tmp_path: Path):
     writer = ParquetWriter(str(tmp_path))
     date_val = date.today()
     existing_path = (
-        tmp_path
-        / "parquet"
-        / "PNORF"
-        / f"date={date_val.isoformat()}"
-        / "PNORF.parquet"
+        tmp_path / "parquet" / "PNORF" / f"date={date_val.isoformat()}" / "PNORF.parquet"
     )
     existing_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Seed with a valid List(Float64) column
-    pl.DataFrame(
-        {"coefficients": [[1.0, 2.0, 3.0]], "flag": ["A1"]}
-    ).write_parquet(existing_path)
+    pl.DataFrame({"coefficients": [[1.0, 2.0, 3.0]], "flag": ["A1"]}).write_parquet(existing_path)
 
     # Append a record where coefficients is None (→ List(Null) in Polars)
     writer.write_record("PNORF", {"coefficients": None, "flag": "B1"})
@@ -261,6 +255,31 @@ def test_parquet_writer_list_null_to_list_float_alignment(tmp_path: Path):
     assert len(result) == 2, f"Expected 2 rows, got {len(result)}"
     assert result["coefficients"].dtype == pl.List(pl.Float64)
 
+
+def test_parquet_writer_existing_null_new_float_alignment(tmp_path: Path):
+    """When existing Parquet has Null columns and new data has Float64, rows must be kept.
+
+    This happens when the first batch had all-null values (Polars stores as Null),
+    and subsequent batches bring real Float64 data.
+    """
+    writer = ParquetWriter(str(tmp_path))
+    date_val = date.today()
+    existing_path = (
+        tmp_path / "parquet" / "PNORW" / f"date={date_val.isoformat()}" / "PNORW.parquet"
+    )
+    existing_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Seed with a Null-typed column (simulates first batch with all-null values)
+    pl.DataFrame({"hm0": [None], "name": ["first"]}).write_parquet(existing_path)
+
+    # Append a record with a real Float64 value
+    writer.write_record("PNORW", {"hm0": 0.07, "name": "second"})
+    writer.flush("PNORW")
+
+    result = pl.read_parquet(existing_path)
+    assert len(result) == 2, f"Expected 2 rows, got {len(result)}"
+    assert result["hm0"].dtype == pl.Float64
+    assert result["hm0"][1] == 0.07
 
 
 def test_consumer_loop_exceptions(tmp_path: Path):

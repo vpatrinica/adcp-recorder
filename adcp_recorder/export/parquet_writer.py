@@ -196,16 +196,24 @@ class ParquetWriter:
 
                 # For all columns in new_df, align with existing dataframes if types differ
                 for col in new_df.columns:
-                    for df_existing in dataframes[:-1]:
+                    for i, df_existing in enumerate(dataframes[:-1]):
                         if col in df_existing.columns:
                             existing_dtype = df_existing[col].dtype
-                            if new_df[col].dtype != existing_dtype:
+                            new_dtype = new_df[col].dtype
+                            if new_dtype != existing_dtype:
                                 try:
-                                    # Handle Null inner types (e.g. List(Null) → List(Float64))
-                                    # Polars cannot cast from Null, so rebuild the column
-                                    if "Null" in str(new_df[col].dtype):
+                                    # Handle Null types on either side:
+                                    # Polars cannot cast to/from Null, so rebuild
+                                    # the Null-typed column with the real type.
+                                    if "Null" in str(new_dtype):
+                                        # New data is Null → adopt existing type
                                         new_df = new_df.with_columns(
                                             pl.lit(None, dtype=existing_dtype).alias(col)
+                                        )
+                                    elif "Null" in str(existing_dtype):
+                                        # Existing file is Null → adopt new type
+                                        dataframes[i] = df_existing.with_columns(
+                                            pl.lit(None, dtype=new_dtype).alias(col)
                                         )
                                     # If target is float-ish, promote to float
                                     elif "Float" in str(existing_dtype):
