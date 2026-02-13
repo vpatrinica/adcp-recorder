@@ -5,6 +5,7 @@ from adcp_recorder.parsers.pnorc import PNORC, PNORC1, PNORC2, PNORC3, PNORC4
 from adcp_recorder.parsers.pnore import PNORE
 from adcp_recorder.parsers.pnorf import PNORF
 from adcp_recorder.parsers.pnorh import PNORH3
+from adcp_recorder.parsers.pnori import PNORI1
 from adcp_recorder.parsers.pnors import PNORS1, PNORS2, PNORS3, PNORS4
 from adcp_recorder.parsers.pnorwd import PNORWD
 from adcp_recorder.parsers.utils import (
@@ -18,15 +19,15 @@ from adcp_recorder.parsers.utils import (
 class TestParserCoverage:
     def test_pnora_df201_errors(self):
         """Cover pnora.py lines 75-78 and validation."""
-        # Missing required tag
-        with pytest.raises(ValueError, match="Missing required tag"):
-            PNORA.from_nmea("$PNORA,DATE=230101,TIME=120000,P=10.5")  # Missing others
+        # Missing mandatory tags (DATE, TIME, ST)
+        with pytest.raises(ValueError, match="Missing mandatory tags"):
+            PNORA.from_nmea("$PNORA,P=10.5")  # Missing DATE, TIME, ST
 
         # Invalid data type
         with pytest.raises(ValueError, match="Invalid data type"):
-            # P is not a float
+            # Q must be an integer
             PNORA.from_nmea(
-                "$PNORA,DATE=230101,TIME=120000,P=NOT_FLOAT,A=1.0,Q=1,ST=00,PI=0.0,R=0.0"
+                "$PNORA,DATE=230101,TIME=120000,P=10.5,A=1.0,Q=NOT_INT,ST=00,PI=0.0,R=0.0"
             )
 
     def test_pnora_coverage_gaps(self):
@@ -64,6 +65,12 @@ class TestParserCoverage:
         assert d["sentence_type"] == "PNORA"
         assert d["pressure"] == 10.5
 
+        # Coverage: positional DF=200 success path
+        # (already covered by other tests but good to ensure here)
+        msg = "$PNORA,230101,120000,10.5,1.0,1,00,0.0,0.0"
+        p2 = PNORA.from_nmea(msg)
+        assert p2.distance == 1.0
+
     def test_pnorc_coverage(self):
         """Cover pnorc.py gaps."""
         # Line 82: Invalid amplitude unit
@@ -79,7 +86,7 @@ class TestParserCoverage:
             PNORC2.from_nmea("$PNORC2,DATE=010123,TIME=120000,UNKNOWN=1")
 
         # Line 355-356: Missing tags in PNORC2
-        with pytest.raises(ValueError, match="Missing required tags"):
+        with pytest.raises(ValueError, match="Missing mandatory tags"):
             PNORC2.from_nmea("$PNORC2,DATE=010123")
 
         # Line 421: Invalid prefix PNORC3
@@ -90,13 +97,28 @@ class TestParserCoverage:
         with pytest.raises(ValueError, match="Unknown tag"):
             PNORC3.from_nmea("$PNORC3,CP=0,SP=0,DIR=0,AA=0,AC=0,UNKNOWN=1")
 
-        # Line 435-436: Missing tags in PNORC3
-        with pytest.raises(ValueError, match="Missing required tags"):
-            PNORC3.from_nmea("$PNORC3,CP=0")
+        # Line 435-436: PNORC3 now has only optional tags, so this check is removed.
+        p = PNORC3.from_nmea("$PNORC3,CP=0")
+        assert p.distance == 0
+        assert p.speed is None
 
         # Line 484: Invalid prefix PNORC4
         with pytest.raises(ValueError, match="Invalid prefix"):
             PNORC4.from_nmea("$INVALID,0,0,0,0,0")
+
+    def test_pnori_coverage(self):
+        """Cover pnori.py gaps (Early returns in validation)."""
+        # PNORI1 with nan beam count (Line 35 in pnori.py)
+        # PNORI1 calls _validate_beam_count without is not None guard
+        msg = "$PNORI1,4,123456,nan,30,1.00,5.00,BEAM"
+        p = PNORI1.from_nmea(msg)
+        assert p.beam_count is None
+
+        # PNORI1 with nan cell count (Line 49 in pnori.py)
+        # PNORI1 calls _validate_cell_count without is not None guard
+        msg = "$PNORI1,4,123456,4,nan,1.00,5.00,BEAM"
+        p = PNORI1.from_nmea(msg)
+        assert p.cell_count is None
 
     def test_pnorh_coverage(self):
         """Cover pnorh.py gaps."""
@@ -105,7 +127,7 @@ class TestParserCoverage:
             PNORH3.from_nmea("$PNORH3,DATE=230101,TIME=120000,EC=0,SC=00000000,UNKNOWN=1")
 
         # Line 81-82: Missing tags PNORH3
-        with pytest.raises(ValueError, match="Missing required tags"):
+        with pytest.raises(ValueError, match="Missing mandatory tags"):
             PNORH3.from_nmea("$PNORH3,DATE=230101")
 
     def test_pnors_coverage(self):
@@ -124,12 +146,25 @@ class TestParserCoverage:
             PNORS3.from_nmea("$PNORS3,BV=12.0,SS=1500,H=0,PI=0,R=0,P=0,T=20,UNKNOWN=1")
 
         # Line 407-408: Missing tags PNORS3
-        with pytest.raises(ValueError, match="Missing required tags"):
-            PNORS3.from_nmea("$PNORS3,BV=12.0")
+        # Wait, PNORS3 has only optional tags now. So this check might be removed?
+        # Let's check PNORS3.from_nmea again.
+        # It has no mandatory tags check.
 
         # Line 462: Invalid prefix PNORS4
         with pytest.raises(ValueError, match="Invalid prefix"):
             PNORS4.from_nmea("$INVALID,0,0,0,0,0,0,0")
+
+        # PNORS2 missing optional tags (Line 336 in pnors.py)
+        msg = "$PNORS2,DATE=010123,TIME=120000,SC=00000000"
+        p2 = PNORS2.from_nmea(msg)
+        assert p2.battery is None
+        assert p2.error_code is None
+
+        # PNORS3 missing optional tags (Line 437 in pnors.py)
+        msg = "$PNORS3,BV=12.0"
+        p3 = PNORS3.from_nmea(msg)
+        assert p3.pressure is None
+        assert p3.temperature is None
 
     def test_variable_length_parsers(self):
         """Cover pnore, pnorf, pnorwd length checks."""

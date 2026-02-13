@@ -126,7 +126,7 @@ class TestPNORS2:
         assert msg.heading_std_dev == 0.1
 
     def test_pnors2_missing_tags(self):
-        with pytest.raises(ValueError, match="Missing required tags"):
+        with pytest.raises(ValueError, match="Missing mandatory tags"):
             PNORS2.from_nmea("$PNORS2,DATE=102115,TIME=090715,EC=0")
 
     def test_pnors2_to_dict(self):

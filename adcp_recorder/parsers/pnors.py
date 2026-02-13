@@ -9,8 +9,10 @@ Implements parsers for:
 """
 
 from dataclasses import dataclass, field
+from typing import Any
 
 from .utils import (
+    parse_optional_float,
     parse_tagged_field,
     validate_date_mm_dd_yy,
     validate_hex_string,
@@ -19,37 +21,43 @@ from .utils import (
 )
 
 
-def _validate_battery(battery: float) -> None:
+def _validate_battery(battery: float | None) -> None:
     """Validate battery voltage (0-30V)."""
-    validate_range(battery, "Battery", 0.0, 30.0)
+    if battery is not None:
+        validate_range(battery, "Battery", 0.0, 30.0)
 
 
-def _validate_sound_speed(speed: float) -> None:
+def _validate_sound_speed(speed: float | None) -> None:
     """Validate speed of sound (1400-2000 m/s)."""
-    validate_range(speed, "Sound speed", 1400.0, 2000.0)
+    if speed is not None:
+        validate_range(speed, "Sound speed", 1400.0, 2000.0)
 
 
-def _validate_heading(heading: float) -> None:
+def _validate_heading(heading: float | None) -> None:
     """Validate compass heading (0-360 degrees)."""
-    if not (0 <= heading < 360.0):
-        # Allow 360.0 temporarily if it rounds, but generally it's [0, 360)
-        if heading != 360.0:
-            raise ValueError(f"Heading out of range [0, 360): {heading}")
+    if heading is not None:
+        if not (0 <= heading < 360.0):
+            # Allow 360.0 temporarily if it rounds, but generally it's [0, 360)
+            if heading != 360.0:
+                raise ValueError(f"Heading out of range [0, 360): {heading}")
 
 
-def _validate_pitch_roll(value: float, field_name: str) -> None:
+def _validate_pitch_roll(value: float | None, field_name: str) -> None:
     """Validate pitch or roll values (-90 to +90)."""
-    validate_range(value, field_name, -90.0, 90.0)
+    if value is not None:
+        validate_range(value, field_name, -90.0, 90.0)
 
 
-def _validate_pressure(pressure: float) -> None:
+def _validate_pressure(pressure: float | None) -> None:
     """Validate water pressure (0-20000 dBar)."""
-    validate_range(pressure, "Pressure", 0.0, 20000.0)
+    if pressure is not None:
+        validate_range(pressure, "Pressure", 0.0, 20000.0)
 
 
-def _validate_temperature(temp: float) -> None:
+def _validate_temperature(temp: float | None) -> None:
     """Validate water temperature (-5 to +50 C)."""
-    validate_range(temp, "Temperature", -5.0, 50.0)
+    if temp is not None:
+        validate_range(temp, "Temperature", -5.0, 50.0)
 
 
 @dataclass(frozen=True)
@@ -63,15 +71,15 @@ class PNORS:
     time: str
     error_code: str
     status_code: str
-    battery: float
-    sound_speed: float
-    heading: float
-    pitch: float
-    roll: float
-    pressure: float
-    temperature: float
-    analog1: int
-    analog2: int
+    battery: float | None
+    sound_speed: float | None
+    heading: float | None
+    pitch: float | None
+    roll: float | None
+    pressure: float | None
+    temperature: float | None
+    analog1: int | None
+    analog2: int | None
     checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
@@ -106,15 +114,15 @@ class PNORS:
             time=fields[2],
             error_code=fields[3],
             status_code=fields[4],
-            battery=float(fields[5]),
-            sound_speed=float(fields[6]),
-            heading=float(fields[7]),
-            pitch=float(fields[8]),
-            roll=float(fields[9]),
-            pressure=float(fields[10]),
-            temperature=float(fields[11]),
-            analog1=int(fields[12]),
-            analog2=int(fields[13]),
+            battery=parse_optional_float(fields[5]),
+            sound_speed=parse_optional_float(fields[6]),
+            heading=parse_optional_float(fields[7]),
+            pitch=parse_optional_float(fields[8]),
+            roll=parse_optional_float(fields[9]),
+            pressure=parse_optional_float(fields[10]),
+            temperature=parse_optional_float(fields[11]),
+            analog1=int(fields[12]) if fields[12] and fields[12].lower() != "nan" else None,
+            analog2=int(fields[13]) if fields[13] and fields[13].lower() != "nan" else None,
             checksum=checksum,
         )
 
@@ -148,19 +156,19 @@ class PNORS1:
 
     date: str
     time: str
-    error_code: int  # EC is integer in DF=101
+    error_code: int | None  # EC is integer in DF=101
     status_code: str  # SC is hex in DF=101
-    battery: float
-    sound_speed: float
-    heading_std_dev: float
-    heading: float
-    pitch: float
-    pitch_std_dev: float
-    roll: float
-    roll_std_dev: float
-    pressure: float
-    pressure_std_dev: float
-    temperature: float
+    battery: float | None
+    sound_speed: float | None
+    heading_std_dev: float | None
+    heading: float | None
+    pitch: float | None
+    pitch_std_dev: float | None
+    roll: float | None
+    roll_std_dev: float | None
+    pressure: float | None
+    pressure_std_dev: float | None
+    temperature: float | None
     checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
@@ -192,19 +200,19 @@ class PNORS1:
         return cls(
             date=fields[1],
             time=fields[2],
-            error_code=int(fields[3]),
+            error_code=int(fields[3]) if fields[3] and fields[3].lower() != "nan" else None,
             status_code=fields[4],
-            battery=float(fields[5]),
-            sound_speed=float(fields[6]),
-            heading_std_dev=float(fields[7]),
-            heading=float(fields[8]),
-            pitch=float(fields[9]),
-            pitch_std_dev=float(fields[10]),
-            roll=float(fields[11]),
-            roll_std_dev=float(fields[12]),
-            pressure=float(fields[13]),
-            pressure_std_dev=float(fields[14]),
-            temperature=float(fields[15]),
+            battery=parse_optional_float(fields[5]),
+            sound_speed=parse_optional_float(fields[6]),
+            heading_std_dev=parse_optional_float(fields[7]),
+            heading=parse_optional_float(fields[8]),
+            pitch=parse_optional_float(fields[9]),
+            pitch_std_dev=parse_optional_float(fields[10]),
+            roll=parse_optional_float(fields[11]),
+            roll_std_dev=parse_optional_float(fields[12]),
+            pressure=parse_optional_float(fields[13]),
+            pressure_std_dev=parse_optional_float(fields[14]),
+            temperature=parse_optional_float(fields[15]),
             checksum=checksum,
         )
 
@@ -240,19 +248,19 @@ class PNORS2:
 
     date: str
     time: str
-    error_code: int
+    error_code: int | None
     status_code: str
-    battery: float
-    sound_speed: float
-    heading_std_dev: float
-    heading: float
-    pitch: float
-    pitch_std_dev: float
-    roll: float
-    roll_std_dev: float
-    pressure: float
-    pressure_std_dev: float
-    temperature: float
+    battery: float | None
+    sound_speed: float | None
+    heading_std_dev: float | None
+    heading: float | None
+    pitch: float | None
+    pitch_std_dev: float | None
+    roll: float | None
+    roll_std_dev: float | None
+    pressure: float | None
+    pressure_std_dev: float | None
+    temperature: float | None
     checksum: str | None = field(default=None, repr=False)
 
     TAG_IDS = {
@@ -297,34 +305,54 @@ class PNORS2:
         if fields[0] != "$PNORS2":
             raise ValueError(f"Invalid prefix: {fields[0]}")
 
-        data = {}
+        data: dict[str, Any] = {}
         for field_str in fields[1:]:
             tag, val = parse_tagged_field(field_str)
             if tag not in cls.TAG_IDS:
                 raise ValueError(f"Unknown tag in PNORS2: {tag}")
             data[cls.TAG_IDS[tag]] = val
 
-        required = set(cls.TAG_IDS.values())
-        if not all(k in data for k in required):
-            missing = required - set(data.keys())
-            raise ValueError(f"Missing required tags in PNORS2: {missing}")
+        # Check for absolutely mandatory stuff
+        if "date" not in data or "time" not in data or "status_code" not in data:
+            raise ValueError("Missing mandatory tags in PNORS2: DATE, TIME, or SC")
+
+        # Fill missing optional fields with None
+        optional_fields = {
+            "error_code",
+            "battery",
+            "sound_speed",
+            "heading_std_dev",
+            "heading",
+            "pitch",
+            "pitch_std_dev",
+            "roll",
+            "roll_std_dev",
+            "pressure",
+            "pressure_std_dev",
+            "temperature",
+        }
+        for k in optional_fields:
+            if k not in data:
+                data[k] = None
 
         return cls(
             date=data["date"],
             time=data["time"],
-            error_code=int(data["error_code"]),
+            error_code=int(data["error_code"])
+            if data["error_code"] and data["error_code"].lower() != "nan"
+            else None,
             status_code=data["status_code"],
-            battery=float(data["battery"]),
-            sound_speed=float(data["sound_speed"]),
-            heading_std_dev=float(data["heading_std_dev"]),
-            heading=float(data["heading"]),
-            pitch=float(data["pitch"]),
-            pitch_std_dev=float(data["pitch_std_dev"]),
-            roll=float(data["roll"]),
-            roll_std_dev=float(data["roll_std_dev"]),
-            pressure=float(data["pressure"]),
-            pressure_std_dev=float(data["pressure_std_dev"]),
-            temperature=float(data["temperature"]),
+            battery=parse_optional_float(data["battery"]),
+            sound_speed=parse_optional_float(data["sound_speed"]),
+            heading_std_dev=parse_optional_float(data["heading_std_dev"]),
+            heading=parse_optional_float(data["heading"]),
+            pitch=parse_optional_float(data["pitch"]),
+            pitch_std_dev=parse_optional_float(data["pitch_std_dev"]),
+            roll=parse_optional_float(data["roll"]),
+            roll_std_dev=parse_optional_float(data["roll_std_dev"]),
+            pressure=parse_optional_float(data["pressure"]),
+            pressure_std_dev=parse_optional_float(data["pressure_std_dev"]),
+            temperature=parse_optional_float(data["temperature"]),
             checksum=checksum,
         )
 
@@ -356,13 +384,13 @@ class PNORS3:
     Format: $PNORS3,BV=Battery,SS=SoundSpeed,H=Heading,PI=Pitch,R=Roll,P=Pressure,T=Temperature*CS
     """
 
-    battery: float
-    sound_speed: float
-    heading: float
-    pitch: float
-    roll: float
-    pressure: float
-    temperature: float
+    battery: float | None
+    sound_speed: float | None
+    heading: float | None
+    pitch: float | None
+    roll: float | None
+    pressure: float | None
+    temperature: float | None
     checksum: str | None = field(default=None, repr=False)
 
     TAG_IDS = {
@@ -396,16 +424,17 @@ class PNORS3:
         if fields[0] != "$PNORS3":
             raise ValueError(f"Invalid prefix: {fields[0]}")
 
-        data = {}
+        data: dict[str, Any] = {}
         for field_str in fields[1:]:
             tag, val = parse_tagged_field(field_str)
             if tag not in cls.TAG_IDS:
                 raise ValueError(f"Unknown tag in PNORS3: {tag}")
-            data[cls.TAG_IDS[tag]] = float(val)
+            data[cls.TAG_IDS[tag]] = parse_optional_float(val)
 
-        if not all(k in data for k in cls.TAG_IDS.values()):
-            missing = set(cls.TAG_IDS.values()) - set(data.keys())
-            raise ValueError(f"Missing required tags in PNORS3: {missing}")
+        # Fill missing with None
+        for k in cls.TAG_IDS.values():
+            if k not in data:
+                data[k] = None
 
         return cls(**data, checksum=checksum)
 
@@ -429,13 +458,13 @@ class PNORS4:
     Format: $PNORS4,Battery,SoundSpeed,Heading,Pitch,Roll,Pressure,Temperature*CS
     """
 
-    battery: float
-    sound_speed: float
-    heading: float
-    pitch: float
-    roll: float
-    pressure: float
-    temperature: float
+    battery: float | None
+    sound_speed: float | None
+    heading: float | None
+    pitch: float | None
+    roll: float | None
+    pressure: float | None
+    temperature: float | None
     checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
@@ -462,13 +491,13 @@ class PNORS4:
             raise ValueError(f"Invalid prefix: {fields[0]}")
 
         return cls(
-            battery=float(fields[1]),
-            sound_speed=float(fields[2]),
-            heading=float(fields[3]),
-            pitch=float(fields[4]),
-            roll=float(fields[5]),
-            pressure=float(fields[6]),
-            temperature=float(fields[7]),
+            battery=parse_optional_float(fields[1]),
+            sound_speed=parse_optional_float(fields[2]),
+            heading=parse_optional_float(fields[3]),
+            pitch=parse_optional_float(fields[4]),
+            roll=parse_optional_float(fields[5]),
+            pressure=parse_optional_float(fields[6]),
+            temperature=parse_optional_float(fields[7]),
             checksum=checksum,
         )
 

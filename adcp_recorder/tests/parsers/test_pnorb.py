@@ -63,3 +63,9 @@ class TestPNORB:
         d = msg.to_dict()
         assert d["sentence_type"] == "PNORB"
         assert d["hm0"] == 0.27
+
+    def test_pnorb_nan_handling(self):
+        # Test 'nan' case-insensitively
+        sentence = "$PNORB,102115,090715,1,4,0.02,0.20,NaN,7.54,12.00,82.42,75.46,82.10,0000*32"
+        msg = PNORB.from_nmea(sentence)
+        assert msg.hm0 is None

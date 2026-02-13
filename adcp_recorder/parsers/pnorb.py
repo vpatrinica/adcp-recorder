@@ -19,10 +19,10 @@ class PNORB:
 
     date: str
     time: str
-    spectrum_basis: int
-    processing_method: int
-    freq_low: float
-    freq_high: float
+    spectrum_basis: int | None
+    processing_method: int | None
+    freq_low: float | None
+    freq_high: float | None
     hm0: float | None
     tm02: float | None
     tp: float | None
@@ -35,10 +35,14 @@ class PNORB:
     def __post_init__(self):
         validate_date_mm_dd_yy(self.date)
         validate_time_string(self.time)
-        validate_range(self.spectrum_basis, "Spectrum basis", 0, 3)
-        validate_range(self.processing_method, "Processing method", 1, 4)
-        validate_range(self.freq_low, "Frequency low", 0.0, 10.0)
-        validate_range(self.freq_high, "Frequency high", 0.0, 10.0)
+        if self.spectrum_basis is not None:
+            validate_range(self.spectrum_basis, "Spectrum basis", 0, 3)
+        if self.processing_method is not None:
+            validate_range(self.processing_method, "Processing method", 1, 4)
+        if self.freq_low is not None:
+            validate_range(self.freq_low, "Frequency low", 0.0, 10.0)
+        if self.freq_high is not None:
+            validate_range(self.freq_high, "Frequency high", 0.0, 10.0)
         if self.hm0 is not None:
             validate_range(self.hm0, "Hm0", 0.0, 999.99)
         if self.tm02 is not None:
@@ -69,10 +73,10 @@ class PNORB:
         return cls(
             date=fields[1],
             time=fields[2],
-            spectrum_basis=int(fields[3]),
-            processing_method=int(fields[4]),
-            freq_low=float(fields[5]),
-            freq_high=float(fields[6]),
+            spectrum_basis=int(fields[3]) if fields[3] and fields[3].lower() != "nan" else None,
+            processing_method=int(fields[4]) if fields[4] and fields[4].lower() != "nan" else None,
+            freq_low=parse_optional_float(fields[5]),
+            freq_high=parse_optional_float(fields[6]),
             hm0=parse_optional_float(fields[7]),
             tm02=parse_optional_float(fields[8]),
             tp=parse_optional_float(fields[9]),

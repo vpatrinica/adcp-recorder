@@ -24,7 +24,7 @@ class PNORH3:
 
     date: str
     time: str
-    error_code: int
+    error_code: int | None
     status_code: str
     checksum: str | None = field(default=None, repr=False)
 
@@ -56,18 +56,18 @@ class PNORH3:
 
             field_name = cls.TAG_IDS[cast(str, tag)]
             if field_name == "error_code":
-                data[field_name] = int(val)
+                data[field_name] = int(val) if val and val.lower() != "nan" else None
             else:
                 data[field_name] = val
 
         if not all(k in data for k in cls.TAG_IDS.values()):
             missing = set(cls.TAG_IDS.values()) - set(data.keys())
-            raise ValueError(f"Missing required tags in PNORH3: {missing}")
+            raise ValueError(f"Missing mandatory tags in PNORH3: {missing}")
 
         return cls(
             date=str(data["date"]),
             time=str(data["time"]),
-            error_code=int(data["error_code"]),
+            error_code=data["error_code"],
             status_code=str(data["status_code"]),
             checksum=checksum,
         )
@@ -91,7 +91,7 @@ class PNORH4:
 
     date: str
     time: str
-    error_code: int
+    error_code: int | None
     status_code: str
     checksum: str | None = field(default=None, repr=False)
 
@@ -117,7 +117,7 @@ class PNORH4:
         return cls(
             date=fields[1],
             time=fields[2],
-            error_code=int(fields[3]),
+            error_code=int(fields[3]) if fields[3] and fields[3].lower() != "nan" else None,
             status_code=fields[4],
             checksum=checksum,
         )

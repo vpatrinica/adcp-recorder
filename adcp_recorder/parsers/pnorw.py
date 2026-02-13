@@ -20,8 +20,8 @@ class PNORW:
 
     date: str
     time: str
-    spectrum_basis: int
-    processing_method: int
+    spectrum_basis: int | None
+    processing_method: int | None
     hm0: float | None
     h3: float | None
     h10: float | None
@@ -34,8 +34,8 @@ class PNORW:
     main_dir: float | None
     uni_index: float | None
     mean_pressure: float | None
-    num_no_detects: int
-    num_bad_detects: int
+    num_no_detects: int | None
+    num_bad_detects: int | None
     near_surface_speed: float | None
     near_surface_dir: float | None
     wave_error_code: str  # 4 hex digits
@@ -44,8 +44,10 @@ class PNORW:
     def __post_init__(self):
         validate_date_mm_dd_yy(self.date)
         validate_time_string(self.time)
-        validate_range(self.spectrum_basis, "Spectrum basis", 0, 3)
-        validate_range(self.processing_method, "Processing method", 1, 4)
+        if self.spectrum_basis is not None:
+            validate_range(self.spectrum_basis, "Spectrum basis", 0, 3)
+        if self.processing_method is not None:
+            validate_range(self.processing_method, "Processing method", 1, 4)
         if self.hm0 is not None:
             validate_range(self.hm0, "Hm0", 0.0, 999.99)
         if self.tm02 is not None:
@@ -76,8 +78,8 @@ class PNORW:
         return cls(
             date=fields[1],
             time=fields[2],
-            spectrum_basis=int(fields[3]),
-            processing_method=int(fields[4]),
+            spectrum_basis=int(fields[3]) if fields[3] and fields[3].lower() != "nan" else None,
+            processing_method=int(fields[4]) if fields[4] and fields[4].lower() != "nan" else None,
             hm0=parse_optional_float(fields[5]),
             h3=parse_optional_float(fields[6]),
             h10=parse_optional_float(fields[7]),
@@ -90,8 +92,8 @@ class PNORW:
             main_dir=parse_optional_float(fields[14]),
             uni_index=parse_optional_float(fields[15]),
             mean_pressure=parse_optional_float(fields[16]),
-            num_no_detects=int(fields[17]),
-            num_bad_detects=int(fields[18]),
+            num_no_detects=int(fields[17]) if fields[17] and fields[17].lower() != "nan" else None,
+            num_bad_detects=int(fields[18]) if fields[18] and fields[18].lower() != "nan" else None,
             near_surface_speed=parse_optional_float(fields[19]),
             near_surface_dir=parse_optional_float(fields[20]),
             wave_error_code=fields[21],

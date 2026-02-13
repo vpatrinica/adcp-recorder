@@ -13,6 +13,8 @@ from typing import Any, ClassVar
 from adcp_recorder.core.enums import CoordinateSystem, InstrumentType
 from adcp_recorder.core.nmea import compute_checksum
 
+from .utils import parse_optional_float
+
 
 # Shared validation functions
 def _validate_head_id(head_id: str, max_length: int = 30, numeric_only: bool = False) -> None:
@@ -27,8 +29,10 @@ def _validate_head_id(head_id: str, max_length: int = 30, numeric_only: bool = F
         raise ValueError(f"Head ID contains invalid characters: {head_id}")
 
 
-def _validate_beam_count(instrument_type: InstrumentType, beam_count: int) -> None:
+def _validate_beam_count(instrument_type: InstrumentType, beam_count: int | None) -> None:
     """Validate beam count for instrument type."""
+    if beam_count is None:
+        return
     if beam_count < 1 or beam_count > 4:
         raise ValueError(f"Beam count must be 1-4, got {beam_count}")
 
@@ -39,14 +43,18 @@ def _validate_beam_count(instrument_type: InstrumentType, beam_count: int) -> No
         )
 
 
-def _validate_cell_count(cell_count: int) -> None:
+def _validate_cell_count(cell_count: int | None) -> None:
     """Validate cell count range (spec limit 1000)."""
+    if cell_count is None:
+        return
     if cell_count < 1 or cell_count > 1000:
         raise ValueError(f"Cell count must be 1-1000, got {cell_count}")
 
 
-def _validate_distance(value: float, field_name: str) -> None:
+def _validate_distance(value: float | None, field_name: str) -> None:
     """Validate distance is positive and reasonable."""
+    if value is None:
+        return
     if value <= 0:
         raise ValueError(f"{field_name} must be positive, got {value}")
     if value > 100.0:
@@ -73,10 +81,10 @@ class PNORI:
 
     instrument_type: InstrumentType
     head_id: str
-    beam_count: int
-    cell_count: int
-    blanking_distance: float
-    cell_size: float
+    beam_count: int | None
+    cell_count: int | None
+    blanking_distance: float | None
+    cell_size: float | None
     coordinate_system: CoordinateSystem
     checksum: str | None = field(default=None, repr=False)
 
@@ -85,8 +93,10 @@ class PNORI:
     def __post_init__(self) -> None:
         """Validate all fields after initialization."""
         _validate_head_id(self.head_id, 30)
-        _validate_beam_count(self.instrument_type, self.beam_count)
-        _validate_cell_count(self.cell_count)
+        if self.beam_count is not None:
+            _validate_beam_count(self.instrument_type, self.beam_count)
+        if self.cell_count is not None:
+            _validate_cell_count(self.cell_count)
         _validate_distance(self.blanking_distance, "Blanking distance")
         _validate_distance(self.cell_size, "Cell size")
 
@@ -126,10 +136,10 @@ class PNORI:
         return cls(
             instrument_type=InstrumentType.from_code(int(fields[1])),
             head_id=fields[2],
-            beam_count=int(fields[3]),
-            cell_count=int(fields[4]),
-            blanking_distance=float(fields[5]),
-            cell_size=float(fields[6]),
+            beam_count=int(fields[3]) if fields[3] and fields[3].lower() != "nan" else None,
+            cell_count=int(fields[4]) if fields[4] and fields[4].lower() != "nan" else None,
+            blanking_distance=parse_optional_float(fields[5]),
+            cell_size=parse_optional_float(fields[6]),
             coordinate_system=CoordinateSystem.from_code(int(fields[7])),
             checksum=checksum,
         )
@@ -171,8 +181,10 @@ class PNORI:
             "head_id": self.head_id,
             "beam_count": self.beam_count,
             "cell_count": self.cell_count,
-            "blanking_distance": float(self.blanking_distance),
-            "cell_size": float(self.cell_size),
+            "blanking_distance": float(self.blanking_distance)
+            if self.blanking_distance is not None
+            else None,
+            "cell_size": float(self.cell_size) if self.cell_size is not None else None,
             "coord_system_name": self.coordinate_system.value,
             "coord_system_code": self.coordinate_system.to_numeric_code(),
             "checksum": self.checksum,
@@ -197,10 +209,10 @@ class PNORI1:
 
     instrument_type: InstrumentType
     head_id: str
-    beam_count: int
-    cell_count: int
-    blanking_distance: float
-    cell_size: float
+    beam_count: int | None
+    cell_count: int | None
+    blanking_distance: float | None
+    cell_size: float | None
     coordinate_system: CoordinateSystem
     checksum: str | None = field(default=None, repr=False)
 
@@ -250,10 +262,10 @@ class PNORI1:
         return cls(
             instrument_type=InstrumentType.from_code(int(fields[1])),
             head_id=fields[2],
-            beam_count=int(fields[3]),
-            cell_count=int(fields[4]),
-            blanking_distance=float(fields[5]),
-            cell_size=float(fields[6]),
+            beam_count=int(fields[3]) if fields[3] and fields[3].lower() != "nan" else None,
+            cell_count=int(fields[4]) if fields[4] and fields[4].lower() != "nan" else None,
+            blanking_distance=parse_optional_float(fields[5]),
+            cell_size=parse_optional_float(fields[6]),
             coordinate_system=CoordinateSystem.from_code(fields[7]),
             checksum=checksum,
         )
@@ -295,8 +307,10 @@ class PNORI1:
             "head_id": self.head_id,
             "beam_count": self.beam_count,
             "cell_count": self.cell_count,
-            "blanking_distance": float(self.blanking_distance),
-            "cell_size": float(self.cell_size),
+            "blanking_distance": float(self.blanking_distance)
+            if self.blanking_distance is not None
+            else None,
+            "cell_size": float(self.cell_size) if self.cell_size is not None else None,
             "coord_system_name": self.coordinate_system.value,
             "coord_system_code": self.coordinate_system.to_numeric_code(),
             "checksum": self.checksum,
@@ -364,10 +378,10 @@ class PNORI2:
 
     instrument_type: InstrumentType
     head_id: str
-    beam_count: int
-    cell_count: int
-    blanking_distance: float
-    cell_size: float
+    beam_count: int | None
+    cell_count: int | None
+    blanking_distance: float | None
+    cell_size: float | None
     coordinate_system: CoordinateSystem
     checksum: str | None = field(default=None, repr=False)
 
@@ -426,7 +440,7 @@ class PNORI2:
             missing = PNORITag.VALID_TAGS - set(data.keys())
             extra = set(data.keys()) - PNORITag.VALID_TAGS
             if missing:
-                raise ValueError(f"Missing required tags: {missing}")
+                raise ValueError(f"Missing mandatory tags: {missing}")
             if extra:
                 raise ValueError(f"Unknown tags: {extra}")
 
@@ -434,10 +448,14 @@ class PNORI2:
         return cls(
             instrument_type=InstrumentType.from_code(int(data[PNORITag.INSTRUMENT_TYPE])),
             head_id=data[PNORITag.SERIAL_NUMBER],
-            beam_count=int(data[PNORITag.NUM_BEAMS]),
-            cell_count=int(data[PNORITag.NUM_CELLS]),
-            blanking_distance=float(data[PNORITag.BLANKING_DISTANCE]),
-            cell_size=float(data[PNORITag.CELL_SIZE]),
+            beam_count=int(data[PNORITag.NUM_BEAMS])
+            if data[PNORITag.NUM_BEAMS] and data[PNORITag.NUM_BEAMS].lower() != "nan"
+            else None,
+            cell_count=int(data[PNORITag.NUM_CELLS])
+            if data[PNORITag.NUM_CELLS] and data[PNORITag.NUM_CELLS].lower() != "nan"
+            else None,
+            blanking_distance=parse_optional_float(data[PNORITag.BLANKING_DISTANCE]),
+            cell_size=parse_optional_float(data[PNORITag.CELL_SIZE]),
             coordinate_system=CoordinateSystem.from_code(data[PNORITag.COORDINATE_SYSTEM]),
             checksum=checksum,
         )
@@ -479,8 +497,10 @@ class PNORI2:
             "head_id": self.head_id,
             "beam_count": self.beam_count,
             "cell_count": self.cell_count,
-            "blanking_distance": float(self.blanking_distance),
-            "cell_size": float(self.cell_size),
+            "blanking_distance": float(self.blanking_distance)
+            if self.blanking_distance is not None
+            else None,
+            "cell_size": float(self.cell_size) if self.cell_size is not None else None,
             "coord_system_name": self.coordinate_system.value,
             "coord_system_code": self.coordinate_system.to_numeric_code(),
             "checksum": self.checksum,

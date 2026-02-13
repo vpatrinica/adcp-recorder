@@ -72,7 +72,7 @@ class TestPNORWDParser:
         """Test that value count must match num_frequencies."""
         # Says 5 frequencies but only provides 3
         sentence = "$PNORWD,MD,120720,093150,1,0.05,0.02,5,45.0,90.0,135.0*00"
-        with pytest.raises(ValueError, match="Missing value"):
+        with pytest.raises(ValueError, match="Value count mismatch"):
             PNORWD.from_nmea(sentence)
 
     def test_to_dict(self):
@@ -118,7 +118,7 @@ class TestPNORWDParser:
     def test_minimum_fields_check(self):
         """Test that sentences with too few fields are rejected."""
         sentence = "$PNORWD,MD,120720,093150*00"
-        with pytest.raises(ValueError, match="Expected at least 9 fields"):
+        with pytest.raises(ValueError, match="Expected at least 8 fields"):
             PNORWD.from_nmea(sentence)
 
     def test_frequency_range_validation(self):

@@ -7,6 +7,7 @@ Implements parser for:
 from dataclasses import dataclass, field
 
 from .utils import (
+    parse_optional_float,
     validate_date_yy_mm_dd,
     validate_hex_string,
     validate_range,
@@ -22,21 +23,25 @@ class PNORA:
 
     date: str
     time: str
-    pressure: float
-    distance: float
-    quality: int
+    pressure: float | None
+    distance: float | None
+    quality: int | None
     status: str
-    pitch: float
-    roll: float
+    pitch: float | None
+    roll: float | None
     checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
         validate_date_yy_mm_dd(self.date)
         validate_time_string(self.time)
-        validate_range(self.pressure, "Pressure", 0.0, 999.999)
-        validate_range(self.distance, "Distance", 0.0, 999.999)
-        validate_range(self.pitch, "Pitch", -9.9, 9.9)
-        validate_range(self.roll, "Roll", -9.9, 9.9)
+        if self.pressure is not None:
+            validate_range(self.pressure, "Pressure", 0.0, 999.999)
+        if self.distance is not None:
+            validate_range(self.distance, "Distance", 0.0, 999.999)
+        if self.pitch is not None:
+            validate_range(self.pitch, "Pitch", -9.9, 9.9)
+        if self.roll is not None:
+            validate_range(self.roll, "Roll", -9.9, 9.9)
         validate_hex_string(self.status, 2, 2)
 
     @classmethod
@@ -59,21 +64,24 @@ class PNORA:
                     key, value = f.split("=", 1)
                     data_map[key] = value
 
-            # Helper to safely get and convert
+            # Check mandatory tags: DATE, TIME, ST are core. Others are optional in the dataclass
+            required_tags = {"DATE", "TIME", "ST"}
+            if not all(tag in data_map for tag in required_tags):
+                missing = required_tags - set(data_map.keys())
+                raise ValueError(f"Missing mandatory tags for PNORA DF=201: {missing}")
+
             try:
                 return cls(
                     date=data_map["DATE"],
                     time=data_map["TIME"],
-                    pressure=float(data_map["P"]),
-                    distance=float(data_map["A"]),
-                    quality=int(data_map["Q"]),
-                    status=data_map["ST"],
-                    pitch=float(data_map["PI"]),
-                    roll=float(data_map["R"]),
+                    pressure=parse_optional_float(data_map.get("P", "")),
+                    distance=parse_optional_float(data_map.get("A", "")),
+                    quality=int(data_map["Q"]) if "Q" in data_map and data_map["Q"] else None,
+                    status=data_map.get("ST", ""),
+                    pitch=parse_optional_float(data_map.get("PI", "")),
+                    roll=parse_optional_float(data_map.get("R", "")),
                     checksum=checksum,
                 )
-            except KeyError as e:
-                raise ValueError(f"Missing required tag for PNORA DF=201: {e}")
             except ValueError as e:
                 raise ValueError(f"Invalid data type in PNORA DF=201: {e}")
 
@@ -84,12 +92,12 @@ class PNORA:
         return cls(
             date=fields[1],
             time=fields[2],
-            pressure=float(fields[3]),
-            distance=float(fields[4]),
-            quality=int(fields[5]),
+            pressure=parse_optional_float(fields[3]),
+            distance=parse_optional_float(fields[4]),
+            quality=int(fields[5]) if fields[5] else None,
             status=fields[6],
-            pitch=float(fields[7]),
-            roll=float(fields[8]),
+            pitch=parse_optional_float(fields[7]),
+            roll=parse_optional_float(fields[8]),
             checksum=checksum,
         )
 

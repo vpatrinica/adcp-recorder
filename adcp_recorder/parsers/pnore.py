@@ -18,27 +18,32 @@ class PNORE:
 
     date: str
     time: str
-    spectrum_basis: int
-    start_frequency: float
-    step_frequency: float
-    num_frequencies: int
+    spectrum_basis: int | None
+    start_frequency: float | None
+    step_frequency: float | None
+    num_frequencies: int | None
     energy_densities: list[float | None]
     checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
         validate_date_mm_dd_yy(self.date)
         validate_time_string(self.time)
-        if self.spectrum_basis not in {0, 1, 3}:
-            raise ValueError(f"Invalid spectrum basis: {self.spectrum_basis}")
-        validate_range(self.start_frequency, "Start frequency", 0.0, 10.0)
-        validate_range(self.step_frequency, "Step frequency", 0.0, 10.0)
-        validate_range(self.num_frequencies, "Number of frequencies", 1, 999)
+        if self.spectrum_basis is not None:
+            if self.spectrum_basis not in {0, 1, 3}:
+                raise ValueError(f"Invalid spectrum basis: {self.spectrum_basis}")
+        if self.start_frequency is not None:
+            validate_range(self.start_frequency, "Start frequency", 0.0, 10.0)
+        if self.step_frequency is not None:
+            validate_range(self.step_frequency, "Step frequency", 0.0, 10.0)
+        if self.num_frequencies is not None:
+            validate_range(self.num_frequencies, "Number of frequencies", 1, 999)
 
-        if len(self.energy_densities) != self.num_frequencies:
-            raise ValueError(
-                f"Missing energy density values: expected {self.num_frequencies}, "
-                f"got {len(self.energy_densities)}"
-            )
+        if self.num_frequencies is not None:
+            if len(self.energy_densities) != self.num_frequencies:
+                raise ValueError(
+                    f"Missing energy density values: expected {self.num_frequencies}, "
+                    f"got {len(self.energy_densities)}"
+                )
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORE":
@@ -49,26 +54,23 @@ class PNORE:
             checksum = checksum.strip().upper()
 
         fields = [f.strip() for f in data_part.split(",")]
-        if len(fields) < 8:
-            raise ValueError(f"Expected at least 8 fields for PNORE, got {len(fields)}")
+        if len(fields) < 7:  # Basic header fields
+            raise ValueError(f"Expected at least 7 fields for PNORE, got {len(fields)}")
         if fields[0] != "$PNORE":
             raise ValueError(f"Invalid prefix: {fields[0]}")
 
-        num_freq = int(fields[6])
-        if len(fields) < 7 + num_freq:
-            raise ValueError(
-                f"Missing energy density values: expected {num_freq}, got {len(fields) - 7}"
-            )
+        num_freq = int(fields[6]) if fields[6] and fields[6].lower() != "nan" else 0
 
-        energies = [parse_optional_float(fields[i]) for i in range(7, 7 + num_freq)]
+        # Energy densities start from index 7
+        energies = [parse_optional_float(fields[i]) for i in range(7, len(fields))]
 
         return cls(
             date=fields[1],
             time=fields[2],
-            spectrum_basis=int(fields[3]),
-            start_frequency=float(fields[4]),
-            step_frequency=float(fields[5]),
-            num_frequencies=num_freq,
+            spectrum_basis=int(fields[3]) if fields[3] and fields[3].lower() != "nan" else None,
+            start_frequency=parse_optional_float(fields[4]),
+            step_frequency=parse_optional_float(fields[5]),
+            num_frequencies=num_freq if num_freq > 0 else None,
             energy_densities=energies,
             checksum=checksum,
         )

@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .utils import (
+    parse_optional_float,
     parse_tagged_field,
     validate_date_mm_dd_yy,
     validate_range,
@@ -19,19 +20,22 @@ from .utils import (
 )
 
 
-def _validate_velocity(value: float, index: int) -> None:
+def _validate_velocity(value: float | None, index: int) -> None:
     """Validate velocity component (-100 to +100 m/s, per dd.dd format)."""
-    validate_range(value, f"Velocity {index}", -100.0, 100.0)
+    if value is not None:
+        validate_range(value, f"Velocity {index}", -100.0, 100.0)
 
 
-def _validate_correlation(value: int, index: int) -> None:
+def _validate_correlation(value: int | None, index: int) -> None:
     """Validate correlation (0-100 counts/percent)."""
-    validate_range(value, f"Correlation {index}", 0, 100)
+    if value is not None:
+        validate_range(value, f"Correlation {index}", 0, 100)
 
 
-def _validate_amplitude(value: float, index: int) -> None:
+def _validate_amplitude(value: float | None, index: int) -> None:
     """Validate amplitude (0-255 counts or dB)."""
-    validate_range(value, f"Amplitude {index}", 0.0, 255.0)
+    if value is not None:
+        validate_range(value, f"Amplitude {index}", 0.0, 255.0)
 
 
 def _validate_cell_index(value: int) -> None:
@@ -39,9 +43,10 @@ def _validate_cell_index(value: int) -> None:
     validate_range(value, "Cell index", 1, 1000)
 
 
-def _validate_distance(value: float) -> None:
+def _validate_distance(value: float | None) -> None:
     """Validate distance (0-1000m)."""
-    validate_range(value, "Distance", 0.0, 1000.0)
+    if value is not None:
+        validate_range(value, "Distance", 0.0, 1000.0)
 
 
 @dataclass(frozen=True)
@@ -54,21 +59,21 @@ class PNORC:
     date: str
     time: str
     cell_index: int
-    vel1: float
-    vel2: float
-    vel3: float
-    vel4: float
-    speed: float
-    direction: float
+    vel1: float | None
+    vel2: float | None
+    vel3: float | None
+    vel4: float | None
+    speed: float | None
+    direction: float | None
     amp_unit: str
-    amp1: int
-    amp2: int
-    amp3: int
-    amp4: int
-    corr1: int
-    corr2: int
-    corr3: int
-    corr4: int
+    amp1: int | None
+    amp2: int | None
+    amp3: int | None
+    amp4: int | None
+    corr1: int | None
+    corr2: int | None
+    corr3: int | None
+    corr4: int | None
     checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
@@ -77,12 +82,14 @@ class PNORC:
         _validate_cell_index(self.cell_index)
         for i, v in enumerate([self.vel1, self.vel2, self.vel3, self.vel4], 1):
             _validate_velocity(v, i)
-        validate_range(self.speed, "Speed", 0.0, 100.0)
-        validate_range(self.direction, "Direction", 0.0, 360.0)
+        if self.speed is not None:
+            validate_range(self.speed, "Speed", 0.0, 100.0)
+        if self.direction is not None:
+            validate_range(self.direction, "Direction", 0.0, 360.0)
         if self.amp_unit not in {"C", "D"}:
             raise ValueError(f"Invalid amplitude unit: {self.amp_unit}")
         for i, a in enumerate([self.amp1, self.amp2, self.amp3, self.amp4], 1):
-            _validate_amplitude(float(a), i)
+            _validate_amplitude(float(a) if a is not None else None, i)
         for i, c in enumerate([self.corr1, self.corr2, self.corr3, self.corr4], 1):
             _validate_correlation(c, i)
 
@@ -104,21 +111,21 @@ class PNORC:
             date=fields[1],
             time=fields[2],
             cell_index=int(fields[3]),
-            vel1=float(fields[4]),
-            vel2=float(fields[5]),
-            vel3=float(fields[6]),
-            vel4=float(fields[7]),
-            speed=float(fields[8]),
-            direction=float(fields[9]),
+            vel1=parse_optional_float(fields[4]),
+            vel2=parse_optional_float(fields[5]),
+            vel3=parse_optional_float(fields[6]),
+            vel4=parse_optional_float(fields[7]),
+            speed=parse_optional_float(fields[8]),
+            direction=parse_optional_float(fields[9]),
             amp_unit=fields[10],
-            amp1=int(fields[11]),
-            amp2=int(fields[12]),
-            amp3=int(fields[13]),
-            amp4=int(fields[14]),
-            corr1=int(fields[15]),
-            corr2=int(fields[16]),
-            corr3=int(fields[17]),
-            corr4=int(fields[18]),
+            amp1=int(fields[11]) if fields[11] and fields[11].lower() != "nan" else None,
+            amp2=int(fields[12]) if fields[12] and fields[12].lower() != "nan" else None,
+            amp3=int(fields[13]) if fields[13] and fields[13].lower() != "nan" else None,
+            amp4=int(fields[14]) if fields[14] and fields[14].lower() != "nan" else None,
+            corr1=int(fields[15]) if fields[15] and fields[15].lower() != "nan" else None,
+            corr2=int(fields[16]) if fields[16] and fields[16].lower() != "nan" else None,
+            corr3=int(fields[17]) if fields[17] and fields[17].lower() != "nan" else None,
+            corr4=int(fields[18]) if fields[18] and fields[18].lower() != "nan" else None,
             checksum=checksum,
         )
 
@@ -157,19 +164,19 @@ class PNORC1:
     date: str
     time: str
     cell_index: int
-    distance: float
-    vel1: float
-    vel2: float
-    vel3: float
-    vel4: float
-    amp1: float
-    amp2: float
-    amp3: float
-    amp4: float
-    corr1: int
-    corr2: int
-    corr3: int
-    corr4: int
+    distance: float | None
+    vel1: float | None
+    vel2: float | None
+    vel3: float | None
+    vel4: float | None
+    amp1: float | None
+    amp2: float | None
+    amp3: float | None
+    amp4: float | None
+    corr1: int | None
+    corr2: int | None
+    corr3: int | None
+    corr4: int | None
     checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
@@ -202,19 +209,19 @@ class PNORC1:
             date=fields[1],
             time=fields[2],
             cell_index=int(fields[3]),
-            distance=float(fields[4]),
-            vel1=float(fields[5]),
-            vel2=float(fields[6]),
-            vel3=float(fields[7]),
-            vel4=float(fields[8]),
-            amp1=float(fields[9]),
-            amp2=float(fields[10]),
-            amp3=float(fields[11]),
-            amp4=float(fields[12]),
-            corr1=int(fields[13]),
-            corr2=int(fields[14]),
-            corr3=int(fields[15]),
-            corr4=int(fields[16]),
+            distance=parse_optional_float(fields[4]),
+            vel1=parse_optional_float(fields[5]),
+            vel2=parse_optional_float(fields[6]),
+            vel3=parse_optional_float(fields[7]),
+            vel4=parse_optional_float(fields[8]),
+            amp1=parse_optional_float(fields[9]),
+            amp2=parse_optional_float(fields[10]),
+            amp3=parse_optional_float(fields[11]),
+            amp4=parse_optional_float(fields[12]),
+            corr1=int(fields[13]) if fields[13] and fields[13].lower() != "nan" else None,
+            corr2=int(fields[14]) if fields[14] and fields[14].lower() != "nan" else None,
+            corr3=int(fields[15]) if fields[15] and fields[15].lower() != "nan" else None,
+            corr4=int(fields[16]) if fields[16] and fields[16].lower() != "nan" else None,
             checksum=checksum,
         )
 
@@ -253,19 +260,19 @@ class PNORC2:
     date: str
     time: str
     cell_index: int
-    distance: float
-    vel1: float
-    vel2: float
-    vel3: float
-    vel4: float
-    amp1: float
-    amp2: float
-    amp3: float
-    amp4: float
-    corr1: int
-    corr2: int
-    corr3: int
-    corr4: int
+    distance: float | None
+    vel1: float | None
+    vel2: float | None
+    vel3: float | None
+    vel4: float | None
+    amp1: float | None
+    amp2: float | None
+    amp3: float | None
+    amp4: float | None
+    corr1: int | None
+    corr2: int | None
+    corr3: int | None
+    corr4: int | None
     checksum: str | None = field(default=None, repr=False)
 
     TAG_GRP_VEL = {
@@ -324,13 +331,15 @@ class PNORC2:
             elif tag == "CN":
                 data["cell_index"] = int(val)
             elif tag == "CP":
-                data["distance"] = float(val)
+                data["distance"] = parse_optional_float(val)
             elif tag in cls.TAG_GRP_VEL:
-                data[f"vel{cls.TAG_GRP_VEL[tag]}"] = float(val)
+                data[f"vel{cls.TAG_GRP_VEL[tag]}"] = parse_optional_float(val)
             elif tag in cls.TAG_GRP_AMP:
-                data[f"amp{cls.TAG_GRP_AMP[tag]}"] = float(val)
+                data[f"amp{cls.TAG_GRP_AMP[tag]}"] = parse_optional_float(val)
             elif tag in cls.TAG_GRP_CORR:
-                data[f"corr{cls.TAG_GRP_CORR[tag]}"] = int(val)
+                data[f"corr{cls.TAG_GRP_CORR[tag]}"] = (
+                    int(val) if val and val.lower() != "nan" else None
+                )
             else:
                 raise ValueError(f"Unknown tag in PNORC2: {tag}")
 
@@ -352,9 +361,13 @@ class PNORC2:
             "corr3",
             "corr4",
         ]
-        if not all(k in data for k in required):
-            missing = set(required) - set(data.keys())
-            raise ValueError(f"Missing required tags in PNORC2: {missing}")
+        # Allow missing optional fields as None
+        for k in required:
+            if k not in data:
+                data[k] = None
+
+        if data["date"] is None or data["time"] is None or data["cell_index"] is None:
+            raise ValueError("Missing mandatory tags in PNORC2: DATE, TIME, or CN")
 
         return cls(**data, checksum=checksum)
 
@@ -387,11 +400,11 @@ class PNORC3:
     Format: $PNORC3,CP=Dist,SP=Speed,DIR=Dir,AA=AvgAmp,AC=AvgCorr*CS
     """
 
-    distance: float
-    speed: float
-    direction: float
-    avg_amplitude: int
-    avg_correlation: int
+    distance: float | None
+    speed: float | None
+    direction: float | None
+    avg_amplitude: int | None
+    avg_correlation: int | None
     checksum: str | None = field(default=None, repr=False)
 
     TAG_IDS = {
@@ -404,9 +417,13 @@ class PNORC3:
 
     def __post_init__(self):
         _validate_distance(self.distance)
-        validate_range(self.speed, "Speed", 0.0, 100.0)
-        validate_range(self.direction, "Direction", 0.0, 360.0)
-        _validate_amplitude(float(self.avg_amplitude), 0)
+        if self.speed is not None:
+            validate_range(self.speed, "Speed", 0.0, 100.0)
+        if self.direction is not None:
+            validate_range(self.direction, "Direction", 0.0, 360.0)
+        _validate_amplitude(
+            float(self.avg_amplitude) if self.avg_amplitude is not None else None, 0
+        )
         _validate_correlation(self.avg_correlation, 0)
 
     @classmethod
@@ -428,13 +445,14 @@ class PNORC3:
                 raise ValueError(f"Unknown tag in PNORC3: {tag}")
             field_name = cls.TAG_IDS[tag]
             if field_name in ["avg_amplitude", "avg_correlation"]:
-                data[field_name] = int(val)
+                data[field_name] = int(val) if val and val.lower() != "nan" else None
             else:
-                data[field_name] = float(val)
+                data[field_name] = parse_optional_float(val)
 
-        if not all(k in data for k in cls.TAG_IDS.values()):
-            missing = set(cls.TAG_IDS.values()) - set(data.keys())
-            raise ValueError(f"Missing required tags in PNORC3: {missing}")
+        # Allow missing fields as None
+        for k in cls.TAG_IDS.values():
+            if k not in data:
+                data[k] = None
 
         return cls(**data, checksum=checksum)
 
@@ -456,18 +474,22 @@ class PNORC4:
     Format: $PNORC4,Dist,Speed,Dir,AC,AA*CS
     """
 
-    distance: float
-    speed: float
-    direction: float
-    avg_correlation: int
-    avg_amplitude: int
+    distance: float | None
+    speed: float | None
+    direction: float | None
+    avg_correlation: int | None
+    avg_amplitude: int | None
     checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
         _validate_distance(self.distance)
-        validate_range(self.speed, "Speed", 0.0, 100.0)
-        validate_range(self.direction, "Direction", 0.0, 360.0)
-        _validate_amplitude(float(self.avg_amplitude), 0)
+        if self.speed is not None:
+            validate_range(self.speed, "Speed", 0.0, 100.0)
+        if self.direction is not None:
+            validate_range(self.direction, "Direction", 0.0, 360.0)
+        _validate_amplitude(
+            float(self.avg_amplitude) if self.avg_amplitude is not None else None, 0
+        )
         _validate_correlation(self.avg_correlation, 0)
 
     @classmethod
@@ -485,11 +507,11 @@ class PNORC4:
             raise ValueError(f"Invalid prefix: {fields[0]}")
 
         return cls(
-            distance=float(fields[1]),
-            speed=float(fields[2]),
-            direction=float(fields[3]),
-            avg_correlation=int(fields[4]),
-            avg_amplitude=int(fields[5]),
+            distance=parse_optional_float(fields[1]),
+            speed=parse_optional_float(fields[2]),
+            direction=parse_optional_float(fields[3]),
+            avg_correlation=int(fields[4]) if fields[4] and fields[4].lower() != "nan" else None,
+            avg_amplitude=int(fields[5]) if fields[5] and fields[5].lower() != "nan" else None,
             checksum=checksum,
         )
 

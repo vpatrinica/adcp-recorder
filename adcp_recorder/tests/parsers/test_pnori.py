@@ -271,7 +271,7 @@ class TestPNORI2:
         """Test that missing required tag raises ValueError."""
         # Provides enough fields (8), but CY=XYZ is missing because XX=1 is used instead
         sentence = "$PNORI2,IT=4,SN=123,NB=4,NC=20,BD=0.20,CS=1.00,XX=1*00"
-        with pytest.raises(ValueError, match="Missing required tags"):
+        with pytest.raises(ValueError, match="Missing mandatory tags"):
             PNORI2.from_nmea(sentence)
 
     def test_unknown_tag_raises_error(self):

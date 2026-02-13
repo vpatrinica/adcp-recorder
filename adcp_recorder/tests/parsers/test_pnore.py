@@ -49,7 +49,7 @@ class TestPNOREParser:
         """Test that energy count must match num_frequencies."""
         # Says 5 frequencies but only provides 3
         sentence = "$PNORE,120720,093150,1,0.05,0.02,5,1.0,2.0,3.0*00"
-        with pytest.raises(ValueError, match="Missing energy density"):
+        with pytest.raises(ValueError, match="Missing energy density values"):
             PNORE.from_nmea(sentence)
 
     def test_to_dict(self):
@@ -92,7 +92,7 @@ class TestPNOREParser:
     def test_minimum_fields_check(self):
         """Test that sentences with too few fields are rejected."""
         sentence = "$PNORE,120720,093150*00"
-        with pytest.raises(ValueError, match="Expected at least 8 fields"):
+        with pytest.raises(ValueError, match="Expected at least 7 fields"):
             PNORE.from_nmea(sentence)
 
     def test_frequency_range_validation(self):

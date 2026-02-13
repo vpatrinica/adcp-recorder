@@ -1,6 +1,6 @@
-import duckdb
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
+
 from adcp_recorder.config import RecorderConfig
 from adcp_recorder.ui.parquet_data_layer import ParquetDataLayer
 
@@ -28,7 +28,7 @@ if "pq_pnore" in source_names:
     print("\nVerifying pq_pnore...")
     metadata = layer.get_source_metadata("pq_pnore")
     print(f"Timestamp column: {metadata.timestamp_column}")
-    
+
     # Query all to see what dates we have
     data = layer.query_data("pq_pnore", limit=10)
     if data:
@@ -36,7 +36,7 @@ if "pq_pnore" in source_names:
         for i, row in enumerate(data[:3]):
             print(f"Row {i} measurement_datetime: {row.get('measurement_datetime')}")
             print(f"Row {i} date: {row.get('date')}, time: {row.get('time')}")
-        
+
         # Test filtering
         # Since data is from Feb 9, we need a range that includes it
         test_start = datetime(2026, 2, 9, 0, 0, 0)
@@ -61,4 +61,6 @@ else:
     if "pq_pnors" in source_names and "pq_pnorc" in source_names:
         print("Base views pq_pnors and pq_pnorc are present, but join failed.")
     else:
-        print(f"Missing base views for current_profile_df100. Loaded: {[s for s in source_names if 'pnor' in s]}")
+        print(
+            f"Missing base views for current_profile_df100. Loaded: {[s for s in source_names if 'pnor' in s]}"
+        )

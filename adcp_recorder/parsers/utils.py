@@ -42,7 +42,9 @@ def validate_hex_string(hex_str: str, min_length: int = 1, max_length: int = 8) 
 
 def validate_range(value: float, field_name: str, range_min: float, range_max: float) -> None:
     """Validate numeric value within range."""
-    if not (range_min <= value <= range_max):
+    import math
+
+    if math.isnan(value) or not (range_min <= value <= range_max):
         raise ValueError(f"{field_name} out of range ({range_min} to {range_max}): {value}")
 
 
@@ -64,7 +66,7 @@ def parse_optional_float(
     invalid_values: tuple = ("-9.00", "-99.99", "-9.000", "-9.0000"),
 ) -> float | None:
     """Parse float from string, returning None for invalid indicators or empty fields."""
-    if not value_str or value_str in invalid_values:
+    if not value_str or value_str in invalid_values or value_str.lower() == "nan":
         return None
     try:
         return float(value_str)

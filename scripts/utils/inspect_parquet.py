@@ -1,6 +1,8 @@
-import duckdb
 import json
 import os
+
+import duckdb
+
 from adcp_recorder.config import RecorderConfig
 
 # Use configured output directory
@@ -26,13 +28,13 @@ for f in parquet_files[:5]:
     try:
         # Use relative path for cleaner output if possible
         rel_path = os.path.relpath(f, data_path)
-        path_posix = f.replace('\\', '/')
+        path_posix = f.replace("\\", "/")
         cols = duckdb.execute(f"DESCRIBE SELECT * FROM read_parquet('{path_posix}')").fetchall()
         col_names = [c[0] for c in cols]
         samples = duckdb.execute(f"SELECT * FROM read_parquet('{path_posix}') LIMIT 3").fetchall()
         results[rel_path] = {
             "columns": col_names,
-            "samples": [[str(val) for val in s] for s in samples]
+            "samples": [[str(val) for val in s] for s in samples],
         }
     except Exception as e:
         results[f] = str(e)
