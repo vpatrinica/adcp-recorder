@@ -82,7 +82,8 @@ def test_ghost_files_explicitly():
     )
     assert msg_b.spectrum_basis == 1
 
-    msg_e = PNORE.from_nmea("$PNORE,151021,090715,1,0.02,0.01,3,1.5,2.5,3.5*4C")
+    # PNORE now uses MMDDYY: 102115
+    msg_e = PNORE.from_nmea("$PNORE,102115,090715,1,0.02,0.01,3,1.5,2.5,3.5*4C")
     assert msg_e.spectrum_basis == 1
 
     msg_f = PNORF.from_nmea("$PNORF,A1,102115,090715,1,0.02,0.01,2,0.5,1.5*14")

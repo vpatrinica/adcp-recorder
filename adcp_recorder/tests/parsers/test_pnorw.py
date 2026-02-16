@@ -23,11 +23,11 @@ class TestPNORW:
         assert msg.wave_error_code == "0000"
 
     def test_pnorw_optional_fields(self):
-        # Test -9.000 indicator (should be None)
+        # Test -99.99 sentinel (ddd.dd format) — correct precision for PNORW fields
         sentence = (
-            "$PNORW,102125,090715,1,2,-9.000,-9.000,-9.000,-9.000,-9.000,"
-            "-9.000,-9.000,-9.000,-9.000,-9.000,-9.000,10.5,0,0,-9.000,"
-            "-9.000,0001"
+            "$PNORW,102125,090715,1,2,-99.99,-99.99,-99.99,-99.99,-99.99,"
+            "-99.99,-99.99,-99.99,-99.99,-99.99,-99.99,10.5,0,0,-99.99,"
+            "-99.99,0001*6C"
         )
         msg = PNORW.from_nmea(sentence)
         assert msg.hm0 is None

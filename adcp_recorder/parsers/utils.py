@@ -91,12 +91,46 @@ def parse_tagged_field(field_str: str) -> tuple[str, str]:
     return tag.strip().upper(), value.strip()
 
 
+def is_nan_string(value_str: str) -> bool:
+    """Check if a string represents a NaN value (nan, -nan, +nan, case-insensitive)."""
+    return value_str.strip().lstrip("+-").lower() == "nan"
+
+
+def parse_optional_int(
+    value_str: str,
+    sentinels: tuple[str, ...] = (),
+) -> int | None:
+    """Parse int from string, returning None for empty, NaN, sentinel, or unparseable values.
+
+    Args:
+        value_str: Raw field string from an NMEA sentence.
+        sentinels: Exact strings that indicate invalid/missing data
+            (e.g. ``("-9", "-999")``).  Obtain from
+            :func:`~adcp_recorder.parsers.sentinels.get_int_sentinels`.
+
+    """
+    if not value_str or value_str in sentinels or is_nan_string(value_str):
+        return None
+    try:
+        return int(value_str)
+    except ValueError:
+        return None
+
+
 def parse_optional_float(
     value_str: str,
-    invalid_values: tuple = ("-9.00", "-99.99", "-9.000", "-9.0000"),
+    sentinels: tuple[str, ...] = (),
 ) -> float | None:
-    """Parse float from string, returning None for invalid indicators or empty fields."""
-    if not value_str or value_str in invalid_values or value_str.lower() == "nan":
+    """Parse float from string, returning None for sentinel, empty, or NaN fields.
+
+    Args:
+        value_str: Raw field string from an NMEA sentence.
+        sentinels: Exact strings that indicate invalid/missing data
+            (e.g. ``("-9.00", "-99.99")``).  Obtain from
+            :func:`~adcp_recorder.parsers.sentinels.get_float_sentinels`.
+
+    """
+    if not value_str or value_str in sentinels or is_nan_string(value_str):
         return None
     try:
         return float(value_str)

@@ -93,8 +93,8 @@ class TestPNORWDParser:
         assert data["checksum"] == "2E"
 
     def test_invalid_data_markers(self):
-        """Test that invalid data markers (-9.0000) are handled."""
-        sentence = "$PNORWD,MD,120720,093150,1,0.05,0.02,5,45.0,-9.0000,-9.0000,90.0,135.0*33"
+        """Test that invalid data markers (-999.9999) are handled."""
+        sentence = "$PNORWD,MD,120720,093150,1,0.05,0.02,5,45.0,-999.9999,-999.9999,90.0,135.0*33"
         pnorwd = PNORWD.from_nmea(sentence)
         # Verify invalid data markers
         assert pnorwd.values[1] is None

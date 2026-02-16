@@ -6,6 +6,7 @@ Implements parser for:
 
 from dataclasses import dataclass, field
 
+from .sentinels import get_float_sentinels as _fs
 from .utils import (
     parse_nmea_sentence,
     parse_optional_float,
@@ -52,6 +53,8 @@ class PNORA:
         if fields[0] != "$PNORA":
             raise ValueError(f"Invalid prefix: {fields[0]}")
 
+        _p = "PNORA"
+
         # Check for tagged format (DF=201) usage by looking for '=' in fields
         if any("=" in fields[i] for i in range(1, len(fields))):
             data_map: dict[str, str] = {}
@@ -61,7 +64,7 @@ class PNORA:
                     tag, val = parse_tagged_field(field_str)
                     data_map[tag] = val
 
-            # Check mandatory tags: DATE, TIME, ST are core. Others are optional in the dataclass
+            # Check mandatory tags: DATE, TIME, ST are core.
             required_tags = {"DATE", "TIME", "ST"}
             if not all(tag in data_map for tag in required_tags):
                 missing = required_tags - set(data_map.keys())
@@ -71,12 +74,12 @@ class PNORA:
                 return cls(
                     date=data_map["DATE"],
                     time=data_map["TIME"],
-                    pressure=parse_optional_float(data_map.get("P", "")),
-                    distance=parse_optional_float(data_map.get("A", "")),
-                    quality=int(data_map["Q"]) if "Q" in data_map and data_map["Q"] else None,
+                    pressure=parse_optional_float(data_map.get("P", ""), _fs(_p, "pressure")),
+                    distance=parse_optional_float(data_map.get("A", ""), _fs(_p, "distance")),
+                    quality=(int(data_map["Q"]) if "Q" in data_map and data_map["Q"] else None),
                     status=data_map.get("ST", ""),
-                    pitch=parse_optional_float(data_map.get("PI", "")),
-                    roll=parse_optional_float(data_map.get("R", "")),
+                    pitch=parse_optional_float(data_map.get("PI", ""), _fs(_p, "pitch")),
+                    roll=parse_optional_float(data_map.get("R", ""), _fs(_p, "roll")),
                     checksum=checksum,
                 )
             except ValueError as e:
@@ -89,12 +92,12 @@ class PNORA:
         return cls(
             date=fields[1],
             time=fields[2],
-            pressure=parse_optional_float(fields[3]),
-            distance=parse_optional_float(fields[4]),
+            pressure=parse_optional_float(fields[3], _fs(_p, "pressure")),
+            distance=parse_optional_float(fields[4], _fs(_p, "distance")),
             quality=int(fields[5]) if fields[5] else None,
             status=fields[6],
-            pitch=parse_optional_float(fields[7]),
-            roll=parse_optional_float(fields[8]),
+            pitch=parse_optional_float(fields[7], _fs(_p, "pitch")),
+            roll=parse_optional_float(fields[8], _fs(_p, "roll")),
             checksum=checksum,
         )
 

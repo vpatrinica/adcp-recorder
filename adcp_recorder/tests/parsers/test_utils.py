@@ -80,6 +80,10 @@ class TestParserUtils:
 
     def test_parse_optional_float(self):
         assert parse_optional_float("1.23") == 1.23
-        assert parse_optional_float("-9.000") is None
         assert parse_optional_float("") is None
         assert parse_optional_float("invalid") is None
+        # Without sentinels, numeric-looking values parse normally
+        assert parse_optional_float("-9.000") == -9.0
+        # With sentinels, matching values return None
+        assert parse_optional_float("-9.000", ("-9.000",)) is None
+        assert parse_optional_float("-9.000", ("-9.00",)) == -9.0

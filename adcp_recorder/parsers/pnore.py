@@ -2,10 +2,13 @@
 
 from dataclasses import dataclass, field
 
+from .sentinels import get_float_sentinels as _fs
+from .sentinels import get_int_sentinels as _is
 from .utils import (
     parse_nmea_sentence,
     parse_optional_float,
-    validate_date_yy_mm_dd,
+    parse_optional_int,
+    validate_date_mm_dd_yy,
     validate_range,
     validate_time_string,
 )
@@ -27,7 +30,7 @@ class PNORE:
     checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
-        validate_date_yy_mm_dd(self.date)
+        validate_date_mm_dd_yy(self.date)
         validate_time_string(self.time)
         if self.spectrum_basis is not None:
             if self.spectrum_basis not in {0, 1, 3}:
@@ -65,17 +68,19 @@ class PNORE:
         if len(fields) < 7:
             raise ValueError(f"Expected at least 7 fields for PNORE, got {len(fields)}")
 
-        num_freq = int(fields[6]) if fields[6] and fields[6].lower() != "nan" else 0
+        _p = "PNORE"
+        num_freq = parse_optional_int(fields[6], _is(_p, "num_frequencies")) or 0
 
         # Energy densities start from index 7
-        energies = [parse_optional_float(fields[i]) for i in range(7, len(fields))]
+        _ed_sent = _fs(_p, "energy_density")
+        energies = [parse_optional_float(fields[i], _ed_sent) for i in range(7, len(fields))]
 
         return cls(
             date=fields[1],
             time=fields[2],
-            spectrum_basis=int(fields[3]) if fields[3] and fields[3].lower() != "nan" else None,
-            start_frequency=parse_optional_float(fields[4]),
-            step_frequency=parse_optional_float(fields[5]),
+            spectrum_basis=parse_optional_int(fields[3]),
+            start_frequency=parse_optional_float(fields[4], _fs(_p, "start_frequency")),
+            step_frequency=parse_optional_float(fields[5], _fs(_p, "step_frequency")),
             num_frequencies=num_freq if num_freq > 0 else None,
             energy_densities=energies,
             checksum=checksum,

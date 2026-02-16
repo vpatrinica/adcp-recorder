@@ -2,9 +2,11 @@
 
 from dataclasses import dataclass, field
 
+from .sentinels import get_float_sentinels as _fs
 from .utils import (
     parse_nmea_sentence,
     parse_optional_float,
+    parse_optional_int,
     validate_date_mm_dd_yy,
     validate_range,
     validate_time_string,
@@ -56,23 +58,22 @@ class PNORWD:
         if fields[0] != "$PNORWD":
             raise ValueError(f"Invalid prefix: {fields[0]}")
 
-        num_freq = int(fields[7]) if fields[7] and fields[7].lower() != "nan" else 0
+        _p = "PNORWD"
+        num_freq = parse_optional_int(fields[7]) or 0
 
         # Values start from index 8
-        vals = []
+        _v_sent = _fs(_p, "value")
+        vals: list[float | None] = []
         for i in range(8, len(fields)):
-            vals.append(parse_optional_float(fields[i]))
-
-        # If we have a mismatch between num_freq and actual values,
-        # we'll handle it in __post_init__ or here. But let's keep it simple for now.
+            vals.append(parse_optional_float(fields[i], _v_sent))
 
         return cls(
             direction_type=fields[1],
             date=fields[2],
             time=fields[3],
-            spectrum_basis=int(fields[4]) if fields[4] and fields[4].lower() != "nan" else None,
-            start_frequency=parse_optional_float(fields[5]),
-            step_frequency=parse_optional_float(fields[6]),
+            spectrum_basis=parse_optional_int(fields[4]),
+            start_frequency=parse_optional_float(fields[5], _fs(_p, "start_frequency")),
+            step_frequency=parse_optional_float(fields[6], _fs(_p, "step_frequency")),
             num_frequencies=num_freq if num_freq > 0 else None,
             values=vals,
             checksum=checksum,

@@ -143,7 +143,8 @@ class TestPersistenceSuccess:
 
     def test_pnore_persistence(self, db):
         # PNORE now uses energy density spectrum format
-        sentence = "$PNORE,151021,090715,1,0.02,0.01,5,1.5,2.5,3.5,4.5,5.5*4B"
+        # Using MMDDYY format: 102115 (Oct 21, 2015)
+        sentence = "$PNORE,102115,090715,1,0.02,0.01,5,1.5,2.5,3.5,4.5,5.5*4B"
         msg = PNORE.from_nmea(sentence)
         record_id = insert_pnore_data(db, sentence, msg.to_dict())
         assert record_id > 0

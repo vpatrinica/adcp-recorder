@@ -11,9 +11,11 @@ Implements parsers for:
 from dataclasses import dataclass, field
 from typing import Any
 
+from .sentinels import get_float_sentinels as _fs
 from .utils import (
     parse_nmea_sentence,
     parse_optional_float,
+    parse_optional_int,
     parse_tagged_field,
     validate_date_mm_dd_yy,
     validate_range,
@@ -102,25 +104,26 @@ class PNORC:
         if fields[0] != "$PNORC":
             raise ValueError(f"Invalid prefix: {fields[0]}")
 
+        _p = "PNORC"
         return cls(
             date=fields[1],
             time=fields[2],
             cell_index=int(fields[3]),
-            vel1=parse_optional_float(fields[4]),
-            vel2=parse_optional_float(fields[5]),
-            vel3=parse_optional_float(fields[6]),
-            vel4=parse_optional_float(fields[7]),
-            speed=parse_optional_float(fields[8]),
-            direction=parse_optional_float(fields[9]),
+            vel1=parse_optional_float(fields[4], _fs(_p, "vel1")),
+            vel2=parse_optional_float(fields[5], _fs(_p, "vel2")),
+            vel3=parse_optional_float(fields[6], _fs(_p, "vel3")),
+            vel4=parse_optional_float(fields[7], _fs(_p, "vel4")),
+            speed=parse_optional_float(fields[8], _fs(_p, "speed")),
+            direction=parse_optional_float(fields[9], _fs(_p, "direction")),
             amp_unit=fields[10],
-            amp1=int(fields[11]) if fields[11] and fields[11].lower() != "nan" else None,
-            amp2=int(fields[12]) if fields[12] and fields[12].lower() != "nan" else None,
-            amp3=int(fields[13]) if fields[13] and fields[13].lower() != "nan" else None,
-            amp4=int(fields[14]) if fields[14] and fields[14].lower() != "nan" else None,
-            corr1=int(fields[15]) if fields[15] and fields[15].lower() != "nan" else None,
-            corr2=int(fields[16]) if fields[16] and fields[16].lower() != "nan" else None,
-            corr3=int(fields[17]) if fields[17] and fields[17].lower() != "nan" else None,
-            corr4=int(fields[18]) if fields[18] and fields[18].lower() != "nan" else None,
+            amp1=parse_optional_int(fields[11]),
+            amp2=parse_optional_int(fields[12]),
+            amp3=parse_optional_int(fields[13]),
+            amp4=parse_optional_int(fields[14]),
+            corr1=parse_optional_int(fields[15]),
+            corr2=parse_optional_int(fields[16]),
+            corr3=parse_optional_int(fields[17]),
+            corr4=parse_optional_int(fields[18]),
             checksum=checksum,
         )
 
@@ -194,23 +197,24 @@ class PNORC1:
         if fields[0] != "$PNORC1":
             raise ValueError(f"Invalid prefix: {fields[0]}")
 
+        _p = "PNORC1"
         return cls(
             date=fields[1],
             time=fields[2],
             cell_index=int(fields[3]),
-            distance=parse_optional_float(fields[4]),
-            vel1=parse_optional_float(fields[5]),
-            vel2=parse_optional_float(fields[6]),
-            vel3=parse_optional_float(fields[7]),
-            vel4=parse_optional_float(fields[8]),
-            amp1=parse_optional_float(fields[9]),
-            amp2=parse_optional_float(fields[10]),
-            amp3=parse_optional_float(fields[11]),
-            amp4=parse_optional_float(fields[12]),
-            corr1=int(fields[13]) if fields[13] and fields[13].lower() != "nan" else None,
-            corr2=int(fields[14]) if fields[14] and fields[14].lower() != "nan" else None,
-            corr3=int(fields[15]) if fields[15] and fields[15].lower() != "nan" else None,
-            corr4=int(fields[16]) if fields[16] and fields[16].lower() != "nan" else None,
+            distance=parse_optional_float(fields[4], _fs(_p, "distance")),
+            vel1=parse_optional_float(fields[5], _fs(_p, "vel1")),
+            vel2=parse_optional_float(fields[6], _fs(_p, "vel2")),
+            vel3=parse_optional_float(fields[7], _fs(_p, "vel3")),
+            vel4=parse_optional_float(fields[8], _fs(_p, "vel4")),
+            amp1=parse_optional_float(fields[9], _fs(_p, "amp1")),
+            amp2=parse_optional_float(fields[10], _fs(_p, "amp2")),
+            amp3=parse_optional_float(fields[11], _fs(_p, "amp3")),
+            amp4=parse_optional_float(fields[12], _fs(_p, "amp4")),
+            corr1=parse_optional_int(fields[13]),
+            corr2=parse_optional_int(fields[14]),
+            corr3=parse_optional_int(fields[15]),
+            corr4=parse_optional_int(fields[16]),
             checksum=checksum,
         )
 
@@ -299,6 +303,7 @@ class PNORC2:
         if fields[0] != "$PNORC2":
             raise ValueError(f"Invalid prefix: {fields[0]}")
 
+        _p = "PNORC2"
         data: dict[str, Any] = {}
         seen_tags = set()
         for i in range(1, len(fields)):
@@ -315,15 +320,15 @@ class PNORC2:
             elif tag == "CN":
                 data["cell_index"] = int(val)
             elif tag == "CP":
-                data["distance"] = parse_optional_float(val)
+                data["distance"] = parse_optional_float(val, _fs(_p, "distance"))
             elif tag in cls.TAG_GRP_VEL:
-                data[f"vel{cls.TAG_GRP_VEL[tag]}"] = parse_optional_float(val)
+                idx = cls.TAG_GRP_VEL[tag]
+                data[f"vel{idx}"] = parse_optional_float(val, _fs(_p, f"vel{idx}"))
             elif tag in cls.TAG_GRP_AMP:
-                data[f"amp{cls.TAG_GRP_AMP[tag]}"] = parse_optional_float(val)
+                idx = cls.TAG_GRP_AMP[tag]
+                data[f"amp{idx}"] = parse_optional_float(val, _fs(_p, f"amp{idx}"))
             elif tag in cls.TAG_GRP_CORR:
-                data[f"corr{cls.TAG_GRP_CORR[tag]}"] = (
-                    int(val) if val and val.lower() != "nan" else None
-                )
+                data[f"corr{cls.TAG_GRP_CORR[tag]}"] = parse_optional_int(val)
             else:
                 raise ValueError(f"Unknown tags in PNORC2: {tag}")
 
@@ -416,6 +421,7 @@ class PNORC3:
         if fields[0] != "$PNORC3":
             raise ValueError(f"Invalid prefix: {fields[0]}")
 
+        _p = "PNORC3"
         data: dict[str, Any] = {}
         for i in range(1, len(fields)):
             field_str = fields[i]
@@ -424,9 +430,9 @@ class PNORC3:
                 raise ValueError(f"Unknown tags in PNORC3: {tag}")
             field_name = cls.TAG_IDS[tag]
             if field_name in ["avg_amplitude", "avg_correlation"]:
-                data[field_name] = int(val) if val and val.lower() != "nan" else None
+                data[field_name] = parse_optional_int(val)
             else:
-                data[field_name] = parse_optional_float(val)
+                data[field_name] = parse_optional_float(val, _fs(_p, field_name))
 
         # Allow missing fields as None
         for k in cls.TAG_IDS.values():
@@ -479,12 +485,13 @@ class PNORC4:
         if fields[0] != "$PNORC4":
             raise ValueError(f"Invalid prefix: {fields[0]}")
 
+        _p = "PNORC4"
         return cls(
-            distance=parse_optional_float(fields[1]),
-            speed=parse_optional_float(fields[2]),
-            direction=parse_optional_float(fields[3]),
-            avg_correlation=int(fields[4]) if fields[4] and fields[4].lower() != "nan" else None,
-            avg_amplitude=int(fields[5]) if fields[5] and fields[5].lower() != "nan" else None,
+            distance=parse_optional_float(fields[1], _fs(_p, "distance")),
+            speed=parse_optional_float(fields[2], _fs(_p, "speed")),
+            direction=parse_optional_float(fields[3], _fs(_p, "direction")),
+            avg_correlation=parse_optional_int(fields[4]),
+            avg_amplitude=parse_optional_int(fields[5]),
             checksum=checksum,
         )
 

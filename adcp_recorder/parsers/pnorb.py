@@ -2,9 +2,11 @@
 
 from dataclasses import dataclass, field
 
+from .sentinels import get_float_sentinels as _fs
 from .utils import (
     parse_nmea_sentence,
     parse_optional_float,
+    parse_optional_int,
     validate_date_mm_dd_yy,
     validate_range,
     validate_time_string,
@@ -65,19 +67,20 @@ class PNORB:
         if fields[0] != "$PNORB":
             raise ValueError(f"Invalid prefix: {fields[0]}")
 
+        _p = "PNORB"
         return cls(
             date=fields[1],
             time=fields[2],
-            spectrum_basis=int(fields[3]) if fields[3] and fields[3].lower() != "nan" else None,
-            processing_method=int(fields[4]) if fields[4] and fields[4].lower() != "nan" else None,
-            freq_low=parse_optional_float(fields[5]),
-            freq_high=parse_optional_float(fields[6]),
-            hm0=parse_optional_float(fields[7]),
-            tm02=parse_optional_float(fields[8]),
-            tp=parse_optional_float(fields[9]),
-            dir_tp=parse_optional_float(fields[10]),
-            spr_tp=parse_optional_float(fields[11]),
-            main_dir=parse_optional_float(fields[12]),
+            spectrum_basis=parse_optional_int(fields[3]),
+            processing_method=parse_optional_int(fields[4]),
+            freq_low=parse_optional_float(fields[5], _fs(_p, "freq_low")),
+            freq_high=parse_optional_float(fields[6], _fs(_p, "freq_high")),
+            hm0=parse_optional_float(fields[7], _fs(_p, "hm0")),
+            tm02=parse_optional_float(fields[8], _fs(_p, "tm02")),
+            tp=parse_optional_float(fields[9], _fs(_p, "tp")),
+            dir_tp=parse_optional_float(fields[10], _fs(_p, "dir_tp")),
+            spr_tp=parse_optional_float(fields[11], _fs(_p, "spr_tp")),
+            main_dir=parse_optional_float(fields[12], _fs(_p, "main_dir")),
             wave_error_code=fields[13],
             checksum=checksum,
         )

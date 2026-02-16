@@ -14,13 +14,14 @@ class TestPNORBExtended:
         assert msg.hm0 == 182.29
 
     def test_pnorb_max_range(self):
+        # 999.99 is a sentinel for ddd.dd fields, so use 998.99 as max valid
         sentence = (
-            "$PNORB,102115,090715,1,4,0.02,0.20,999.99,999.99,999.99,360.0,360.0,360.0,0000*58"
+            "$PNORB,102115,090715,1,4,0.02,0.20,998.99,998.99,998.99,360.0,360.0,360.0,0000*59"
         )
         msg = PNORB.from_nmea(sentence)
-        assert msg.hm0 == 999.99
-        assert msg.tm02 == 999.99
-        assert msg.tp == 999.99
+        assert msg.hm0 == 998.99
+        assert msg.tm02 == 998.99
+        assert msg.tp == 998.99
         assert msg.dir_tp == 360.0
         assert msg.spr_tp == 360.0
         assert msg.main_dir == 360.0

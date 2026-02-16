@@ -12,7 +12,8 @@ from typing import Any, ClassVar
 
 from ..core.enums import CoordinateSystem, InstrumentType
 from ..core.nmea import compute_checksum
-from .utils import parse_nmea_sentence, parse_optional_float
+from .sentinels import get_float_sentinels as _fs
+from .utils import parse_nmea_sentence, parse_optional_float, parse_optional_int
 
 
 # Shared validation functions
@@ -119,14 +120,14 @@ class PNORI:
         if fields[0] != "$PNORI":
             raise ValueError(f"Invalid prefix: expected $PNORI, got {fields[0]}")
 
-        # Parse and validate
+        _p = "PNORI"
         return cls(
             instrument_type=InstrumentType.from_code(int(fields[1])),
             head_id=fields[2],
-            beam_count=int(fields[3]) if fields[3] and fields[3].lower() != "nan" else None,
-            cell_count=int(fields[4]) if fields[4] and fields[4].lower() != "nan" else None,
-            blanking_distance=parse_optional_float(fields[5]),
-            cell_size=parse_optional_float(fields[6]),
+            beam_count=parse_optional_int(fields[3]),
+            cell_count=parse_optional_int(fields[4]),
+            blanking_distance=parse_optional_float(fields[5], _fs(_p, "blanking_distance")),
+            cell_size=parse_optional_float(fields[6], _fs(_p, "cell_size")),
             coordinate_system=CoordinateSystem.from_code(int(fields[7])),
             checksum=checksum,
         )
@@ -233,14 +234,14 @@ class PNORI1:
         if fields[0] != "$PNORI1":
             raise ValueError(f"Invalid prefix: expected $PNORI1, got {fields[0]}")
 
-        # Parse and validate (coordinate system is string)
+        _p = "PNORI1"
         return cls(
             instrument_type=InstrumentType.from_code(int(fields[1])),
             head_id=fields[2],
-            beam_count=int(fields[3]) if fields[3] and fields[3].lower() != "nan" else None,
-            cell_count=int(fields[4]) if fields[4] and fields[4].lower() != "nan" else None,
-            blanking_distance=parse_optional_float(fields[5]),
-            cell_size=parse_optional_float(fields[6]),
+            beam_count=parse_optional_int(fields[3]),
+            cell_count=parse_optional_int(fields[4]),
+            blanking_distance=parse_optional_float(fields[5], _fs(_p, "blanking_distance")),
+            cell_size=parse_optional_float(fields[6], _fs(_p, "cell_size")),
             coordinate_system=CoordinateSystem.from_code(fields[7]),
             checksum=checksum,
         )
@@ -401,18 +402,20 @@ class PNORI2:
                 raise ValueError(f"Duplicate tag: {tag}")
             data[tag] = value
 
-        # Parse and validate
+        _p = "PNORI2"
         return cls(
             instrument_type=InstrumentType.from_code(int(data[PNORITag.INSTRUMENT_TYPE])),
             head_id=data[PNORITag.SERIAL_NUMBER],
-            beam_count=int(data[PNORITag.NUM_BEAMS])
-            if data[PNORITag.NUM_BEAMS] and data[PNORITag.NUM_BEAMS].lower() != "nan"
-            else None,
-            cell_count=int(data[PNORITag.NUM_CELLS])
-            if data[PNORITag.NUM_CELLS] and data[PNORITag.NUM_CELLS].lower() != "nan"
-            else None,
-            blanking_distance=parse_optional_float(data[PNORITag.BLANKING_DISTANCE]),
-            cell_size=parse_optional_float(data[PNORITag.CELL_SIZE]),
+            beam_count=parse_optional_int(data[PNORITag.NUM_BEAMS]),
+            cell_count=parse_optional_int(data[PNORITag.NUM_CELLS]),
+            blanking_distance=parse_optional_float(
+                data[PNORITag.BLANKING_DISTANCE],
+                _fs(_p, "blanking_distance"),
+            ),
+            cell_size=parse_optional_float(
+                data[PNORITag.CELL_SIZE],
+                _fs(_p, "cell_size"),
+            ),
             coordinate_system=CoordinateSystem.from_code(data[PNORITag.COORDINATE_SYSTEM]),
             checksum=checksum,
         )

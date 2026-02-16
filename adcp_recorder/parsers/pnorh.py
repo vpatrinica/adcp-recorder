@@ -10,6 +10,7 @@ from typing import Any
 
 from .utils import (
     parse_nmea_sentence,
+    parse_optional_int,
     parse_tagged_field,
     validate_date_yy_mm_dd,
     validate_hex_string,
@@ -52,7 +53,7 @@ class PNORH3:
 
             field_name = cls.TAG_IDS[tag]
             if field_name == "error_code":
-                data[field_name] = int(val) if val and val.lower() != "nan" else None
+                data[field_name] = parse_optional_int(val)
             else:
                 data[field_name] = val
 
@@ -108,7 +109,7 @@ class PNORH4:
         return cls(
             date=fields[1],
             time=fields[2],
-            error_code=int(fields[3]) if fields[3] and fields[3].lower() != "nan" else None,
+            error_code=parse_optional_int(fields[3]),
             status_code=fields[4],
             checksum=checksum,
         )

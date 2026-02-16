@@ -81,11 +81,11 @@ class TestPNORS1:
         assert msg.temperature == 22.45
 
     def test_pnors1_validation_errors(self):
-        # Invalid EC (not int)
-        with pytest.raises(ValueError):
-            PNORS1.from_nmea(
-                "$PNORS1,102115,090715,XY,2A480000,14.4,1523.0,0.1,275.9,15.7,0.2,2.3,0.3,0.000,0.001,22.45"
-            )
+        # Non-integer EC is now treated as None by parse_optional_int
+        msg = PNORS1.from_nmea(
+            "$PNORS1,102115,090715,XY,2A480000,14.4,1523.0,0.1,275.9,15.7,0.2,2.3,0.3,0.000,0.001,22.45"
+        )
+        assert msg.error_code is None
 
     def test_pnors1_invalid_field_count(self):
         with pytest.raises(ValueError, match="Expected 16 fields"):

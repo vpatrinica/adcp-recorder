@@ -19,7 +19,10 @@ def test_utils_nan_handling():
     assert parse_optional_float("NaN") is None
     assert parse_optional_float("NAN") is None
     assert parse_optional_float("") is None
-    assert parse_optional_float("-9.0000") is None
+    # Without sentinels, sentinel-like values parse as normal floats
+    assert parse_optional_float("-9.0000") == -9.0
+    # With sentinels, matching values return None
+    assert parse_optional_float("-9.0000", ("-9.0000",)) is None
     assert parse_optional_float("1.23") == 1.23
 
     # Test validate_range with NaN (should raise ValueError)
@@ -124,7 +127,8 @@ def test_pnorh_nan():
 def test_pnore_nan():
     # PNORE Positional
     # Format: $PNORE,Date,Time,Basis,Start,Step,Num,E1,E2,...,EN*CS
-    sentence = "$PNORE,211015,090715,nan,nan,nan,2,0.1,0.2"
+    # Date is MMDDYY format: 101521 = Oct 15, 2021
+    sentence = "$PNORE,101521,090715,nan,nan,nan,2,0.1,0.2"
     msg = PNORE.from_nmea(sentence)
     assert msg.spectrum_basis is None
     assert msg.energy_densities[0] == 0.1

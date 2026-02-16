@@ -24,10 +24,9 @@ class TestPNORB:
         assert msg.wave_error_code == "0000"
 
     def test_pnorb_optional_fields(self):
-        # Test -9.0000 indicator
+        # Test -99.99 sentinel (ddd.dd format) — correct precision for PNORB fields
         sentence = (
-            "$PNORB,102115,090715,1,4,0.02,0.20,-9.0000,-9.0000,-9.0000,"
-            "-9.0000,-9.0000,-9.0000,0001*65"
+            "$PNORB,102115,090715,1,4,0.02,0.20,-99.99,-99.99,-99.99,-99.99,-99.99,-99.99,0001*65"
         )
         msg = PNORB.from_nmea(sentence)
         assert msg.hm0 is None
