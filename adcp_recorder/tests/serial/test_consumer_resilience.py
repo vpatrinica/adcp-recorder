@@ -32,7 +32,7 @@ class TestConsumerResilience:
         consumer = SerialConsumer(queue, db, router, file_writer=mock_file_writer)
 
         # Add valid PNORB message
-        sentence = "$PNORB,102115,090715,1,4,0.02,0.20,0.27,7.54,12.00,82.42,75.46,82.10,0000*7C"
+        sentence = "$PNORB,102115,090715,1,4,0.02,0.20,0.27,7.54,12.00,82.42,75.46,82.10,0000*63"
         queue.put(sentence.encode("ascii"))
 
         consumer.start()
@@ -65,7 +65,7 @@ class TestConsumerResilience:
         ):
             # Add valid PNORB message
             sentence = (
-                "$PNORB,102115,090715,1,4,0.02,0.20,0.27,7.54,12.00,82.42,75.46,82.10,0000*7C"
+                "$PNORB,102115,090715,1,4,0.02,0.20,0.27,7.54,12.00,82.42,75.46,82.10,0000*63"
             )
             queue.put(sentence.encode("ascii"))
 

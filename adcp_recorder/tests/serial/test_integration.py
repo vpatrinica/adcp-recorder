@@ -135,7 +135,7 @@ class TestIntegration:
 
         # Provide unknown message type
         sentences = [
-            b"$UNKNOWN,1,2,3*00\r\n",
+            b"$UNKNOWN,1,2,3\r\n",
             None,
         ]
         import itertools
@@ -183,7 +183,7 @@ class TestIntegration:
 
         # Provide malformed PNORI
         sentences = [
-            b"$PNORI,INVALID,DATA*FF\r\n",
+            b"$PNORI,INVALID,DATA\r\n",
             None,
         ]
         import itertools

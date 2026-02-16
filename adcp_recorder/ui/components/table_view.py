@@ -1,15 +1,15 @@
 """Interactive table view component with column selection and filtering."""
 
-from typing import Any, cast
+from typing import Any
 
 try:
-    import streamlit as st  # type: ignore
+    import streamlit as st
 except ImportError:
     st = None  # type: ignore
 
 from datetime import UTC
 
-from adcp_recorder.ui.data_layer import DataLayer, DataSource  # type: ignore
+from adcp_recorder.ui.data_layer import DataLayer, DataSource
 
 
 def render_table_view(
@@ -56,7 +56,7 @@ def render_table_view(
         with col2:
             available_columns: list[str] = [c.name for c in source.columns]
             initial_count = 10 if len(available_columns) >= 10 else len(available_columns)
-            initial_columns = [available_columns[cast(int, i)] for i in range(initial_count)]
+            initial_columns = [available_columns[i] for i in range(initial_count)]
             default_columns = config.get("columns") or initial_columns
 
             selected_columns: list[str] = st.multiselect(
@@ -73,7 +73,7 @@ def render_table_view(
 
     if not selected_columns:
         default_count = 5 if len(available_columns) >= 5 else len(available_columns)
-        selected_columns = [available_columns[cast(int, i)] for i in range(default_count)]
+        selected_columns = [available_columns[i] for i in range(default_count)]
 
     # Filtering section
     filters_key = f"{key_prefix}_filters"
@@ -283,7 +283,7 @@ def render_column_selector(
         raise ImportError("Streamlit is required for this component.")
     available: list[str] = [c.name for c in source.columns]
     initial_count = 5 if len(available) >= 5 else len(available)
-    defaults = default_columns or [available[cast(int, i)] for i in range(initial_count)]
+    defaults = default_columns or [available[i] for i in range(initial_count)]
 
     return st.multiselect(
         "Select columns",

@@ -7,7 +7,9 @@ Implements parser for:
 from dataclasses import dataclass, field
 
 from .utils import (
+    parse_nmea_sentence,
     parse_optional_float,
+    parse_tagged_field,
     validate_date_yy_mm_dd,
     validate_hex_string,
     validate_range,
@@ -46,23 +48,18 @@ class PNORA:
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORA":
-        sentence = sentence.strip()
-        data_part, checksum = sentence, None
-        if "*" in sentence:
-            data_part, checksum = sentence.rsplit("*", 1)
-            checksum = checksum.strip().upper()
-
-        fields = [f.strip() for f in data_part.split(",")]
+        fields, checksum = parse_nmea_sentence(sentence)
         if fields[0] != "$PNORA":
             raise ValueError(f"Invalid prefix: {fields[0]}")
 
         # Check for tagged format (DF=201) usage by looking for '=' in fields
-        if any("=" in f for f in fields[1:]):
-            data_map = {}
-            for f in fields[1:]:
-                if "=" in f:
-                    key, value = f.split("=", 1)
-                    data_map[key] = value
+        if any("=" in fields[i] for i in range(1, len(fields))):
+            data_map: dict[str, str] = {}
+            for i in range(1, len(fields)):
+                field_str = fields[i]
+                if "=" in field_str:
+                    tag, val = parse_tagged_field(field_str)
+                    data_map[tag] = val
 
             # Check mandatory tags: DATE, TIME, ST are core. Others are optional in the dataclass
             required_tags = {"DATE", "TIME", "ST"}

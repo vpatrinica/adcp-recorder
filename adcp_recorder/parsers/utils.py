@@ -3,6 +3,36 @@
 import re
 from datetime import datetime
 
+from adcp_recorder.core.nmea import validate_checksum
+
+
+def parse_nmea_sentence(sentence: str) -> tuple[list[str], str | None]:
+    """Split NMEA sentence into fields and validate checksum if present.
+
+    Args:
+        sentence: Raw NMEA sentence string
+
+    Returns:
+        Tuple of (fields_list, checksum_string)
+
+    Raises:
+        ValueError: If checksum is invalid
+
+    """
+    sentence = sentence.strip()
+    if "*" in sentence and not validate_checksum(sentence):
+        raise ValueError("Invalid NMEA checksum")
+
+    data_part, checksum = sentence, None
+    if "*" in sentence:
+        data_part, checksum = sentence.rsplit("*", 1)
+        checksum = checksum.strip().upper()
+    else:
+        data_part = sentence
+
+    fields = [f.strip() for f in data_part.split(",")]
+    return fields, checksum
+
 
 def validate_date_mm_dd_yy(date_str: str) -> None:
     """Validate MMDDYY date string."""

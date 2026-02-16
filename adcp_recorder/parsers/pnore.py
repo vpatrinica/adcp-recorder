@@ -3,8 +3,9 @@
 from dataclasses import dataclass, field
 
 from .utils import (
+    parse_nmea_sentence,
     parse_optional_float,
-    validate_date_mm_dd_yy,
+    validate_date_yy_mm_dd,
     validate_range,
     validate_time_string,
 )
@@ -26,7 +27,7 @@ class PNORE:
     checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
-        validate_date_mm_dd_yy(self.date)
+        validate_date_yy_mm_dd(self.date)
         validate_time_string(self.time)
         if self.spectrum_basis is not None:
             if self.spectrum_basis not in {0, 1, 3}:
@@ -47,17 +48,22 @@ class PNORE:
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORE":
-        sentence = sentence.strip()
-        data_part, checksum = sentence, None
-        if "*" in sentence:
-            data_part, checksum = sentence.rsplit("*", 1)
-            checksum = checksum.strip().upper()
-
-        fields = [f.strip() for f in data_part.split(",")]
-        if len(fields) < 7:  # Basic header fields
-            raise ValueError(f"Expected at least 7 fields for PNORE, got {len(fields)}")
+        fields, checksum = parse_nmea_sentence(sentence)
         if fields[0] != "$PNORE":
             raise ValueError(f"Invalid prefix: {fields[0]}")
+
+        # Check for DF=101 or DF=100
+        # Wait, PNORE only implements DF=101/100 as energy density
+        # For DF=101, it includes spectral basis
+
+        # Determine format based on number of fields
+        # DF=100: $PNORE,YYMMDD,HHMMSS,E1,E2,...
+        # DF=101: $PNORE,YYMMDD,HHMMSS,SpectrumBasis,StartFreq,StepFreq,NumFreq,E1,E2,...
+
+        # Actually our implementation expects the DF=101 format:
+        # fields: YYMMDD, HHMMSS, Basis, Start, Step, Num
+        if len(fields) < 7:
+            raise ValueError(f"Expected at least 7 fields for PNORE, got {len(fields)}")
 
         num_freq = int(fields[6]) if fields[6] and fields[6].lower() != "nan" else 0
 

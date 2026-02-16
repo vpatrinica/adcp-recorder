@@ -50,7 +50,7 @@ class TestPersistenceSuccess:
     """Validate successful insertion and complete retrieval for all types."""
 
     def test_pnori_persistence(self, db):
-        sentence = "$PNORI,4,Signature1000,4,20,0.20,1.00,0*2E"
+        sentence = "$PNORI,4,Signature1000,4,20,0.20,1.00,0*12"
         # Manually constructing expected dict to avoid relying on parser in this specific test?
         # No, better to use parser to ensure end-to-end alignment.
         msg = PNORI.from_nmea(sentence)
@@ -66,7 +66,7 @@ class TestPersistenceSuccess:
 
     def test_pnors_persistence(self, db):
         sentence = (
-            "$PNORS,102115,090715,00000000,2A480000,14.4,1523.0,275.9,15.7,2.3,0.0,22.45,0,0*XX"
+            "$PNORS,102115,090715,00000000,2A480000,14.4,1523.0,275.9,15.7,2.3,0.0,22.45,0,0*1F"
         )
         msg = PNORS.from_nmea(sentence)
         record_id = insert_sensor_data(db, sentence, msg.to_dict())
@@ -84,7 +84,7 @@ class TestPersistenceSuccess:
         # PNORC: 19 fields
         # vel1=0.5, vel2=0.1, vel3=0.2, vel4=0.3, speed=1.5, dir=180.0, amp_unit=C
         sentence = (
-            "$PNORC,102115,090715,1,0.5,0.1,0.2,0.3,1.5,180.0,C,100,101,102,103,90,91,92,93*41"
+            "$PNORC,102115,090715,1,0.5,0.1,0.2,0.3,1.5,180.0,C,100,101,102,103,90,91,92,93*36"
         )
         msg = PNORC.from_nmea(sentence)
         record_id = insert_velocity_data(db, sentence, msg.to_dict())
@@ -101,7 +101,7 @@ class TestPersistenceSuccess:
 
     def test_pnorh_persistence(self, db):
         # PNORH3: tagged (minimal)
-        sentence = "$PNORH3,DATE=211021,TIME=090715,EC=0,SC=2A4C0000*XX"
+        sentence = "$PNORH3,DATE=211021,TIME=090715,EC=0,SC=2A4C0000*50"
         msg = PNORH3.from_nmea(sentence)
         record_id = insert_header_data(db, sentence, msg.to_dict())
         assert record_id > 0
@@ -115,7 +115,7 @@ class TestPersistenceSuccess:
     def test_pnorw_persistence(self, db):
         sentence = (
             "$PNORW,102115,090715,1,1,1.5,1.6,1.7,2.5,5.0,6.0,5.5,180.0,10.0,"
-            "180.0,1.0,10.0,0,0,0.5,90.0,0000*XX"
+            "180.0,1.0,10.0,0,0,0.5,90.0,0000*48"
         )
         msg = PNORW.from_nmea(sentence)
         record_id = insert_pnorw_data(db, sentence, msg.to_dict())
@@ -126,7 +126,7 @@ class TestPersistenceSuccess:
         assert results[0]["hm0"] == 1.5
 
     def test_pnorb_persistence(self, db):
-        sentence = "$PNORB,102115,090715,1,4,0.02,0.20,0.27,7.54,12.00,82.42,75.46,82.10,0000*XX"
+        sentence = "$PNORB,102115,090715,1,4,0.02,0.20,0.27,7.54,12.00,82.42,75.46,82.10,0000*63"
         msg = PNORB.from_nmea(sentence)
         record_id = insert_pnorb_data(db, sentence, msg.to_dict())
         assert record_id > 0
@@ -143,7 +143,7 @@ class TestPersistenceSuccess:
 
     def test_pnore_persistence(self, db):
         # PNORE now uses energy density spectrum format
-        sentence = "$PNORE,102115,090715,1,0.02,0.01,5,1.5,2.5,3.5,4.5,5.5*XX"
+        sentence = "$PNORE,151021,090715,1,0.02,0.01,5,1.5,2.5,3.5,4.5,5.5*4B"
         msg = PNORE.from_nmea(sentence)
         record_id = insert_pnore_data(db, sentence, msg.to_dict())
         assert record_id > 0
@@ -156,7 +156,7 @@ class TestPersistenceSuccess:
 
     def test_pnorf_persistence(self, db):
         # PNORF now uses Fourier coefficient format
-        sentence = "$PNORF,A1,102115,090715,1,0.02,0.01,3,0.5,1.5,2.5*XX"
+        sentence = "$PNORF,A1,102115,090715,1,0.02,0.01,3,0.5,1.5,2.5*10"
         msg = PNORF.from_nmea(sentence)
         record_id = insert_pnorf_data(db, sentence, msg.to_dict())
         assert record_id > 0
@@ -169,7 +169,7 @@ class TestPersistenceSuccess:
 
     def test_pnorwd_persistence(self, db):
         # PNORWD now uses directional spectra format
-        sentence = "$PNORWD,MD,102115,090715,1,0.02,0.01,3,45.0,90.0,135.0*XX"
+        sentence = "$PNORWD,MD,102115,090715,1,0.02,0.01,3,45.0,90.0,135.0*35"
         msg = PNORWD.from_nmea(sentence)
         record_id = insert_pnorwd_data(db, sentence, msg.to_dict())
         assert record_id > 0
@@ -181,7 +181,7 @@ class TestPersistenceSuccess:
         assert results[0][4] == "MD"  # direction_type (index 4)
 
     def test_pnora_persistence(self, db):
-        sentence = "$PNORA,151021,090715,10.5,15.50,1,00,0.0,5.5*XX"
+        sentence = "$PNORA,151021,090715,10.5,15.50,1,00,0.0,5.5*4A"
         msg = PNORA.from_nmea(sentence)
         record_id = insert_pnora_data(db, sentence, msg.to_dict())
         assert record_id > 0
@@ -197,7 +197,7 @@ class TestPersistenceConstraints:
 
     def test_pnori_constraint(self, db):
         # Construct full valid dict but set required field to None
-        valid_sentence = "$PNORI,4,S,4,20,0,1,0*XX"
+        valid_sentence = "$PNORI,4,S,4,20,0,1,0*06"
         # We manually build dict to avoid valid_sentence parser errors
         valid_dict = {
             "sentence_type": "PNORI",

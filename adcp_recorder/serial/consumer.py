@@ -13,7 +13,12 @@ from typing import Any, Protocol, runtime_checkable
 
 import duckdb
 
-from adcp_recorder.core.nmea import extract_prefix, is_binary_data
+from adcp_recorder.core.nmea import (
+    compute_checksum,
+    extract_prefix,
+    is_binary_data,
+    validate_checksum,
+)
 from adcp_recorder.db import (
     DatabaseManager,
     insert_header_data,
@@ -297,6 +302,76 @@ class SerialConsumer:
             self._db_manager.close()
             logger.info("Consumer loop exiting")
 
+    def _record_error(
+        self,
+        conn: duckdb.DuckDBPyConnection,
+        raw_content: str | bytes,
+        error_type: str,
+        error_message: str,
+        prefix: str = "UNKNOWN",
+        parse_status: str = "FAIL",
+        checksum_expected: str | None = None,
+        checksum_actual: str | None = None,
+    ) -> None:
+        """Centralized error recording for parsers and processing."""
+        if isinstance(raw_content, bytes):
+            raw_str = raw_content.decode("ascii", errors="replace")
+        else:
+            raw_str = raw_content
+
+        logger.warning(f"{error_type} for {prefix}: {error_message}")
+
+        # Insert to database
+        insert_parse_error(
+            conn,
+            raw_str,
+            error_type=error_type,
+            error_message=error_message,
+            attempted_prefix=prefix,
+            checksum_expected=checksum_expected,
+            checksum_actual=checksum_actual,
+        )
+        insert_raw_line(
+            conn,
+            raw_str,
+            parse_status=parse_status,
+            record_type=prefix,
+            error_message=error_message,
+            checksum_valid=False if error_type == "CHECKSUM_ERROR" else None,
+        )
+
+        # Write to files
+        if self._file_writer:
+            with contextlib.suppress(Exception):
+                # Legacy text logs
+                if error_type == "BINARY_DATA":
+                    self._file_writer.write_invalid_record("BINARY", raw_str)
+                elif error_type == "DECODE_ERROR":
+                    self._file_writer.write_error(f"Decode error: {raw_str} - {error_message}")
+                else:
+                    self._file_writer.write_invalid_record(prefix, raw_str)
+
+                # Parquet export
+                self._file_writer.write_record(
+                    "errors",
+                    {
+                        "raw_content": raw_str,
+                        "error_type": error_type,
+                        "error_message": error_message,
+                        "attempted_prefix": prefix,
+                    },
+                )
+                self._file_writer.write_record(
+                    "raw_lines",
+                    {
+                        "content": raw_str,
+                        "parse_status": parse_status,
+                        "record_type": prefix,
+                        "error_message": error_message,
+                        "checksum_valid": False if error_type == "CHECKSUM_ERROR" else None,
+                    },
+                )
+
     def _process_line(self, conn: duckdb.DuckDBPyConnection, line_bytes: bytes) -> None:
         """Process a single line from the queue.
 
@@ -305,127 +380,71 @@ class SerialConsumer:
             line_bytes: Line data as bytes
 
         """
-        # Check for binary data
+        # 1. Check for binary data
         if is_binary_data(line_bytes):
-            logger.warning("Binary data in queue, logging to errors")
-            insert_parse_error(
-                conn,
-                line_bytes.decode("ascii", errors="replace"),
-                error_type="BINARY_DATA",
-                error_message="Binary data detected",
+            self._record_error(
+                conn, line_bytes, "BINARY_DATA", "Binary data detected", prefix="BINARY"
             )
-            insert_raw_line(
-                conn,
-                line_bytes.decode("ascii", errors="replace"),
-                parse_status="FAIL",
-                error_message="Binary data",
-            )
-            if self._file_writer:
-                with contextlib.suppress(Exception):
-                    self._file_writer.write_invalid_record(
-                        "BINARY", line_bytes.decode("ascii", errors="replace")
-                    )
-                # Add to parquet
-                with contextlib.suppress(Exception):
-                    self._file_writer.write_record(
-                        "errors",
-                        {
-                            "raw_content": line_bytes.decode("ascii", errors="replace"),
-                            "error_type": "BINARY_DATA",
-                            "error_message": "Binary data detected",
-                            "attempted_prefix": "BINARY",
-                        },
-                    )
-                with contextlib.suppress(Exception):
-                    self._file_writer.write_record(
-                        "raw_lines",
-                        {
-                            "content": line_bytes.decode("ascii", errors="replace"),
-                            "parse_status": "FAIL",
-                            "record_type": "BINARY",
-                            "error_message": "Binary data",
-                        },
-                    )
             return
 
-        # Decode to string
+        # 2. Decode to string
         try:
             sentence = line_bytes.decode("ascii").strip()
         except UnicodeDecodeError as e:
-            logger.error(f"Failed to decode line: {e}")
-            insert_parse_error(
-                conn,
-                line_bytes.decode("ascii", errors="replace"),
-                error_type="DECODE_ERROR",
-                error_message=str(e),
-            )
-            if self._file_writer:
-                try:
-                    self._file_writer.write_error(
-                        f"Decode error: {line_bytes.decode('ascii', errors='replace')} - {e}"
-                    )
-                except Exception as writer_err:  # pragma: no cover
-                    logger.error(f"Failed to write error to text log: {writer_err}")
-
-                # Add to parquet
-                try:
-                    self._file_writer.write_record(
-                        "errors",
-                        {
-                            "raw_content": line_bytes.decode("ascii", errors="replace"),
-                            "error_type": "DECODE_ERROR",
-                            "error_message": str(e),
-                            "attempted_prefix": "UNKNOWN",
-                        },
-                    )
-                except Exception as writer_err:  # pragma: no cover
-                    logger.error(f"Failed to write DECODE_ERROR to parquet: {writer_err}")
-
-                try:
-                    self._file_writer.write_record(
-                        "raw_lines",
-                        {
-                            "content": line_bytes.decode("ascii", errors="replace"),
-                            "parse_status": "FAIL",
-                            "record_type": "UNKNOWN",
-                            "error_message": str(e),
-                        },
-                    )
-                except Exception as writer_err:  # pragma: no cover
-                    logger.error(
-                        f"Failed to write raw_line to parquet for DECODE_ERROR: {writer_err}"
-                    )
+            self._record_error(conn, line_bytes, "DECODE_ERROR", str(e))
             return
 
         if not sentence:
             return
 
-        # Route to parser
+        # 3. Basic NMEA validation and Routing
         prefix = "UNKNOWN"
         try:
-            # Extract prefix
-            prefix = extract_prefix(sentence)
+            # Extract prefix carefully
+            try:
+                prefix = extract_prefix(sentence)
+            except ValueError:
+                # Still try to route/handle if prefix extraction fails (e.g. malformed start)
+                pass
 
+            # Checksum validation if present
+            if "*" in sentence:
+                try:
+                    if not validate_checksum(sentence):
+                        data_part, provided = sentence.rsplit("*", 1)
+                        computed = compute_checksum(sentence)
+                        self._record_error(
+                            conn,
+                            sentence,
+                            "CHECKSUM_ERROR",
+                            f"Checksum mismatch: expected {computed}, got {provided}",
+                            prefix=prefix,
+                            checksum_expected=computed,
+                            checksum_actual=provided,
+                        )
+                        return
+                except ValueError as e:
+                    self._record_error(conn, sentence, "CHECKSUM_ERROR", str(e), prefix=prefix)
+                    return
+
+            # Route to parser
             parsed = self._router.route(sentence)
 
             if parsed is None:
-                # Unknown message type
+                # Unknown message type - log and store as PENDING
                 logger.debug(f"Unknown message type: {prefix}")
                 insert_raw_line(
                     conn,
                     sentence,
                     parse_status="PENDING",
                     record_type=prefix,
-                    checksum_valid=None,
+                    checksum_valid=True if "*" in sentence else None,
                     error_message=f"No parser for {prefix}",
                 )
                 if self._file_writer:
-                    try:
+                    with contextlib.suppress(Exception):
                         self._file_writer.write(prefix, sentence)
-                    except Exception as writer_err:  # pragma: no cover
-                        logger.error(f"Failed to write {prefix} to text log: {writer_err}")
-
-                    try:
+                    with contextlib.suppress(Exception):
                         self._file_writer.write_record(
                             "raw_lines",
                             {
@@ -433,13 +452,12 @@ class SerialConsumer:
                                 "parse_status": "PENDING",
                                 "record_type": prefix,
                                 "error_message": f"No parser for {prefix}",
+                                "checksum_valid": True if "*" in sentence else None,
                             },
                         )
-                    except Exception as writer_err:
-                        logger.error(f"Failed to write {prefix} raw_line to parquet: {writer_err}")
                 return
 
-            # Successfully parsed - insert to database
+            # 4. Successfully parsed - insert to database
             self._store_parsed_message(conn, sentence, prefix, parsed)
 
             # Also insert to raw_lines
@@ -448,84 +466,26 @@ class SerialConsumer:
                 sentence,
                 parse_status="OK",
                 record_type=prefix,
-                checksum_valid=True,
+                checksum_valid=True if "*" in sentence else None,
             )
 
             if self._file_writer:
-                try:
+                with contextlib.suppress(Exception):
                     self._file_writer.write(prefix, sentence)
-                except Exception as writer_err:
-                    logger.error(f"Failed to write structured {prefix} to text log: {writer_err}")
-
-                try:
+                with contextlib.suppress(Exception):
                     self._file_writer.write_record(
                         "raw_lines",
                         {
                             "content": sentence,
                             "parse_status": "OK",
                             "record_type": prefix,
-                            "checksum_valid": True,
+                            "checksum_valid": True if "*" in sentence else None,
                         },
-                    )
-                except Exception as writer_err:
-                    logger.error(
-                        f"Failed to write structured {prefix} raw_line to parquet: {writer_err}"
                     )
 
         except ValueError as e:
-            # Parse failed
-            logger.warning(f"Parse failed for {prefix}: {e}")
-            insert_parse_error(
-                conn,
-                sentence,
-                error_type="PARSE_ERROR",
-                error_message=str(e),
-                attempted_prefix=prefix,
-            )
-            insert_raw_line(
-                conn,
-                sentence,
-                parse_status="FAIL",
-                record_type=prefix,
-                error_message=str(e),
-            )
-
-            if self._file_writer:
-                try:
-                    self._file_writer.write_invalid_record(prefix, sentence)
-                except Exception as writer_err:
-                    logger.error(f"Failed to write invalid {prefix} to text log: {writer_err}")
-
-                try:
-                    self._file_writer.write_record(
-                        "errors",
-                        {
-                            "raw_content": sentence,
-                            "error_type": "PARSE_ERROR",
-                            "error_message": str(e),
-                            "attempted_prefix": prefix,
-                        },
-                    )
-                except Exception as writer_err:
-                    logger.error(
-                        f"Failed to write PARSE_ERROR for {prefix} to parquet: {writer_err}"
-                    )
-
-                try:
-                    self._file_writer.write_record(
-                        "raw_lines",
-                        {
-                            "content": sentence,
-                            "parse_status": "FAIL",
-                            "record_type": prefix,
-                            "error_message": str(e),
-                        },
-                    )
-                except Exception as writer_err:
-                    logger.error(
-                        f"Failed to write raw_line for {prefix} parse failure "
-                        f"to parquet: {writer_err}"
-                    )
+            # Parse failed (ValidationError from from_nmea)
+            self._record_error(conn, sentence, "PARSE_ERROR", str(e), prefix=prefix)
 
     def _store_parsed_message(
         self, conn: duckdb.DuckDBPyConnection, sentence: str, prefix: str, parsed: Any

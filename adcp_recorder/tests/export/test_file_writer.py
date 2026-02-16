@@ -26,7 +26,7 @@ class TestFileWriter:
     def test_write_creates_file(self, export_dir):
         """Test writing creates a file."""
         writer = FileWriter(export_dir)
-        writer.write("PNORI", "$PNORI,test*00")
+        writer.write("PNORI", "$PNORI,test")
 
         # Check file exists
         date_str = datetime.now().strftime("%Y%m%d")
@@ -36,7 +36,7 @@ class TestFileWriter:
         # Check content
         with open(expected_file) as f:
             content = f.read()
-        assert content == "$PNORI,test*00\n"
+        assert content == "$PNORI,test\n"
 
     def test_write_appends_newline(self, export_dir):
         """Test that write appends newline if missing."""

@@ -10,10 +10,9 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
-from adcp_recorder.core.enums import CoordinateSystem, InstrumentType
-from adcp_recorder.core.nmea import compute_checksum
-
-from .utils import parse_optional_float
+from ..core.enums import CoordinateSystem, InstrumentType
+from ..core.nmea import compute_checksum
+from .utils import parse_nmea_sentence, parse_optional_float
 
 
 # Shared validation functions
@@ -114,21 +113,9 @@ class PNORI:
             ValueError: If sentence format is invalid or fields fail validation
 
         """
-        sentence = sentence.strip()
-
-        # Extract checksum if present
-        if "*" in sentence:
-            data_part, checksum = sentence.rsplit("*", 1)
-            checksum = checksum.strip().upper()
-        else:
-            data_part, checksum = sentence, None
-
-        # Split fields
-        fields = [f.strip() for f in data_part.split(",")]
-
+        fields, checksum = parse_nmea_sentence(sentence)
         if len(fields) != 8:
             raise ValueError(f"Expected 8 fields, got {len(fields)}")
-
         if fields[0] != "$PNORI":
             raise ValueError(f"Invalid prefix: expected $PNORI, got {fields[0]}")
 
@@ -240,21 +227,9 @@ class PNORI1:
             ValueError: If sentence format is invalid or fields fail validation
 
         """
-        sentence = sentence.strip()
-
-        # Extract checksum if present
-        if "*" in sentence:
-            data_part, checksum = sentence.rsplit("*", 1)
-            checksum = checksum.strip().upper()
-        else:
-            data_part, checksum = sentence, None
-
-        # Split fields
-        fields = [f.strip() for f in data_part.split(",")]
-
+        fields, checksum = parse_nmea_sentence(sentence)
         if len(fields) != 8:
             raise ValueError(f"Expected 8 fields, got {len(fields)}")
-
         if fields[0] != "$PNORI1":
             raise ValueError(f"Invalid prefix: expected $PNORI1, got {fields[0]}")
 
@@ -397,52 +372,34 @@ class PNORI2:
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORI2":
-        """Parse PNORI2 message from NMEA sentence.
+        """Parse from NMEA sentence.
 
         Args:
-            sentence: NMEA sentence string (with or without checksum)
+            sentence: NMEA sentence string
 
         Returns:
-            Parsed PNORI2 configuration object
+            PNORI2 object
 
         Raises:
             ValueError: If sentence format is invalid or fields fail validation
 
         """
-        sentence = sentence.strip()
-
-        # Extract checksum if present
-        if "*" in sentence:
-            data_part, checksum = sentence.rsplit("*", 1)
-            checksum = checksum.strip().upper()
-        else:
-            data_part, checksum = sentence, None
-
-        # Split fields
-        fields = [f.strip() for f in data_part.split(",")]
-
+        fields, checksum = parse_nmea_sentence(sentence)
         if len(fields) < 8:
             raise ValueError(f"Expected at least 8 fields, got {len(fields)}")
-
         if fields[0] != "$PNORI2":
-            raise ValueError(f"Invalid prefix: expected $PNORI2, got {fields[0]}")
+            raise ValueError(f"Invalid prefix: {fields[0]}")
 
         # Parse tagged fields
-        data: dict[str, str] = {}
-        for field_str in fields[1:]:
+        data: dict[str, Any] = {}
+        for i in range(1, len(fields)):
+            field_str = fields[i]
             tag, value = PNORITag.parse_tagged_field(field_str)
+            if tag not in PNORITag.VALID_TAGS:
+                raise ValueError(f"Unknown tag in PNORI2: {tag}")
             if tag in data:
                 raise ValueError(f"Duplicate tag: {tag}")
             data[tag] = value
-
-        # Verify all required tags present
-        if set(data.keys()) != PNORITag.VALID_TAGS:
-            missing = PNORITag.VALID_TAGS - set(data.keys())
-            extra = set(data.keys()) - PNORITag.VALID_TAGS
-            if missing:
-                raise ValueError(f"Missing mandatory tags: {missing}")
-            if extra:
-                raise ValueError(f"Unknown tags: {extra}")
 
         # Parse and validate
         return cls(

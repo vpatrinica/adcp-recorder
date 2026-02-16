@@ -30,3 +30,9 @@ tgt.db
 *.parquet
 htmlcov
 htmlcov/*
+node_modules
+node_modules/*
+package.json
+package-lock.json
+.opencode/opencode.json
+.vscode/settings.json

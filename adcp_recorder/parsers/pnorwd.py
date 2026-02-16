@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 
 from .utils import (
+    parse_nmea_sentence,
     parse_optional_float,
     validate_date_mm_dd_yy,
     validate_range,
@@ -49,13 +50,7 @@ class PNORWD:
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORWD":
-        sentence = sentence.strip()
-        data_part, checksum = sentence, None
-        if "*" in sentence:
-            data_part, checksum = sentence.rsplit("*", 1)
-            checksum = checksum.strip().upper()
-
-        fields = [f.strip() for f in data_part.split(",")]
+        fields, checksum = parse_nmea_sentence(sentence)
         if len(fields) < 8:  # Basic header fields
             raise ValueError(f"Expected at least 8 fields for PNORWD, got {len(fields)}")
         if fields[0] != "$PNORWD":
@@ -64,7 +59,9 @@ class PNORWD:
         num_freq = int(fields[7]) if fields[7] and fields[7].lower() != "nan" else 0
 
         # Values start from index 8
-        vals = [parse_optional_float(fields[i]) for i in range(8, len(fields))]
+        vals = []
+        for i in range(8, len(fields)):
+            vals.append(parse_optional_float(fields[i]))
 
         # If we have a mismatch between num_freq and actual values,
         # we'll handle it in __post_init__ or here. But let's keep it simple for now.

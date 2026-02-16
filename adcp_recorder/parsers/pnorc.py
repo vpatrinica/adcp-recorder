@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .utils import (
+    parse_nmea_sentence,
     parse_optional_float,
     parse_tagged_field,
     validate_date_mm_dd_yy,
@@ -95,13 +96,7 @@ class PNORC:
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORC":
-        sentence = sentence.strip()
-        data_part, checksum = sentence, None
-        if "*" in sentence:
-            data_part, checksum = sentence.rsplit("*", 1)
-            checksum = checksum.strip().upper()
-
-        fields = [f.strip() for f in data_part.split(",")]
+        fields, checksum = parse_nmea_sentence(sentence)
         if len(fields) != 19:
             raise ValueError(f"Expected 19 fields for PNORC, got {len(fields)}")
         if fields[0] != "$PNORC":
@@ -193,13 +188,7 @@ class PNORC1:
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORC1":
-        sentence = sentence.strip()
-        data_part, checksum = sentence, None
-        if "*" in sentence:
-            data_part, checksum = sentence.rsplit("*", 1)
-            checksum = checksum.strip().upper()
-
-        fields = [f.strip() for f in data_part.split(",")]
+        fields, checksum = parse_nmea_sentence(sentence)
         if len(fields) != 17:
             raise ValueError(f"Expected 17 fields for PNORC1, got {len(fields)}")
         if fields[0] != "$PNORC1":
@@ -306,19 +295,14 @@ class PNORC2:
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORC2":
-        sentence = sentence.strip()
-        data_part, checksum = sentence, None
-        if "*" in sentence:
-            data_part, checksum = sentence.rsplit("*", 1)
-            checksum = checksum.strip().upper()
-
-        fields = [f.strip() for f in data_part.split(",")]
+        fields, checksum = parse_nmea_sentence(sentence)
         if fields[0] != "$PNORC2":
             raise ValueError(f"Invalid prefix: {fields[0]}")
 
         data: dict[str, Any] = {}
         seen_tags = set()
-        for field_str in fields[1:]:
+        for i in range(1, len(fields)):
+            field_str = fields[i]
             tag, val = parse_tagged_field(field_str)
             if tag in seen_tags:
                 raise ValueError(f"Duplicate tag: {tag}")
@@ -341,7 +325,7 @@ class PNORC2:
                     int(val) if val and val.lower() != "nan" else None
                 )
             else:
-                raise ValueError(f"Unknown tag in PNORC2: {tag}")
+                raise ValueError(f"Unknown tags in PNORC2: {tag}")
 
         required = [
             "date",
@@ -428,21 +412,16 @@ class PNORC3:
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORC3":
-        sentence = sentence.strip()
-        data_part, checksum = sentence, None
-        if "*" in sentence:
-            data_part, checksum = sentence.rsplit("*", 1)
-            checksum = checksum.strip().upper()
-
-        fields = [f.strip() for f in data_part.split(",")]
+        fields, checksum = parse_nmea_sentence(sentence)
         if fields[0] != "$PNORC3":
             raise ValueError(f"Invalid prefix: {fields[0]}")
 
         data: dict[str, Any] = {}
-        for field_str in fields[1:]:
+        for i in range(1, len(fields)):
+            field_str = fields[i]
             tag, val = parse_tagged_field(field_str)
             if tag not in cls.TAG_IDS:
-                raise ValueError(f"Unknown tag in PNORC3: {tag}")
+                raise ValueError(f"Unknown tags in PNORC3: {tag}")
             field_name = cls.TAG_IDS[tag]
             if field_name in ["avg_amplitude", "avg_correlation"]:
                 data[field_name] = int(val) if val and val.lower() != "nan" else None
@@ -494,13 +473,7 @@ class PNORC4:
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORC4":
-        sentence = sentence.strip()
-        data_part, checksum = sentence, None
-        if "*" in sentence:
-            data_part, checksum = sentence.rsplit("*", 1)
-            checksum = checksum.strip().upper()
-
-        fields = [f.strip() for f in data_part.split(",")]
+        fields, checksum = parse_nmea_sentence(sentence)
         if len(fields) != 6:
             raise ValueError(f"Expected 6 fields for PNORC4, got {len(fields)}")
         if fields[0] != "$PNORC4":

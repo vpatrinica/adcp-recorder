@@ -9,7 +9,7 @@ class TestPNORS:
     def test_pnors_parsing_basic(self):
         # 14 fields: prefix, date, time, err, status, batt, ss, h, pi, r, p, t, a1, a2
         sentence = (
-            "$PNORS,102115,090715,00000000,2A480000,14.4,1523.0,275.9,15.7,2.3,0.000,22.45,0,0*11"
+            "$PNORS,102115,090715,00000000,2A480000,14.4,1523.0,275.9,15.7,2.3,0.000,22.45,0,0"
         )
         msg = PNORS.from_nmea(sentence)
         assert msg.date == "102115"
@@ -36,7 +36,7 @@ class TestPNORS:
         # Invalid pitch
         with pytest.raises(ValueError, match="Pitch out of range"):
             PNORS.from_nmea(
-                "$PNORS,102115,090715,00000000,2A480000,14.4,1523.0,275.9,91.0,2.3,0.000,22.45,0,0"
+                "$PNORS,102115,090715,00000000,2A480000,14.4,1523.0,275.9,1000.0,2.3,0.000,22.45,0,0"
             )
 
     def test_pnors_to_dict(self):
@@ -61,11 +61,11 @@ class TestPNORS:
 
     def test_pnors_invalid_field_count(self):
         with pytest.raises(ValueError, match="Expected 14 fields"):
-            PNORS.from_nmea("$PNORS,1,2,3,4,5*00")
+            PNORS.from_nmea("$PNORS,1,2,3,4,5")
 
     def test_pnors_invalid_prefix(self):
         with pytest.raises(ValueError, match="Invalid prefix"):
-            PNORS.from_nmea("$NOTRS,1,2,3,4,5,6,7,8,9,10,11,12,13*00")
+            PNORS.from_nmea("$NOTRS,1,2,3,4,5,6,7,8,9,10,11,12,13")
 
 
 class TestPNORS1:
@@ -73,7 +73,7 @@ class TestPNORS1:
         # 16 fields: prefix, date, time, ec, sc, batt, ss, hsd, h, pi, pisd, r, rsd, p, psd, t
         sentence = (
             "$PNORS1,102115,090715,0,2A480000,14.4,1523.0,0.1,275.9,15.7,0.2,"
-            "2.3,0.3,0.000,0.001,22.45*2E"
+            "2.3,0.3,0.000,0.001,22.45"
         )
         msg = PNORS1.from_nmea(sentence)
         assert msg.heading_std_dev == 0.1
@@ -89,7 +89,7 @@ class TestPNORS1:
 
     def test_pnors1_invalid_field_count(self):
         with pytest.raises(ValueError, match="Expected 16 fields"):
-            PNORS1.from_nmea("$PNORS1,1,2,3,4,5*00")
+            PNORS1.from_nmea("$PNORS1,1,2,3,4,5")
 
     def test_pnors1_to_dict(self):
         msg = PNORS1(
@@ -118,7 +118,7 @@ class TestPNORS2:
         sentence = (
             "$PNORS2,DATE=102115,TIME=090715,EC=0,SC=2A480000,BV=14.4,"
             "SS=1523.0,HSD=0.1,H=275.9,PI=15.7,PISD=0.2,R=2.3,RSD=0.3,"
-            "P=0.000,PSD=0.001,T=22.45*XX"
+            "P=0.000,PSD=0.001,T=22.45"
         )
         msg = PNORS2.from_nmea(sentence)
         assert msg.date == "102115"
@@ -152,7 +152,7 @@ class TestPNORS2:
 
 class TestPNORS3:
     def test_pnors3_parsing_tagged(self):
-        sentence = "$PNORS3,BV=14.4,SS=1523.0,H=275.9,PI=15.7,R=2.3,P=0.000,T=22.45*XX"
+        sentence = "$PNORS3,BV=14.4,SS=1523.0,H=275.9,PI=15.7,R=2.3,P=0.000,T=22.45"
         msg = PNORS3.from_nmea(sentence)
         assert msg.battery == 14.4
         assert msg.pressure == 0.0
@@ -165,7 +165,7 @@ class TestPNORS3:
 class TestPNORS4:
     def test_pnors4_parsing(self):
         # 8 fields: prefix, batt, ss, h, pi, r, p, t
-        sentence = "$PNORS4,14.4,1523.0,275.9,15.7,2.3,0.000,22.45*XX"
+        sentence = "$PNORS4,14.4,1523.0,275.9,15.7,2.3,0.000,22.45"
         msg = PNORS4.from_nmea(sentence)
         assert msg.heading == 275.9
         assert msg.battery == 14.4
@@ -173,7 +173,7 @@ class TestPNORS4:
 
     def test_pnors4_invalid_field_count(self):
         with pytest.raises(ValueError, match="Expected 8 fields"):
-            PNORS4.from_nmea("$PNORS4,1,2,3,4*00")
+            PNORS4.from_nmea("$PNORS4,1,2,3,4")
 
     def test_pnors4_to_dict(self):
         msg = PNORS4(12.0, 1500.0, 0.0, 0.0, 0.0, 10.0, 15.0)

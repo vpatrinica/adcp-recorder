@@ -79,7 +79,7 @@ class TestSerialProducer:
             [False, True, True], itertools.repeat(True)
         )
         manager.reconnect.return_value = True
-        manager.read_line.return_value = b"$PNORI,4,Test*00\r\n"
+        manager.read_line.return_value = b"$PNORI,4,Test\r\n"
 
         queue: Queue[Any] = Queue(maxsize=100)
 
@@ -101,9 +101,9 @@ class TestSerialProducer:
 
         # Simulate reading a few lines then stopping
         lines = [
-            b"$PNORI,4,Test1*00\r\n",
-            b"$PNORI,4,Test2*00\r\n",
-            b"$PNORI,4,Test3*00\r\n",
+            b"$PNORI,4,Test1\r\n",
+            b"$PNORI,4,Test2\r\n",
+            b"$PNORI,4,Test3\r\n",
         ]
         lines_iter = itertools.chain(lines, itertools.cycle([b""]))
         manager.read_line.side_effect = lambda timeout=None: next(lines_iter)
@@ -166,7 +166,7 @@ class TestSerialProducer:
         """Test that heartbeat is updated on successful reads."""
         manager = Mock(spec=SerialConnectionManager)
         manager.is_connected.return_value = True
-        lines_iter = itertools.chain([b"$PNORI,4,Test*00\r\n"], itertools.cycle([b""]))
+        lines_iter = itertools.chain([b"$PNORI,4,Test\r\n"], itertools.cycle([b""]))
         manager.read_line.side_effect = lambda timeout=None: next(lines_iter)
 
         queue: Queue[Any] = Queue(maxsize=100)
@@ -188,7 +188,7 @@ class TestSerialProducer:
         manager.is_connected.return_value = True
 
         # Create many lines
-        lines = [f"$PNORI,4,Test{i}*00\r\n".encode() for i in range(20)]
+        lines = [f"$PNORI,4,Test{i}\r\n".encode() for i in range(20)]
         lines_iter = itertools.chain(lines, itertools.cycle([b""]))
         manager.read_line.side_effect = lambda timeout=None: next(lines_iter)
 
@@ -208,7 +208,7 @@ class TestSerialProducer:
         """Test that empty lines are skipped."""
         manager = Mock(spec=SerialConnectionManager)
         manager.is_connected.return_value = True
-        lines_iter = itertools.chain([b"", b"$PNORI,4,Test*00\r\n"], itertools.cycle([b""]))
+        lines_iter = itertools.chain([b"", b"$PNORI,4,Test\r\n"], itertools.cycle([b""]))
         manager.read_line.side_effect = lambda timeout=None: next(lines_iter)
 
         queue: Queue[Any] = Queue(maxsize=100)

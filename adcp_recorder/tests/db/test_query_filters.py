@@ -29,8 +29,8 @@ def test_query_raw_lines_filters(db):
     now - timedelta(hours=1)
     now + timedelta(hours=1)
 
-    insert_raw_line(conn, "$PNORI,1*00", parse_status="OK", record_type="PNORI")
-    insert_raw_line(conn, "$PNORS,2*00", parse_status="FAIL", record_type="PNORS")
+    insert_raw_line(conn, "$PNORI,1", parse_status="OK", record_type="PNORI")
+    insert_raw_line(conn, "$PNORS,2", parse_status="FAIL", record_type="PNORS")
 
     # Test record_type filter
     results = query_raw_lines(conn, record_type="PNORI")

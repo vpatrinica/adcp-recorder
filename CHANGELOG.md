@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Directional spectrum polar plots for wave analysis
 
+## [0.2.5] - 2026-02-16
+
+### Fixed
+
+- **Code Coverage**: Achieved 100% test coverage by closing gaps in `utils.py`, `consumer.py` and `parquet_writer.py`.
+- **Quality Assurance**: Implemented unified, cross-platform quality check script (`scripts/utils/check_quality.py`) wrapping linting, type-checking, formatting, and testing.
+- **Strict Typing**: Enabled `check_untyped_defs = true` in mypy configuration and resolved all resulting errors.
+- **Documentation**: Added `AGENTS.md` as the master guide for AI agents and developers. Established automated documentation coverage checks (`scripts/check_docs.py`) and generation (`scripts/generate_docs.bat`).
+- **NMEA Checksum Logic**: Fixed potential issues in NMEA checksum validation and handling of invalid hex strings.
+- **Test Data**: Corrected invalid date formats in test data for `PNORE` messages to match parser expectations.
+
 ## [0.2.4] - 2026-02-10
 
 ### Fixed
@@ -238,6 +249,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[0.2.5]: https://github.com/vpatrinica/adcp-recorder/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/vpatrinica/adcp-recorder/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/vpatrinica/adcp-recorder/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/vpatrinica/adcp-recorder/compare/v0.2.1...v0.2.2

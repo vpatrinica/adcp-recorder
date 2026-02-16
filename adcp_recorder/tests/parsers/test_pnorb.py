@@ -9,7 +9,7 @@ class TestPNORB:
     def test_pnorb_parsing(self):
         # 14 fields: prefix, date, time, basis, method, flow, fhigh, hm0,
         # tm02, tp, dir_tp, spr_tp, main, err
-        sentence = "$PNORB,102115,090715,1,4,0.02,0.20,0.27,7.54,12.00,82.42,75.46,82.10,0000*32"
+        sentence = "$PNORB,102115,090715,1,4,0.02,0.20,0.27,7.54,12.00,82.42,75.46,82.10,0000*63"
         msg = PNORB.from_nmea(sentence)
         assert msg.spectrum_basis == 1
         assert msg.processing_method == 4
@@ -27,7 +27,7 @@ class TestPNORB:
         # Test -9.0000 indicator
         sentence = (
             "$PNORB,102115,090715,1,4,0.02,0.20,-9.0000,-9.0000,-9.0000,"
-            "-9.0000,-9.0000,-9.0000,0001*XX"
+            "-9.0000,-9.0000,-9.0000,0001*65"
         )
         msg = PNORB.from_nmea(sentence)
         assert msg.hm0 is None
@@ -36,12 +36,12 @@ class TestPNORB:
 
     def test_pnorb_invalid_field_count(self):
         with pytest.raises(ValueError, match="Expected 14 fields"):
-            PNORB.from_nmea("$PNORB,1,2,3,4,5,6*00")
+            PNORB.from_nmea("$PNORB,1,2,3,4,5,6*46")
 
     def test_pnorb_invalid_prefix(self):
         with pytest.raises(ValueError, match="Invalid prefix"):
             PNORB.from_nmea(
-                "$NOTRB,102115,090715,1,4,0.02,0.20,0.27,7.54,12.00,82.42,75.46,82.10,0000*XX"
+                "$NOTRB,102115,090715,1,4,0.02,0.20,0.27,7.54,12.00,82.42,75.46,82.10,0000"
             )
 
     def test_pnorb_to_dict(self):
@@ -66,6 +66,6 @@ class TestPNORB:
 
     def test_pnorb_nan_handling(self):
         # Test 'nan' case-insensitively
-        sentence = "$PNORB,102115,090715,1,4,0.02,0.20,NaN,7.54,12.00,82.42,75.46,82.10,0000*32"
+        sentence = "$PNORB,102115,090715,1,4,0.02,0.20,NaN,7.54,12.00,82.42,75.46,82.10,0000*19"
         msg = PNORB.from_nmea(sentence)
         assert msg.hm0 is None

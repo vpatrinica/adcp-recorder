@@ -8,7 +8,7 @@ from adcp_recorder.parsers.pnora import PNORA
 class TestPNORA:
     def test_pnora_parsing_basic(self):
         # 9 fields: prefix, date, time, pressure, distance, quality, status, pitch, roll
-        sentence = "$PNORA,250101,120000,10.5,15.50,95,01,1.5,2.3*11"
+        sentence = "$PNORA,250101,120000,10.5,15.50,95,01,1.5,2.3*7B"
         msg = PNORA.from_nmea(sentence)
         assert msg.date == "250101"
         assert msg.time == "120000"
@@ -46,7 +46,7 @@ class TestPNORA:
 
     def test_pnora_tagged_format(self):
         # Tagged format (DF=201)
-        sentence = "$PNORA,DATE=190902,TIME=122341,P=0.000,A=24.274,Q=13068,ST=08,PI=-2.6,R=-0.8*72"
+        sentence = "$PNORA,DATE=190902,TIME=122341,P=0.000,A=24.274,Q=13068,ST=08,PI=-2.6,R=-0.8*44"
         msg = PNORA.from_nmea(sentence)
         assert msg.date == "190902"
         assert msg.time == "122341"
@@ -59,4 +59,4 @@ class TestPNORA:
 
     def test_pnora_invalid_field_count(self):
         with pytest.raises(ValueError, match="Expected 9 fields"):
-            PNORA.from_nmea("$PNORA,1,2,3,4,5*00")
+            PNORA.from_nmea("$PNORA,1,2,3,4,5*5F")

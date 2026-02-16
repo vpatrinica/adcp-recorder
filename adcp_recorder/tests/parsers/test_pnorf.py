@@ -14,7 +14,7 @@ class TestPNORFParser:
         sentence = (
             "$PNORF,A1,120720,093150,1,0.02,0.01,10,"
             "0.0348,0.0958,0.1372,0.1049,-0.0215,-0.0143,0.0358,0.0903,"
-            "-9.0000,-9.0000*0D"
+            "-9.0000,-9.0000"
         )
 
         pnorf = PNORF.from_nmea(sentence)
@@ -27,7 +27,7 @@ class TestPNORFParser:
         assert pnorf.step_frequency == 0.01
         assert pnorf.num_frequencies == 10
         assert len(pnorf.coefficients) == 10
-        assert pnorf.checksum == "0D"
+        assert pnorf.checksum is None
 
         # Verify first few coefficients
         assert pnorf.coefficients[0] == pytest.approx(0.0348)
@@ -41,39 +41,39 @@ class TestPNORFParser:
     def test_all_coefficient_types(self):
         """Test all four coefficient types: A1, B1, A2, B2."""
         for coeff_type in ["A1", "B1", "A2", "B2"]:
-            sentence = f"$PNORF,{coeff_type},120720,093150,0,0.05,0.02,3,1.234,2.345,3.456*00"
+            sentence = f"$PNORF,{coeff_type},120720,093150,0,0.05,0.02,3,1.234,2.345,3.456"
             pnorf = PNORF.from_nmea(sentence)
             assert pnorf.coefficient_flag == coeff_type
 
     def test_all_spectrum_basis_types(self):
         """Test all spectrum basis types: 0=Pressure, 1=Velocity, 3=AST."""
         for basis in [0, 1, 3]:
-            sentence = f"$PNORF,A1,120720,093150,{basis},0.05,0.02,2,1.0,2.0*00"
+            sentence = f"$PNORF,A1,120720,093150,{basis},0.05,0.02,2,1.0,2.0"
             pnorf = PNORF.from_nmea(sentence)
             assert pnorf.spectrum_basis == basis
 
     def test_invalid_coefficient_flag(self):
         """Test that invalid coefficient flags are rejected."""
-        sentence = "$PNORF,XX,120720,093150,1,0.05,0.02,2,1.0,2.0*00"
+        sentence = "$PNORF,XX,120720,093150,1,0.05,0.02,2,1.0,2.0*66"
         with pytest.raises(ValueError, match="Invalid coefficient flag"):
             PNORF.from_nmea(sentence)
 
     def test_invalid_spectrum_basis(self):
         """Test that invalid spectrum basis values are rejected."""
-        sentence = "$PNORF,A1,120720,093150,2,0.05,0.02,2,1.0,2.0*00"
+        sentence = "$PNORF,A1,120720,093150,2,0.05,0.02,2,1.0,2.0*15"
         with pytest.raises(ValueError, match="Invalid spectrum basis"):
             PNORF.from_nmea(sentence)
 
     def test_coefficient_count_mismatch(self):
         """Test that coefficient count must match num_frequencies."""
         # Says 5 frequencies but only provides 3
-        sentence = "$PNORF,A1,120720,093150,1,0.05,0.02,5,1.0,2.0,3.0*00"
+        sentence = "$PNORF,A1,120720,093150,1,0.05,0.02,5,1.0,2.0,3.0*10"
         with pytest.raises(ValueError, match="Coefficient count mismatch"):
             PNORF.from_nmea(sentence)
 
     def test_to_dict(self):
         """Test conversion to dictionary."""
-        sentence = "$PNORF,B1,120720,093150,3,0.03,0.01,4,1.1,2.2,3.3,4.4*00"
+        sentence = "$PNORF,B1,120720,093150,3,0.03,0.01,4,1.1,2.2,3.3,4.4*17"
         pnorf = PNORF.from_nmea(sentence)
         data = pnorf.to_dict()
 
@@ -86,11 +86,11 @@ class TestPNORFParser:
         assert data["step_frequency"] == 0.01
         assert data["num_frequencies"] == 4
         assert data["coefficients"] == [1.1, 2.2, 3.3, 4.4]
-        assert data["checksum"] == "00"
+        assert data["checksum"] == "17"
 
     def test_negative_coefficients(self):
         """Test that negative coefficients are handled correctly."""
-        sentence = "$PNORF,A2,120720,093150,1,0.05,0.02,5,-1.5,-2.5,-3.5,-4.5,-5.5*00"
+        sentence = "$PNORF,A2,120720,093150,1,0.05,0.02,5,-1.5,-2.5,-3.5,-4.5,-5.5*3A"
         pnorf = PNORF.from_nmea(sentence)
         assert pnorf.coefficients == pytest.approx([-1.5, -2.5, -3.5, -4.5, -5.5])
 
@@ -98,31 +98,31 @@ class TestPNORFParser:
         """Test with maximum allowed frequencies (999)."""
         # Generate 999 coefficients
         coeffs = ",".join(["1.0"] * 999)
-        sentence = f"$PNORF,A1,120720,093150,1,0.01,0.01,999,{coeffs}*00"
+        sentence = f"$PNORF,A1,120720,093150,1,0.01,0.01,999,{coeffs}"
         pnorf = PNORF.from_nmea(sentence)
         assert len(pnorf.coefficients) == 999
         assert all(c == 1.0 for c in pnorf.coefficients)
 
     def test_invalid_prefix(self):
         """Test that wrong prefix is rejected."""
-        sentence = "$PNORS,A1,120720,093150,1,0.05,0.02,2,1.0,2.0*00"
+        sentence = "$PNORS,A1,120720,093150,1,0.05,0.02,2,1.0,2.0*03"
         with pytest.raises(ValueError, match="Invalid prefix"):
             PNORF.from_nmea(sentence)
 
     def test_minimum_fields_check(self):
         """Test that sentences with too few fields are rejected."""
-        sentence = "$PNORF,A1,120720,093150*00"
+        sentence = "$PNORF,A1,120720,093150*11"
         with pytest.raises(ValueError, match="Expected at least 8 fields"):
             PNORF.from_nmea(sentence)
 
     def test_frequency_range_validation(self):
         """Test frequency parameter validation."""
         # Start frequency too high
-        sentence = "$PNORF,A1,120720,093150,1,15.0,0.02,2,1.0,2.0*00"
+        sentence = "$PNORF,A1,120720,093150,1,15.0,0.02,2,1.0,2.0*17"
         with pytest.raises(ValueError, match="Start frequency"):
             PNORF.from_nmea(sentence)
 
         # Step frequency negative
-        sentence = "$PNORF,A1,120720,093150,1,0.05,-0.02,2,1.0,2.0*00"
+        sentence = "$PNORF,A1,120720,093150,1,0.05,-0.02,2,1.0,2.0*3B"
         with pytest.raises(ValueError, match="Step frequency"):
             PNORF.from_nmea(sentence)

@@ -8,14 +8,14 @@ from adcp_recorder.parsers.pnorb import PNORB
 class TestPNORBExtended:
     def test_pnorb_high_hm0(self):
         # User reported 182.29
-        sentence = "$PNORB,102115,090715,1,4,0.02,0.20,182.29,7.54,12.00,82.42,75.46,82.10,0000*00"
+        sentence = "$PNORB,102115,090715,1,4,0.02,0.20,182.29,7.54,12.00,82.42,75.46,82.10,0000*66"
         # We don't care about checksum in from_nmea if it's not verified yet
         msg = PNORB.from_nmea(sentence)
         assert msg.hm0 == 182.29
 
     def test_pnorb_max_range(self):
         sentence = (
-            "$PNORB,102115,090715,1,4,0.02,0.20,999.99,999.99,999.99,360.0,360.0,360.0,0000*00"
+            "$PNORB,102115,090715,1,4,0.02,0.20,999.99,999.99,999.99,360.0,360.0,360.0,0000*58"
         )
         msg = PNORB.from_nmea(sentence)
         assert msg.hm0 == 999.99

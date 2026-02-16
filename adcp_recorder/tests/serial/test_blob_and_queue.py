@@ -71,7 +71,7 @@ def test_binary_blob_streaming(tmp_path):
     # create binary chunks (many zero bytes to be detected as binary)
     bin_chunks = [b"\x00" * 100, b"\x01" * 200, b"\x02" * 50]
     # end with an ASCII line to trigger blob end
-    ascii_line = b"$PNORI,1,TEST*00\r\n"
+    ascii_line = b"$PNORI,1,TEST\r\n"
 
     items = []
     # interleave binary chunks as read_line returns

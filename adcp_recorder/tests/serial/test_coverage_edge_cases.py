@@ -95,9 +95,9 @@ def test_consumer_empty_sentence(tmp_path):
 
 def test_pnora_coverage():
     with pytest.raises(ValueError, match="Expected 9 fields for PNORA"):
-        PNORA.from_nmea("$PNORA,1,2,3,4*00")
+        PNORA.from_nmea("$PNORA,1,2,3,4")
     with pytest.raises(ValueError, match="Invalid prefix"):
-        PNORA.from_nmea("$NOTRA,1,2,3,4,5,6,7,8*00")
+        PNORA.from_nmea("$NOTRA,1,2,3,4,5,6,7,8")
     msg = PNORA("151021", "090715", 1, 10.0, 95, "00", 0.0, 5.5)
     assert msg.to_dict()["sentence_type"] == "PNORA"
 
@@ -105,22 +105,22 @@ def test_pnora_coverage():
 def test_pnorh_coverage():
     # PNORH3
     with pytest.raises(ValueError, match="Tagged field must contain '='"):
-        PNORH3.from_nmea("$PNORH3,1,2,3,4*00")
+        PNORH3.from_nmea("$PNORH3,1,2,3,4")
     with pytest.raises(ValueError, match="Invalid prefix"):
-        PNORH3.from_nmea("$NOTRH3,ID=1*00")
+        PNORH3.from_nmea("$NOTRH3,ID=1")
 
     # PNORH4
     with pytest.raises(ValueError, match="Expected 5 fields"):
-        PNORH4.from_nmea("$PNORH4,1,2,3,4,5,6*00")
+        PNORH4.from_nmea("$PNORH4,1,2,3,4,5,6")
     with pytest.raises(ValueError, match="Invalid prefix"):
         # 5 fields to pass length check
-        PNORH4.from_nmea("$NOTRH4,1,2,3,4*00")
+        PNORH4.from_nmea("$NOTRH4,1,2,3,4")
 
 
 def test_pnori_coverage():
     # Beam count validation
     with pytest.raises(ValueError, match="Beam count must be 1-4"):
-        PNORI.from_nmea("$PNORI,4,Test,5,20,0.20,1.00,0*00")
+        PNORI.from_nmea("$PNORI,4,Test,5,20,0.20,1.00,0")
 
     # Valid init
     msg = PNORI(InstrumentType.SIGNATURE, "H1", 4, 20, 0.2, 1.0, CoordinateSystem.ENU, "00")
@@ -133,15 +133,15 @@ def test_pnorw_family_coverage():
     test_cases = [
         (
             PNORW,
-            "$NOTR,102115,090715,0,1,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0,0,0,0,0,0,0,0,0,0000*00",
+            "$NOTR,102115,090715,0,1,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0,0,0,0,0,0,0,0,0,0000",
         ),  # 22 fields
         (
             PNORB,
-            "$NOTR,102115,090715,1,4,0.02,0.20,0.27,7.54,12.00,82.42,75.46,82.10,0000*00",
+            "$NOTR,102115,090715,1,4,0.02,0.20,0.27,7.54,12.00,82.42,75.46,82.10,0000",
         ),  # 14 fields
-        (PNORE, "$NOTR,102115,090715,1,0.02,0.01,2,1.5,2.5*00"),  # 9 fields
-        (PNORF, "$NOTR,A1,102115,090715,1,0.02,0.01,2,0.5,1.5*00"),  # 10 fields
-        (PNORWD, "$NOTR,MD,102115,090715,1,0.02,0.01,2,45.0,90.0*00"),  # 10 fields
+        (PNORE, "$NOTR,102115,090715,1,0.02,0.01,2,1.5,2.5"),  # 9 fields
+        (PNORF, "$NOTR,A1,102115,090715,1,0.02,0.01,2,0.5,1.5"),  # 10 fields
+        (PNORWD, "$NOTR,MD,102115,090715,1,0.02,0.01,2,45.0,90.0"),  # 10 fields
     ]
     for cls, sentence in test_cases:
         with pytest.raises(ValueError, match="Invalid prefix"):
@@ -161,28 +161,28 @@ def test_pnors_coverage():
 def test_pnorc_coverage():
     # PNORC
     with pytest.raises(ValueError, match="Expected 19 fields for PNORC"):
-        PNORC.from_nmea("$PNORC,1,2,3,4,5*00")  # 6 fields
+        PNORC.from_nmea("$PNORC,1,2,3,4,5")  # 6 fields
 
     with pytest.raises(ValueError, match="Invalid prefix"):
         # 19 fields to pass length check, but invalid prefix
-        PNORC.from_nmea("$NOTRC,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18*00")
+        PNORC.from_nmea("$NOTRC,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18")
 
     # PNORC1
     with pytest.raises(ValueError, match="Expected 17 fields for PNORC1"):
-        PNORC1.from_nmea("$PNORC1,1,2,3,4,5,6,7,8*00")
+        PNORC1.from_nmea("$PNORC1,1,2,3,4,5,6,7,8")
 
     # PNORC2
     with pytest.raises(ValueError, match="Tagged field must contain '='"):
-        PNORC2.from_nmea("$PNORC2,1,2,3*00")
+        PNORC2.from_nmea("$PNORC2,1,2,3")
     with pytest.raises(ValueError, match="Invalid prefix"):
-        PNORC2.from_nmea("$NOTRC2,DATE=010101,TIME=120000,CN=1,CP=0*00")
+        PNORC2.from_nmea("$NOTRC2,DATE=010101,TIME=120000,CN=1,CP=0")
     with pytest.raises(ValueError, match="Duplicate tag"):
-        PNORC2.from_nmea("$PNORC2,DATE=010101,DATE=010101,TIME=120000,CN=1,CP=0*00")
+        PNORC2.from_nmea("$PNORC2,DATE=010101,DATE=010101,TIME=120000,CN=1,CP=0")
 
     # PNORC3
     with pytest.raises(ValueError, match="Tagged field must contain '='"):
-        PNORC3.from_nmea("$PNORC3,1,2,3,4,5*00")
+        PNORC3.from_nmea("$PNORC3,1,2,3,4,5")
 
     # PNORC4
     with pytest.raises(ValueError, match="Expected 6 fields for PNORC4"):
-        PNORC4.from_nmea("$PNORC4,1,2,3,4*00")
+        PNORC4.from_nmea("$PNORC4,1,2,3,4")

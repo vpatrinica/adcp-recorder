@@ -22,7 +22,7 @@ class TestInsertOperations:
         db = DatabaseManager(":memory:")
         conn = db.get_connection()
 
-        sentence = "$PNORI,4,Signature1000900001,4,20,0.20,1.00,0*2E"
+        sentence = "$PNORI,4,Signature1000900001,4,20,0.20,1.00,0*1A"
         line_id = insert_raw_line(conn, sentence, "OK", "PNORI", True, None)
 
         assert line_id > 0
@@ -43,7 +43,7 @@ class TestInsertOperations:
         db = DatabaseManager(":memory:")
         conn = db.get_connection()
 
-        sentence = "$PNORI,4,Test*2E"
+        sentence = "$PNORI,4,Test*48"
         line_id = insert_raw_line(conn, sentence)
 
         assert line_id > 0
@@ -118,7 +118,7 @@ class TestInsertOperations:
         db = DatabaseManager(":memory:")
         conn = db.get_connection()
 
-        sentence = "$PNORI,4,Invalid*FF"
+        sentence = "$PNORI,4,Invalid*2F"
         error_id = insert_parse_error(
             conn,
             sentence,
@@ -159,7 +159,7 @@ class TestUpdateOperations:
         conn = db.get_connection()
 
         # Insert a line
-        sentence = "$PNORI,4,Test*2E"
+        sentence = "$PNORI,4,Test*48"
         line_id = insert_raw_line(conn, sentence, "PENDING")
 
         # Update status
@@ -226,9 +226,9 @@ class TestQueryOperations:
         conn = db.get_connection()
 
         # Insert mixed types
-        insert_raw_line(conn, "$PNORI,1*2E", "OK", "PNORI", True)
-        insert_raw_line(conn, "$PNORS,1*2E", "OK", "PNORS", True)
-        insert_raw_line(conn, "$PNORI,2*2E", "OK", "PNORI", True)
+        insert_raw_line(conn, "$PNORI,1*57", "OK", "PNORI", True)
+        insert_raw_line(conn, "$PNORS,1*4D", "OK", "PNORS", True)
+        insert_raw_line(conn, "$PNORI,2*54", "OK", "PNORI", True)
 
         # Query PNORI only
         results = query_raw_lines(conn, record_type="PNORI")
@@ -242,9 +242,9 @@ class TestQueryOperations:
         conn = db.get_connection()
 
         # Insert mixed statuses
-        insert_raw_line(conn, "$PNORI,1*2E", "OK", "PNORI", True)
+        insert_raw_line(conn, "$PNORI,1*57", "OK", "PNORI", True)
         insert_raw_line(conn, "$INVALID*FF", "FAIL", None, False)
-        insert_raw_line(conn, "$PNORI,2*2E", "OK", "PNORI", True)
+        insert_raw_line(conn, "$PNORI,2*54", "OK", "PNORI", True)
 
         # Query OK only
         results = query_raw_lines(conn, parse_status="OK")
@@ -300,7 +300,7 @@ class TestQueryOperations:
         # Insert mixed error types
         insert_parse_error(conn, "$INVALID*FF", "CHECKSUM_FAILED")
         insert_parse_error(conn, "$MALFORMED", "INVALID_FORMAT")
-        insert_parse_error(conn, "$ANOTHER*00", "CHECKSUM_FAILED")
+        insert_parse_error(conn, "$ANOTHER", "CHECKSUM_FAILED")
 
         # Query specific error type
         results = query_parse_errors(conn, error_type="CHECKSUM_FAILED")
@@ -372,7 +372,7 @@ class TestPNORIConfigurationOperations:
         db = DatabaseManager(":memory:")
         conn = db.get_connection()
 
-        sentence = "$PNORI,4,Signature1000900001,4,20,0.20,1.00,0*2E"
+        sentence = "$PNORI,4,Signature1000900001,4,20,0.20,1.00,0*1A"
         config = PNORI.from_nmea(sentence)
         config_id = insert_pnori_configuration(conn, config.to_dict(), sentence)
 
@@ -399,7 +399,7 @@ class TestPNORIConfigurationOperations:
         db = DatabaseManager(":memory:")
         conn = db.get_connection()
 
-        sentence = "$PNORI1,4,123456,4,30,1.00,5.00,BEAM*5B"
+        sentence = "$PNORI1,4,123456,4,30,1.00,5.00,BEAM*5C"
         config = PNORI1.from_nmea(sentence)
         config_id = insert_pnori_configuration(conn, config.to_dict(), sentence)
 
@@ -424,7 +424,7 @@ class TestPNORIConfigurationOperations:
         db = DatabaseManager(":memory:")
         conn = db.get_connection()
 
-        sentence = "$PNORI2,IT=4,SN=789012,NB=4,NC=25,BD=0.50,CS=2.00,CY=XYZ*00"
+        sentence = "$PNORI2,IT=4,SN=789012,NB=4,NC=25,BD=0.50,CS=2.00,CY=XYZ"
         config = PNORI2.from_nmea(sentence)
         config_id = insert_pnori_configuration(conn, config.to_dict(), sentence)
 
@@ -451,9 +451,9 @@ class TestPNORIConfigurationOperations:
 
         # Insert multiple configurations
         sentences = [
-            "$PNORI,4,12345,4,20,0.20,1.00,0*00",
-            "$PNORI1,4,12346,4,30,0.50,2.00,ENU*00",
-            "$PNORI2,IT=4,SN=12347,NB=4,NC=25,BD=1.00,CS=3.00,CY=BEAM*00",
+            "$PNORI,4,12345,4,20,0.20,1.00,0",
+            "$PNORI1,4,12346,4,30,0.50,2.00,ENU",
+            "$PNORI2,IT=4,SN=12347,NB=4,NC=25,BD=1.00,CS=3.00,CY=BEAM",
         ]
 
         for sentence in sentences:
@@ -480,8 +480,8 @@ class TestPNORIConfigurationOperations:
         conn = db.get_connection()
 
         # Insert configurations with different head IDs
-        sentence1 = "$PNORI,4,1001,4,20,0.20,1.00,0*00"
-        sentence2 = "$PNORI,4,1002,4,20,0.20,1.00,0*00"
+        sentence1 = "$PNORI,4,1001,4,20,0.20,1.00,0"
+        sentence2 = "$PNORI,4,1002,4,20,0.20,1.00,0"
 
         config1 = PNORI.from_nmea(sentence1)
         config2 = PNORI.from_nmea(sentence2)
@@ -501,9 +501,9 @@ class TestPNORIConfigurationOperations:
         conn = db.get_connection()
 
         # Insert mixed sentence types
-        sentence1 = "$PNORI,4,2001,4,20,0.20,1.00,0*00"
-        sentence2 = "$PNORI1,4,2002,4,30,0.50,2.00,ENU*00"
-        sentence3 = "$PNORI,4,2003,4,25,0.30,1.50,0*00"
+        sentence1 = "$PNORI,4,2001,4,20,0.20,1.00,0"
+        sentence2 = "$PNORI1,4,2002,4,30,0.50,2.00,ENU"
+        sentence3 = "$PNORI,4,2003,4,25,0.30,1.50,0"
 
         config1 = PNORI.from_nmea(sentence1)
         config2 = PNORI1.from_nmea(sentence2)
@@ -532,7 +532,7 @@ class TestPNORIConfigurationOperations:
 
         # Insert multiple configurations
         for i in range(10):
-            sentence = f"$PNORI,4,{1000 + i},4,20,0.20,1.00,0*00"
+            sentence = f"$PNORI,4,{1000 + i},4,20,0.20,1.00,0"
             config = PNORI.from_nmea(sentence)
             insert_pnori_configuration(conn, config.to_dict(), sentence)
 

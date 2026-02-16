@@ -19,7 +19,7 @@ class TestMessageRouter:
         """Test that router initializes with empty registry."""
         router = MessageRouter()
         # Router should be able to handle unknown prefix
-        result = router.route("$UNKNOWN,1,2,3*00")
+        result = router.route("$UNKNOWN,1,2,3")
         assert result is None
 
     def test_register_parser(self):
@@ -28,7 +28,7 @@ class TestMessageRouter:
         router.register_parser("PNORI", PNORI)
 
         # Should now be able to route PNORI
-        result = router.route("$PNORI,4,Test123,4,20,0.20,1.00,0*00")
+        result = router.route("$PNORI,4,Test123,4,20,0.20,1.00,0")
         assert result is not None
         assert isinstance(result, PNORI)
 
@@ -39,8 +39,8 @@ class TestMessageRouter:
         router.register_parser("PNORI1", PNORI1)
 
         # Should route to correct parser
-        result1 = router.route("$PNORI,4,Test,4,20,0.20,1.00,0*00")
-        result2 = router.route("$PNORI1,4,123,4,20,0.20,1.00,ENU*00")
+        result1 = router.route("$PNORI,4,Test,4,20,0.20,1.00,0")
+        result2 = router.route("$PNORI1,4,123,4,20,0.20,1.00,ENU")
 
         assert isinstance(result1, PNORI)
         assert isinstance(result2, PNORI1)
@@ -50,7 +50,7 @@ class TestMessageRouter:
         router = MessageRouter()
         router.register_parser("PNORI", PNORI)
 
-        result = router.route("$UNKNOWN,1,2,3*00")
+        result = router.route("$UNKNOWN,1,2,3")
         assert result is None
 
     def test_route_invalid_sentence_raises_error(self):
@@ -59,7 +59,7 @@ class TestMessageRouter:
         router.register_parser("PNORI", PNORI)
 
         with pytest.raises(ValueError):
-            router.route("$PNORI,INVALID,DATA*00")
+            router.route("$PNORI,INVALID,DATA")
 
     def test_route_uppercase_prefix(self):
         """Test that routing works with uppercase prefix."""
@@ -67,7 +67,7 @@ class TestMessageRouter:
         router.register_parser("PNORI", PNORI)
 
         # Uppercase prefix
-        result = router.route("$PNORI,4,Test,4,20,0.20,1.00,0*00")
+        result = router.route("$PNORI,4,Test,4,20,0.20,1.00,0")
         assert isinstance(result, PNORI)
 
 
@@ -144,7 +144,7 @@ class TestSerialConsumer:
         consumer = SerialConsumer(queue, db, router)
 
         # Add message to queue
-        sentence = "$PNORI,4,TestDevice,4,20,0.20,1.00,0*2E"
+        sentence = "$PNORI,4,TestDevice,4,20,0.20,1.00,0*59"
         queue.put(sentence.encode("ascii"))
 
         consumer.start()
@@ -169,7 +169,7 @@ class TestSerialConsumer:
         consumer = SerialConsumer(queue, db, router)
 
         # Add unknown message
-        sentence = "$UNKNOWN,1,2,3*00"
+        sentence = "$UNKNOWN,1,2,3"
         queue.put(sentence.encode("ascii"))
 
         consumer.start()
@@ -194,7 +194,7 @@ class TestSerialConsumer:
         consumer = SerialConsumer(queue, db, router)
 
         # Add invalid PNORI message
-        sentence = "$PNORI,INVALID,DATA*FF"
+        sentence = "$PNORI,INVALID,DATA*0B"
         queue.put(sentence.encode("ascii"))
 
         consumer.start()
@@ -245,7 +245,7 @@ class TestSerialConsumer:
         time.sleep(0.01)
 
         # Add message
-        sentence = "$PNORI,4,Test,4,20,0.20,1.00,0*2E"
+        sentence = "$PNORI,4,Test,4,20,0.20,1.00,0*61"
         queue.put(sentence.encode("ascii"))
 
         consumer.start()
@@ -327,27 +327,27 @@ class TestSerialConsumer:
         consumer = SerialConsumer(queue, db, router)
 
         # PNORI - Configuration (8 fields)
-        queue.put(b"$PNORI,4,1001,4,20,0.20,1.00,0*2E")
+        queue.put(b"$PNORI,4,1001,4,20,0.20,1.00,0*57")
         # PNORS - Sensor (14 fields)
-        queue.put(b"$PNORS,102115,090715,0,00000000,14.4,1523.0,275.9,15.7,2.3,0.0,22.45,0,0*1F")
+        queue.put(b"$PNORS,102115,090715,0,00000000,14.4,1523.0,275.9,15.7,2.3,0.0,22.45,0,0*50")
         # PNORC - Velocity (19 fields)
         queue.put(
-            b"$PNORC,102115,090715,1,0.5,0.1,0.2,0.3,0.4,180.0,C,80,80,80,80,100,100,100,100*41"
+            b"$PNORC,102115,090715,1,0.5,0.1,0.2,0.3,0.4,180.0,C,80,80,80,80,100,100,100,100*36"
         )
         # PNORH4 - Header (5 fields: Date,Time,EC,SC)
-        queue.put(b"$PNORH4,211021,090715,0,00000000*00")
+        queue.put(b"$PNORH4,211021,090715,0,00000000")
         # PNORW - Wave (22 fields)
-        queue.put(b"$PNORW,102115,090715,0,1,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0,0,0,0,0,0,0,0,0,0000*32")
+        queue.put(b"$PNORW,102115,090715,0,1,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0,0,0,0,0,0,0,0,0,0000*6E")
         # PNORB - Wave Band Parameters (14 fields)
-        queue.put(b"$PNORB,102115,090715,1,4,0.02,0.20,0.27,7.54,12.00,82.42,75.46,82.10,0000*7C")
+        queue.put(b"$PNORB,102115,090715,1,4,0.02,0.20,0.27,7.54,12.00,82.42,75.46,82.10,0000*63")
         # PNORE - Echo (Prefix+Date+Time+Basis+Start+Step+Num+Values)
-        queue.put(b"$PNORE,102115,090715,1,0.02,0.01,3,1.0,2.0,3.0*1E")
+        queue.put(b"$PNORE,102115,090715,1,0.02,0.01,3,1.0,2.0,3.0*49")
         # PNORF - Frequency (Prefix+Flag+Date+Time+Basis+Start+Step+Num+Values)
-        queue.put(b"$PNORF,A1,102115,090715,1,0.02,0.01,2,0.5,1.5*44")
+        queue.put(b"$PNORF,A1,102115,090715,1,0.02,0.01,2,0.5,1.5*14")
         # PNORWD - Wave Directional (Prefix+Type+Date+Time+Basis+Start+Step+Num+Values)
-        queue.put(b"$PNORWD,MD,102115,090715,1,0.02,0.01,2,45.0,90.0*42")
+        queue.put(b"$PNORWD,MD,102115,090715,1,0.02,0.01,2,45.0,90.0*31")
         # PNORA - Altitude (9 fields, Date is YYMMDD)
-        queue.put(b"$PNORA,151021,090715,1,15.50,1,00,0.0,5.5*55")
+        queue.put(b"$PNORA,151021,090715,1,15.50,1,00,0.0,5.5*61")
 
         consumer.start()
         time.sleep(2.0)  # Wait longer
@@ -399,7 +399,7 @@ class TestSerialConsumer:
 
         consumer = SerialConsumer(queue, db, router, file_writer=mock_file_writer)
 
-        sentence = "$PNORI,4,Test,4,20,0.20,1.00,0*2E"
+        sentence = "$PNORI,4,Test,4,20,0.20,1.00,0*61"
         queue.put(sentence.encode("ascii"))
 
         consumer.start()
@@ -463,7 +463,7 @@ class TestSerialConsumer:
 
         consumer = SerialConsumer(queue, db, router, file_writer=mock_file_writer)
 
-        sentence = "$UNKNOWN,1,2*00"
+        sentence = "$UNKNOWN,1,2"
         queue.put(sentence.encode("ascii"))
 
         consumer.start()
@@ -478,6 +478,7 @@ class TestSerialConsumer:
                 "parse_status": "PENDING",
                 "record_type": "UNKNOWN",
                 "error_message": "No parser for UNKNOWN",
+                "checksum_valid": None,
             },
         )
 
@@ -492,7 +493,7 @@ class TestSerialConsumer:
 
         consumer = SerialConsumer(queue, db, router, file_writer=mock_file_writer)
 
-        sentence = "$PNORI,INVALID,DATA*FF"
+        sentence = "$PNORI,INVALID,DATA*0B"
         queue.put(sentence.encode("ascii"))
 
         consumer.start()
@@ -518,6 +519,7 @@ class TestSerialConsumer:
                 "parse_status": "FAIL",
                 "record_type": "PNORI",
                 "error_message": "Expected 8 fields, got 3",
+                "checksum_valid": None,
             },
         )
 

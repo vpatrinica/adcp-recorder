@@ -55,9 +55,9 @@ def test_full_pipeline_e2e(temp_recorder_dir):
     # Looking at test_pnori.py: "$PNORI,4,Signature1000900001,4,20,0.20,1.00,0*2E"
 
     sentences = [
-        b"$PNORI,4,1001,4,20,0.20,1.00,0*1D\r\n",
-        b"$PNORS,102115,090715,0,00000000,12.5,1500.0,0.0,0.0,0.0,0.0,20.0,0,0*0E\r\n",
-        b"$PNORC,102115,090715,1,0.5,0.1,0.2,0.3,0.4,180.0,C,80,80,80,80,100,100,100,100*76\r\n",
+        b"$PNORI,4,1001,4,20,0.20,1.00,0*57\r\n",
+        b"$PNORS,102115,090715,0,00000000,12.5,1500.0,0.0,0.0,0.0,0.0,20.0,0,0*5E\r\n",
+        b"$PNORC,102115,090715,1,0.5,0.1,0.2,0.3,0.4,180.0,C,80,80,80,80,100,100,100,100*36\r\n",
         b"\xff\xfe BINARY DATA \xff\r\n",  # Binary/Invalid
     ]
 
@@ -209,13 +209,13 @@ def test_reconnect_scenario(temp_recorder_dir):
             if self.instance_id == 1:
                 if self.read_count == 1:
                     # First instance, first read: success
-                    return b"$PNORI,4,2001,4,20,0.20,1.00,0*1C\r\n"
+                    return b"$PNORI,4,2001,4,20,0.20,1.00,0*54\r\n"
                 # First instance, subsequent read: fail
                 self.is_open = False
                 raise serial.SerialException("Simulated connection loss")
             # Subsequent instances (reconnections)
             if self.read_count == 1:
-                return b"$PNORI,4,AfterReconnect,4,20,0.20,1.00,0*33\r\n"
+                return b"$PNORI,4,AfterReconnect,4,20,0.20,1.00,0*5A\r\n"
             return b""
 
         def close(self) -> None:

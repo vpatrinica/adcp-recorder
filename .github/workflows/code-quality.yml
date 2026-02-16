@@ -40,9 +40,16 @@ jobs:
         ruff format --check adcp_recorder/
     
     - name: Type checking with mypy
-      continue-on-error: true
       run: |
-        mypy adcp_recorder/ --check-untyped-defs || true
+        mypy adcp_recorder/ --check-untyped-defs
+
+    - name: Check Documentation Coverage
+      run: |
+        python scripts/check_docs.py
+
+    - name: Verify Documentation Build
+      run: |
+        pdoc -o docs/api adcp_recorder.core adcp_recorder.db adcp_recorder.parsers adcp_recorder.serial adcp_recorder.export adcp_recorder.cli adcp_recorder.service adcp_recorder.config
 
   security:
     name: Security Scanning

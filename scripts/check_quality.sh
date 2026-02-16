@@ -1,16 +1,13 @@
 #!/bin/bash
 set -e
 
-echo "Running Ruff Format Check..."
-uv run ruff format --check adcp_recorder/
+# Change to project root
+cd "$(dirname "$0")/.."
 
-echo "Running Ruff Lint Check..."
-uv run ruff check adcp_recorder/
+if [ -f ".venv/bin/activate" ]; then
+    echo "[INFO] Activating virtual environment..."
+    source .venv/bin/activate
+fi
 
-echo "Running Mypy Check..."
-uv run mypy adcp_recorder/ --check-untyped-defs
+python scripts/utils/check_quality.py
 
-echo "Running Tests and Coverage..."
-uv run pytest --cov=adcp_recorder --cov-fail-under=100 --cov-report=html --cov-report=term-missing adcp_recorder/tests/
-
-echo "All checks passed!"

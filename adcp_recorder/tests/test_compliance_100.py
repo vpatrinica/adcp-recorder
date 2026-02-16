@@ -58,7 +58,7 @@ def test_pnors_error_branches():
         "$PNORS2,DATE=101010,TIME=101010,EC=00,SC=00,BV=12.0,SS=1500,HSD=0,"
         "H=100,PI=0,PISD=0,R=0,RSD=0,P=10,PSD=0,T=20"
     )
-    extra = ",XX=99*00"
+    extra = ",XX=99"
     with pytest.raises(ValueError, match="Unknown tag in PNORS2: XX"):
         PNORS2.from_nmea(base + extra)
 
@@ -78,17 +78,17 @@ def test_ghost_files_explicitly():
     from adcp_recorder.parsers.pnorwd import PNORWD
 
     msg_b = PNORB.from_nmea(
-        "$PNORB,102115,090715,1,4,0.02,0.20,0.27,7.54,12.00,82.42,75.46,82.10,0000*XX"
+        "$PNORB,102115,090715,1,4,0.02,0.20,0.27,7.54,12.00,82.42,75.46,82.10,0000*63"
     )
     assert msg_b.spectrum_basis == 1
 
-    msg_e = PNORE.from_nmea("$PNORE,102115,090715,1,0.02,0.01,3,1.5,2.5,3.5*XX")
+    msg_e = PNORE.from_nmea("$PNORE,151021,090715,1,0.02,0.01,3,1.5,2.5,3.5*4C")
     assert msg_e.spectrum_basis == 1
 
-    msg_f = PNORF.from_nmea("$PNORF,A1,102115,090715,1,0.02,0.01,2,0.5,1.5*XX")
+    msg_f = PNORF.from_nmea("$PNORF,A1,102115,090715,1,0.02,0.01,2,0.5,1.5*14")
     assert msg_f.coefficient_flag == "A1"
 
-    msg_wd = PNORWD.from_nmea("$PNORWD,MD,102115,090715,1,0.02,0.01,2,45.0,90.0*XX")
+    msg_wd = PNORWD.from_nmea("$PNORWD,MD,102115,090715,1,0.02,0.01,2,45.0,90.0*31")
     assert msg_wd.direction_type == "MD"
 
     msg_h = PNORH3("211021", "090715", 0, "00000000")

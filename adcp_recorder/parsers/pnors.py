@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .utils import (
+    parse_nmea_sentence,
     parse_optional_float,
     parse_tagged_field,
     validate_date_mm_dd_yy,
@@ -44,8 +45,10 @@ def _validate_heading(heading: float | None) -> None:
 
 def _validate_pitch_roll(value: float | None, field_name: str) -> None:
     """Validate pitch or roll values (-90 to +90)."""
+    """the actual values from the sensor are -180 to 180"""
+    """nans can be specified as -999.9 or -999.99"""
     if value is not None:
-        validate_range(value, field_name, -90.0, 90.0)
+        validate_range(value, field_name, -999.99, 999.99)
 
 
 def _validate_pressure(pressure: float | None) -> None:
@@ -97,13 +100,7 @@ class PNORS:
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORS":
-        sentence = sentence.strip()
-        data_part, checksum = sentence, None
-        if "*" in sentence:
-            data_part, checksum = sentence.rsplit("*", 1)
-            checksum = checksum.strip().upper()
-
-        fields = [f.strip() for f in data_part.split(",")]
+        fields, checksum = parse_nmea_sentence(sentence)
         if len(fields) != 14:
             raise ValueError(f"Expected 14 fields for PNORS, got {len(fields)}")
         if fields[0] != "$PNORS":
@@ -185,13 +182,7 @@ class PNORS1:
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORS1":
-        sentence = sentence.strip()
-        data_part, checksum = sentence, None
-        if "*" in sentence:
-            data_part, checksum = sentence.rsplit("*", 1)
-            checksum = checksum.strip().upper()
-
-        fields = [f.strip() for f in data_part.split(",")]
+        fields, checksum = parse_nmea_sentence(sentence)
         if len(fields) != 16:
             raise ValueError(f"Expected 16 fields for PNORS1, got {len(fields)}")
         if fields[0] != "$PNORS1":
@@ -295,18 +286,13 @@ class PNORS2:
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORS2":
-        sentence = sentence.strip()
-        data_part, checksum = sentence, None
-        if "*" in sentence:
-            data_part, checksum = sentence.rsplit("*", 1)
-            checksum = checksum.strip().upper()
-
-        fields = [f.strip() for f in data_part.split(",")]
+        fields, checksum = parse_nmea_sentence(sentence)
         if fields[0] != "$PNORS2":
             raise ValueError(f"Invalid prefix: {fields[0]}")
 
         data: dict[str, Any] = {}
-        for field_str in fields[1:]:
+        for i in range(1, len(fields)):
+            field_str = fields[i]
             tag, val = parse_tagged_field(field_str)
             if tag not in cls.TAG_IDS:
                 raise ValueError(f"Unknown tag in PNORS2: {tag}")
@@ -414,18 +400,13 @@ class PNORS3:
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORS3":
-        sentence = sentence.strip()
-        data_part, checksum = sentence, None
-        if "*" in sentence:
-            data_part, checksum = sentence.rsplit("*", 1)
-            checksum = checksum.strip().upper()
-
-        fields = [f.strip() for f in data_part.split(",")]
+        fields, checksum = parse_nmea_sentence(sentence)
         if fields[0] != "$PNORS3":
             raise ValueError(f"Invalid prefix: {fields[0]}")
 
         data: dict[str, Any] = {}
-        for field_str in fields[1:]:
+        for i in range(1, len(fields)):
+            field_str = fields[i]
             tag, val = parse_tagged_field(field_str)
             if tag not in cls.TAG_IDS:
                 raise ValueError(f"Unknown tag in PNORS3: {tag}")
@@ -478,13 +459,7 @@ class PNORS4:
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORS4":
-        sentence = sentence.strip()
-        data_part, checksum = sentence, None
-        if "*" in sentence:
-            data_part, checksum = sentence.rsplit("*", 1)
-            checksum = checksum.strip().upper()
-
-        fields = [f.strip() for f in data_part.split(",")]
+        fields, checksum = parse_nmea_sentence(sentence)
         if len(fields) != 8:
             raise ValueError(f"Expected 8 fields for PNORS4, got {len(fields)}")
         if fields[0] != "$PNORS4":

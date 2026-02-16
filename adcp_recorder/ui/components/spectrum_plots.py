@@ -442,7 +442,6 @@ def render_directional_spectrum(
     try:
         ts_param = selected_burst["received_at"] if selected_burst else None
         data = data_layer.query_directional_spectrum(time_range=time_range, timestamp=ts_param)
-
         if not data:
             st.info("No merged directional spectrum data found.")
             st.caption(

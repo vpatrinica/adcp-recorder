@@ -6,9 +6,10 @@ Implements parsers for:
 """
 
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import Any
 
-from adcp_recorder.parsers.utils import (
+from .utils import (
+    parse_nmea_sentence,
     parse_tagged_field,
     validate_date_yy_mm_dd,
     validate_hex_string,
@@ -37,13 +38,8 @@ class PNORH3:
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORH3":
-        sentence = sentence.strip()
-        data_part, checksum = sentence, None
-        if "*" in sentence:
-            data_part, checksum = sentence.rsplit("*", 1)
-            checksum = checksum.strip().upper()
-
-        fields: list[str] = [f.strip() for f in data_part.split(",")]
+        fields: list[str]
+        fields, checksum = parse_nmea_sentence(sentence)
         if fields[0] != "$PNORH3":
             raise ValueError(f"Invalid prefix: {fields[0]}")
 
@@ -52,9 +48,9 @@ class PNORH3:
             field_str: str = fields[i]
             tag, val = parse_tagged_field(field_str)
             if tag not in cls.TAG_IDS:
-                raise ValueError(f"Unknown tag in PNORH3: {tag}")
+                raise ValueError(f"Unknown tags in PNORH3: {tag}")
 
-            field_name = cls.TAG_IDS[cast(str, tag)]
+            field_name = cls.TAG_IDS[tag]
             if field_name == "error_code":
                 data[field_name] = int(val) if val and val.lower() != "nan" else None
             else:
@@ -102,13 +98,8 @@ class PNORH4:
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORH4":
-        sentence = sentence.strip()
-        data_part, checksum = sentence, None
-        if "*" in sentence:
-            data_part, checksum = sentence.rsplit("*", 1)
-            checksum = checksum.strip().upper()
-
-        fields = [f.strip() for f in data_part.split(",")]
+        fields: list[str]
+        fields, checksum = parse_nmea_sentence(sentence)
         if len(fields) != 5:
             raise ValueError(f"Expected 5 fields for PNORH4, got {len(fields)}")
         if fields[0] != "$PNORH4":

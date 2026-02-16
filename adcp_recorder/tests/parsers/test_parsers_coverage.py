@@ -1,5 +1,6 @@
 import pytest
 
+from adcp_recorder.core.nmea import compute_checksum
 from adcp_recorder.parsers.pnora import PNORA
 from adcp_recorder.parsers.pnorc import PNORC, PNORC1, PNORC2, PNORC3, PNORC4
 from adcp_recorder.parsers.pnore import PNORE
@@ -54,11 +55,12 @@ class TestParserCoverage:
             PNORA.from_nmea("$PNORA,230101,120000,1000.0,1.0,1,00,0.0,0.0")
 
         # Lines 47-48: Checksum splitting (valid case covers this, but ensure we use *)
-        msg = "$PNORA,230101,120000,10.5,1.0,1,00,0.0,0.0*CHECKSUM"
-        # We don't validate checksum in from_nmea, just strip it.
-        # But if we want to valid object creation:
+        payload = "$PNORA,230101,120000,10.5,1.0,1,00,0.0,0.0"
+        cs = compute_checksum(payload)
+        msg = f"{payload}*{cs}"
+        # We now validate checksum in from_nmea via parse_nmea_sentence.
         p = PNORA.from_nmea(msg)
-        assert p.checksum == "CHECKSUM"
+        assert p.checksum == cs
 
         # Line 97: to_dict
         d = p.to_dict()

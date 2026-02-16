@@ -30,7 +30,7 @@ def test_utils_nan_handling():
 def test_pnora_nan():
     # Positional NaN (DF=200)
     # Format: $PNORA,Date,Time,Pres,Dist,Qual,Status,Pitch,Roll*CS
-    sentence = "$PNORA,151021,090715,nan,nan,1,00,nan,nan*2E"
+    sentence = "$PNORA,151021,090715,nan,nan,1,00,nan,nan*7F"
     msg = PNORA.from_nmea(sentence)
     assert msg.pressure is None
     assert msg.distance is None
@@ -39,7 +39,7 @@ def test_pnora_nan():
 
     # Tagged NaN (DF=201)
     # Format: $PNORA,DATE=MMDDYY,TIME=HHMMSS,DF=201,P=nan,A=nan,Q=1,ST=00,PI=nan,R=nan*CS
-    sentence = "$PNORA,DATE=151021,TIME=090715,DF=201,P=nan,A=nan,Q=1,ST=00,PI=nan,R=nan*2E"
+    sentence = "$PNORA,DATE=151021,TIME=090715,DF=201,P=nan,A=nan,Q=1,ST=00,PI=nan,R=nan*52"
     msg = PNORA.from_nmea(sentence)
     assert msg.pressure is None
     assert msg.distance is None
@@ -51,7 +51,7 @@ def test_pnora_nan():
 def test_pnorb_nan():
     # Format: $PNORB,Date,Time,Basis,Method,FreqLow,FreqHigh,Hm0,Tm02,Tp,
     #         DirTp,SprTp,MainDir,ErrorCode*CS
-    sentence = "$PNORB,102115,090715,1,1,0.01,0.1,nan,nan,nan,nan,nan,nan,0000*2E"
+    sentence = "$PNORB,102115,090715,1,1,0.01,0.1,nan,nan,nan,nan,nan,nan,0000*51"
     msg = PNORB.from_nmea(sentence)
     assert msg.hm0 is None
     assert msg.tm02 is None
@@ -62,7 +62,7 @@ def test_pnorc_nan():
     # Format: $PNORC,MMDDYY,HHMMSS,Cell,Vel1,Vel2,Vel3,Vel4,Speed,Dir,
     #         AmpUnit,Amp1,Amp2,Amp3,Amp4,Corr1,Corr2,Corr3,Corr4*CS
     # Total 19 fields
-    sentence = "$PNORC,102115,090715,1,nan,nan,nan,nan,nan,nan,C,nan,nan,nan,nan,nan,nan,nan,nan*2E"
+    sentence = "$PNORC,102115,090715,1,nan,nan,nan,nan,nan,nan,C,nan,nan,nan,nan,nan,nan,nan,nan*3E"
     msg = PNORC.from_nmea(sentence)
     assert msg.vel1 is None
     assert msg.speed is None
@@ -76,7 +76,7 @@ def test_pnorw_nan():
     #         UI,MeanPress,NoDetect,BadDetect,NSurfSpeed,NSurfDir,ErrorCode*CS (22 fields)
     sentence = (
         "$PNORW,102115,090715,1,1,nan,nan,nan,nan,nan,nan,nan,nan,nan,nan,"
-        "nan,nan,nan,nan,nan,nan,0000*2E"
+        "nan,nan,nan,nan,nan,nan,0000*74"
     )
     msg = PNORW.from_nmea(sentence)
     assert msg.hm0 is None
@@ -86,7 +86,7 @@ def test_pnorw_nan():
 def test_pnorwd_nan():
     # PNORWD Positional
     # Format: $PNORWD,DirType,Date,Time,Basis,Start,Step,Num,V1,V2,...,VN*CS
-    sentence = "$PNORWD,MD,102115,090715,nan,nan,nan,2,0.1,0.2*2E"
+    sentence = "$PNORWD,MD,102115,090715,nan,nan,nan,2,0.1,0.2*69"
     msg = PNORWD.from_nmea(sentence)
     assert msg.spectrum_basis is None
     assert msg.num_frequencies == 2
@@ -96,7 +96,7 @@ def test_pnorwd_nan():
 def test_pnori_nan():
     # PNORI Positional
     # Format: $PNORI,InstrType,HeadID,BeamCnt,CellCnt,BlankDist,CellSize,CoordSys*CS
-    sentence = "$PNORI,4,HEAD1,nan,nan,nan,nan,0*2E"
+    sentence = "$PNORI,4,HEAD1,nan,nan,nan,nan,0*5B"
     msg = PNORI.from_nmea(sentence)
     assert msg.beam_count is None
     assert msg.cell_count is None
@@ -108,7 +108,7 @@ def test_pnors_nan():
     # PNORS Positional
     # Format: $PNORS,MMDDYY,HHMMSS,Error,Status,Battery,SoundSpeed,Heading,Pitch,Roll,
     #         Pressure,Temperature,Analog1,Analog2*CS
-    sentence = "$PNORS,102115,090715,0000,00000000,nan,nan,nan,nan,nan,nan,nan,nan,nan*2E"
+    sentence = "$PNORS,102115,090715,0000,00000000,nan,nan,nan,nan,nan,nan,nan,nan,nan*11"
     msg = PNORS.from_nmea(sentence)
     assert msg.battery is None
     assert msg.sound_speed is None
@@ -116,7 +116,7 @@ def test_pnors_nan():
 
 def test_pnorh_nan():
     # PNORH3 Tagged
-    sentence = "$PNORH3,DATE=151021,TIME=090715,EC=nan,SC=00000000*2E"
+    sentence = "$PNORH3,DATE=151021,TIME=090715,EC=nan,SC=00000000*02"
     msg = PNORH3.from_nmea(sentence)
     assert msg.error_code is None
 
@@ -124,7 +124,7 @@ def test_pnorh_nan():
 def test_pnore_nan():
     # PNORE Positional
     # Format: $PNORE,Date,Time,Basis,Start,Step,Num,E1,E2,...,EN*CS
-    sentence = "$PNORE,102115,090715,nan,nan,nan,2,0.1,0.2*2E"
+    sentence = "$PNORE,211015,090715,nan,nan,nan,2,0.1,0.2"
     msg = PNORE.from_nmea(sentence)
     assert msg.spectrum_basis is None
     assert msg.energy_densities[0] == 0.1
@@ -133,7 +133,7 @@ def test_pnore_nan():
 def test_pnorf_nan():
     # PNORF Positional
     # Format: $PNORF,Flag,Date,Time,Basis,Start,Step,Num,C1,C2,...,CN*CS
-    sentence = "$PNORF,A1,102115,090715,nan,nan,nan,2,0.1,0.2*2E"
+    sentence = "$PNORF,A1,102115,090715,nan,nan,nan,2,0.1,0.2*45"
     msg = PNORF.from_nmea(sentence)
     assert msg.coefficient_flag == "A1"
     assert msg.spectrum_basis is None

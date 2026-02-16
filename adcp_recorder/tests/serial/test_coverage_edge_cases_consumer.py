@@ -15,7 +15,7 @@ def test_router_prefix_none():
     # We must patch extract_prefix to return None to reach the line:
     # if prefix is None: return None
     with patch("adcp_recorder.serial.consumer.extract_prefix", return_value=None):
-        assert router.route("$VALID,BUT,PREFIX,MISSING*00") is None
+        assert router.route("$VALID,BUT,PREFIX,MISSING") is None
 
 
 def test_consumer_stop_idempotent(tmp_path):
@@ -71,7 +71,7 @@ def test_store_parsed_message_unknown_prefix(tmp_path, caplog):
     consumer = SerialConsumer(queue, db, router)
 
     # Send sentence
-    queue.put(b"$UNKNOWN_TYPE,1,2,3*00")
+    queue.put(b"$UNKNOWN_TYPE,1,2,3")
 
     with caplog.at_level(logging.WARNING):
         consumer.start()

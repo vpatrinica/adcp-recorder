@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 
 from .utils import (
+    parse_nmea_sentence,
     parse_optional_float,
     validate_date_mm_dd_yy,
     validate_range,
@@ -50,13 +51,7 @@ class PNORF:
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORF":
-        sentence = sentence.strip()
-        data_part, checksum = sentence, None
-        if "*" in sentence:
-            data_part, checksum = sentence.rsplit("*", 1)
-            checksum = checksum.strip().upper()
-
-        fields = [f.strip() for f in data_part.split(",")]
+        fields, checksum = parse_nmea_sentence(sentence)
         if len(fields) < 8:  # Basic header fields
             raise ValueError(f"Expected at least 8 fields for PNORF, got {len(fields)}")
         if fields[0] != "$PNORF":

@@ -299,7 +299,7 @@ class TestSerialConnectionManager:
             mock_instance = Mock()
             mock_instance.is_open = True
             mock_instance.timeout = 1.0
-            mock_instance.readline.return_value = b"$TEST*00\\r\\n"
+            mock_instance.readline.return_value = b"$TEST\\r\\n"
             mock_serial.return_value = mock_instance
 
             manager.connect()
@@ -307,7 +307,7 @@ class TestSerialConnectionManager:
 
             # Timeout should be set to 5.0 and restored to 1.0
             assert mock_instance.timeout == 1.0
-            assert line == b"$TEST*00\\r\\n"
+            assert line == b"$TEST\\r\\n"
 
     def test_read_line_handles_serial_exception(self):
         """Test read_line handles SerialException by disconnecting."""

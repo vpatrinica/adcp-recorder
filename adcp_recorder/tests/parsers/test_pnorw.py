@@ -12,7 +12,7 @@ class TestPNORW:
         # ns_d, err
         sentence = (
             "$PNORW,102125,090715,1,2,2.50,2.30,2.40,4.10,8.5,10.0,9.0,"
-            "285.0,15.0,280.0,0.95,10.5,0,0,0.1,180.0,0000*XX"
+            "285.0,15.0,280.0,0.95,10.5,0,0,0.1,180.0,0000*75"
         )
         msg = PNORW.from_nmea(sentence)
         assert msg.date == "102125"
@@ -27,7 +27,7 @@ class TestPNORW:
         sentence = (
             "$PNORW,102125,090715,1,2,-9.000,-9.000,-9.000,-9.000,-9.000,"
             "-9.000,-9.000,-9.000,-9.000,-9.000,-9.000,10.5,0,0,-9.000,"
-            "-9.000,0001*XX"
+            "-9.000,0001"
         )
         msg = PNORW.from_nmea(sentence)
         assert msg.hm0 is None
@@ -37,11 +37,11 @@ class TestPNORW:
 
     def test_pnorw_invalid_field_count(self):
         with pytest.raises(ValueError, match="Expected 22 fields"):
-            PNORW.from_nmea("$PNORW,1,2,3,4,5*00")
+            PNORW.from_nmea("$PNORW,1,2,3,4,5*49")
 
     def test_pnorw_invalid_prefix(self):
         with pytest.raises(ValueError, match="Invalid prefix"):
-            PNORW.from_nmea("$NOTRW,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21*00")
+            PNORW.from_nmea("$NOTRW,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21")
 
     def test_pnorw_to_dict(self):
         msg = PNORW(

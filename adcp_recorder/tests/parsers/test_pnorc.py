@@ -9,7 +9,7 @@ class TestPNORC:
     def test_pnorc_parsing_basic(self):
         # 19 fields: prefix, date, time, cell, vel1-4, speed, dir, unit, amp1-4, corr1-4
         sentence = (
-            "$PNORC,102115,090715,1,0.1,0.2,0.3,0.4,1.5,180.0,C,100,101,102,103,90,91,92,93*11"
+            "$PNORC,102115,090715,1,0.1,0.2,0.3,0.4,1.5,180.0,C,100,101,102,103,90,91,92,93*37"
         )
         msg = PNORC.from_nmea(sentence)
         assert msg.date == "102115"
@@ -95,13 +95,13 @@ class TestPNORC:
 
     def test_pnorc_invalid_field_count(self):
         with pytest.raises(ValueError, match="Expected 19 fields"):
-            PNORC.from_nmea("$PNORC,1,2,3,4,5*00")
+            PNORC.from_nmea("$PNORC,1,2,3,4,5*5D")
 
 
 class TestPNORC1:
     def test_pnorc1_parsing(self):
         # Amplitudes are floats (dB)
-        sentence = "$PNORC1,102115,090715,1,1.00,0.1,0.2,0.3,0.4,45.5,46.0,45.8,45.2,90,91,92,93*XX"
+        sentence = "$PNORC1,102115,090715,1,1.00,0.1,0.2,0.3,0.4,45.5,46.0,45.8,45.2,90,91,92,93*5B"
         msg = PNORC1.from_nmea(sentence)
         assert msg.amp1 == 45.5
         assert msg.corr1 == 90
@@ -134,7 +134,7 @@ class TestPNORC2:
         sentence = (
             "$PNORC2,DATE=102115,TIME=090715,CN=1,CP=1.00,VE=0.1,VN=0.2,"
             "VU=0.3,VU2=0.4,A1=45.5,A2=46.0,A3=45.8,A4=45.2,C1=90,C2=91,"
-            "C3=92,C4=93*XX"
+            "C3=92,C4=93"
         )
         msg = PNORC2.from_nmea(sentence)
         assert msg.cell_index == 1
@@ -145,7 +145,7 @@ class TestPNORC2:
         sentence = (
             "$PNORC2,DATE=102115,TIME=090715,CN=1,CP=1.00,VX=0.1,VY=0.2,"
             "VZ=0.3,VZ2=0.4,A1=45.5,A2=46.0,A3=45.8,A4=45.2,C1=90,C2=91,"
-            "C3=92,C4=93*XX"
+            "C3=92,C4=93"
         )
         msg = PNORC2.from_nmea(sentence)
         assert msg.vel1 == 0.1
@@ -176,7 +176,7 @@ class TestPNORC2:
 class TestPNORC3:
     def test_pnorc3_parsing_averaged(self):
         # $PNORC3,CP=Dist,SP=Speed,DIR=Dir,AA=AvgAmp,AC=AvgCorr*CS
-        sentence = "$PNORC3,CP=10.5,SP=1.23,DIR=180.5,AA=150,AC=95*XX"
+        sentence = "$PNORC3,CP=10.5,SP=1.23,DIR=180.5,AA=150,AC=95*31"
         msg = PNORC3.from_nmea(sentence)
         assert msg.distance == 10.5
         assert msg.speed == 1.23
@@ -209,7 +209,7 @@ class TestPNORC4:
         # So fields[4] is AC (correlation), fields[5] is AA (amplitude).
         # So order is Dist, Speed, Dir, Corr, Amp.
         # So I should update test to reflect: Dist,Speed,Dir,Corr,Amp
-        sentence = "$PNORC4,10.5,1.23,180.5,95,150*XX"
+        sentence = "$PNORC4,10.5,1.23,180.5,95,150*46"
         msg = PNORC4.from_nmea(sentence)
         assert msg.distance == 10.5
         assert msg.speed == 1.23
