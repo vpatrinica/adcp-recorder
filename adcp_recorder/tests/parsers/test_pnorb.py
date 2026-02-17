@@ -68,3 +68,9 @@ class TestPNORB:
         sentence = "$PNORB,102115,090715,1,4,0.02,0.20,NaN,7.54,12.00,82.42,75.46,82.10,0000*19"
         msg = PNORB.from_nmea(sentence)
         assert msg.hm0 is None
+
+    def test_pnorb_short_sentinel(self):
+        # Test -9.0 sentinel (encountered in production)
+        sentence = "$PNORB,102115,090715,1,4,0.02,0.20,0.27,-9.0,12.00,82.42,75.46,82.10,0000*71"
+        msg = PNORB.from_nmea(sentence)
+        assert msg.tm02 is None

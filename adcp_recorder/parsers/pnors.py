@@ -11,7 +11,6 @@ Implements parsers for:
 from dataclasses import dataclass, field
 from typing import Any
 
-from .sentinels import get_float_sentinels as _fs
 from .utils import (
     parse_nmea_sentence,
     parse_optional_float,
@@ -48,7 +47,6 @@ def _validate_heading(heading: float | None) -> None:
 def _validate_pitch_roll(value: float | None, field_name: str) -> None:
     """Validate pitch or roll values (-90 to +90)."""
     """the actual values from the sensor are -180 to 180"""
-    """nans can be specified as -999.9 or -999.99"""
     if value is not None:
         validate_range(value, field_name, -999.99, 999.99)
 
@@ -114,13 +112,13 @@ class PNORS:
             time=fields[2],
             error_code=fields[3],
             status_code=fields[4],
-            battery=parse_optional_float(fields[5], _fs(_p, "battery")),
-            sound_speed=parse_optional_float(fields[6], _fs(_p, "sound_speed")),
-            heading=parse_optional_float(fields[7], _fs(_p, "heading")),
-            pitch=parse_optional_float(fields[8], _fs(_p, "pitch")),
-            roll=parse_optional_float(fields[9], _fs(_p, "roll")),
-            pressure=parse_optional_float(fields[10], _fs(_p, "pressure")),
-            temperature=parse_optional_float(fields[11], _fs(_p, "temperature")),
+            battery=parse_optional_float(fields[5]),
+            sound_speed=parse_optional_float(fields[6]),
+            heading=parse_optional_float(fields[7]),
+            pitch=parse_optional_float(fields[8]),
+            roll=parse_optional_float(fields[9]),
+            pressure=parse_optional_float(fields[10]),
+            temperature=parse_optional_float(fields[11]),
             analog1=parse_optional_int(fields[12]),
             analog2=parse_optional_int(fields[13]),
             checksum=checksum,
@@ -197,17 +195,17 @@ class PNORS1:
             time=fields[2],
             error_code=parse_optional_int(fields[3]),
             status_code=fields[4],
-            battery=parse_optional_float(fields[5], _fs(_p, "battery")),
-            sound_speed=parse_optional_float(fields[6], _fs(_p, "sound_speed")),
-            heading_std_dev=parse_optional_float(fields[7], _fs(_p, "heading_std_dev")),
-            heading=parse_optional_float(fields[8], _fs(_p, "heading")),
-            pitch=parse_optional_float(fields[9], _fs(_p, "pitch")),
-            pitch_std_dev=parse_optional_float(fields[10], _fs(_p, "pitch_std_dev")),
-            roll=parse_optional_float(fields[11], _fs(_p, "roll")),
-            roll_std_dev=parse_optional_float(fields[12], _fs(_p, "roll_std_dev")),
-            pressure=parse_optional_float(fields[13], _fs(_p, "pressure")),
-            pressure_std_dev=parse_optional_float(fields[14], _fs(_p, "pressure_std_dev")),
-            temperature=parse_optional_float(fields[15], _fs(_p, "temperature")),
+            battery=parse_optional_float(fields[5]),
+            sound_speed=parse_optional_float(fields[6]),
+            heading_std_dev=parse_optional_float(fields[7]),
+            heading=parse_optional_float(fields[8]),
+            pitch=parse_optional_float(fields[9]),
+            pitch_std_dev=parse_optional_float(fields[10]),
+            roll=parse_optional_float(fields[11]),
+            roll_std_dev=parse_optional_float(fields[12]),
+            pressure=parse_optional_float(fields[13]),
+            pressure_std_dev=parse_optional_float(fields[14]),
+            temperature=parse_optional_float(fields[15]),
             checksum=checksum,
         )
 
@@ -331,21 +329,19 @@ class PNORS2:
             time=data["time"],
             error_code=parse_optional_int(data["error_code"]),
             status_code=data["status_code"],
-            battery=parse_optional_float(data["battery"], _fs(_p, "battery")),
-            sound_speed=parse_optional_float(data["sound_speed"], _fs(_p, "sound_speed")),
-            heading_std_dev=parse_optional_float(
-                data["heading_std_dev"], _fs(_p, "heading_std_dev")
-            ),
-            heading=parse_optional_float(data["heading"], _fs(_p, "heading")),
-            pitch=parse_optional_float(data["pitch"], _fs(_p, "pitch")),
-            pitch_std_dev=parse_optional_float(data["pitch_std_dev"], _fs(_p, "pitch_std_dev")),
-            roll=parse_optional_float(data["roll"], _fs(_p, "roll")),
-            roll_std_dev=parse_optional_float(data["roll_std_dev"], _fs(_p, "roll_std_dev")),
-            pressure=parse_optional_float(data["pressure"], _fs(_p, "pressure")),
+            battery=parse_optional_float(data["battery"]),
+            sound_speed=parse_optional_float(data["sound_speed"]),
+            heading_std_dev=parse_optional_float(data["heading_std_dev"]),
+            heading=parse_optional_float(data["heading"]),
+            pitch=parse_optional_float(data["pitch"]),
+            pitch_std_dev=parse_optional_float(data["pitch_std_dev"]),
+            roll=parse_optional_float(data["roll"]),
+            roll_std_dev=parse_optional_float(data["roll_std_dev"]),
+            pressure=parse_optional_float(data["pressure"]),
             pressure_std_dev=parse_optional_float(
-                data["pressure_std_dev"], _fs(_p, "pressure_std_dev")
+                data["pressure_std_dev"]
             ),
-            temperature=parse_optional_float(data["temperature"], _fs(_p, "temperature")),
+            temperature=parse_optional_float(data["temperature"]),
             checksum=checksum,
         )
 
@@ -419,7 +415,7 @@ class PNORS3:
             if tag not in cls.TAG_IDS:
                 raise ValueError(f"Unknown tag in PNORS3: {tag}")
             field_name = cls.TAG_IDS[tag]
-            data[field_name] = parse_optional_float(val, _fs(_p, field_name))
+            data[field_name] = parse_optional_float(val)
 
         # Fill missing with None
         for k in cls.TAG_IDS.values():
@@ -476,13 +472,13 @@ class PNORS4:
 
         _p = "PNORS4"
         return cls(
-            battery=parse_optional_float(fields[1], _fs(_p, "battery")),
-            sound_speed=parse_optional_float(fields[2], _fs(_p, "sound_speed")),
-            heading=parse_optional_float(fields[3], _fs(_p, "heading")),
-            pitch=parse_optional_float(fields[4], _fs(_p, "pitch")),
-            roll=parse_optional_float(fields[5], _fs(_p, "roll")),
-            pressure=parse_optional_float(fields[6], _fs(_p, "pressure")),
-            temperature=parse_optional_float(fields[7], _fs(_p, "temperature")),
+            battery=parse_optional_float(fields[1]),
+            sound_speed=parse_optional_float(fields[2]),
+            heading=parse_optional_float(fields[3]),
+            pitch=parse_optional_float(fields[4]),
+            roll=parse_optional_float(fields[5]),
+            pressure=parse_optional_float(fields[6]),
+            temperature=parse_optional_float(fields[7]),
             checksum=checksum,
         )
 

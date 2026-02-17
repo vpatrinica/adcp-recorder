@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass, field
 
-from .sentinels import get_float_sentinels as _fs
 from .utils import (
     parse_nmea_sentence,
     parse_optional_float,
@@ -62,18 +61,17 @@ class PNORWD:
         num_freq = parse_optional_int(fields[7]) or 0
 
         # Values start from index 8
-        _v_sent = _fs(_p, "value")
         vals: list[float | None] = []
         for i in range(8, len(fields)):
-            vals.append(parse_optional_float(fields[i], _v_sent))
+            vals.append(parse_optional_float(fields[i]))
 
         return cls(
             direction_type=fields[1],
             date=fields[2],
             time=fields[3],
             spectrum_basis=parse_optional_int(fields[4]),
-            start_frequency=parse_optional_float(fields[5], _fs(_p, "start_frequency")),
-            step_frequency=parse_optional_float(fields[6], _fs(_p, "step_frequency")),
+            start_frequency=parse_optional_float(fields[5]),
+            step_frequency=parse_optional_float(fields[6]),
             num_frequencies=num_freq if num_freq > 0 else None,
             values=vals,
             checksum=checksum,

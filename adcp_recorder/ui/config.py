@@ -428,24 +428,36 @@ DASHBOARD_TEMPLATES = {
     "overview": DashboardConfig(
         name="Overview",
         description="General ADCP data overview",
-        layout=LayoutConfig(columns=2, rows=2),
+        # Single-column layout: one panel per row
+        layout=LayoutConfig(columns=1, rows=3),
         panels=[
             PanelConfig(
                 id="sensor_table",
                 type=PanelType.TABLE,
-                title="Latest Sensor Readings",
+                title="Configuration (PNORI1)",
                 position=PanelPosition(row=0, col=0),
-                config={"data_source": "pnors_df100", "limit": 50},
+                config={"data_source": "pnori1", "limit": 50},
             ),
             PanelConfig(
                 id="temp_pressure",
                 type=PanelType.TIME_SERIES,
-                title="Temperature & Pressure",
-                position=PanelPosition(row=0, col=1),
+                title="Temperature & Pressure (PNORS1)",
+                position=PanelPosition(row=1, col=0),
                 config={
                     "series": [
-                        {"source": "pnors_df100", "y": "temperature", "label": "Temp"},
-                        {"source": "pnors_df100", "y": "pressure", "label": "Pressure"},
+                        {"source": "pnors1", "y": "temperature", "label": "Temp"},
+                        {"source": "pnors1", "y": "pressure", "label": "Pressure"},
+                    ],
+                },
+            ),
+            PanelConfig(
+                id="velocity_overview",
+                type=PanelType.TIME_SERIES,
+                title="Velocity Overview (PNORC1)",
+                position=PanelPosition(row=2, col=0),
+                config={
+                    "series": [
+                        {"source": "pnorc1", "y": "vel1", "label": "Vel1"},
                     ],
                 },
             ),
@@ -454,52 +466,52 @@ DASHBOARD_TEMPLATES = {
     "velocity_analysis": DashboardConfig(
         name="Velocity Analysis",
         description="Current velocity profiling and analysis with sensor data",
-        layout=LayoutConfig(columns=3, rows=3),
+        layout=LayoutConfig(columns=1, rows=6),
         panels=[
             PanelConfig(
                 id="sensor_table",
                 type=PanelType.TABLE,
                 title="Sensor Data (PNORS)",
                 position=PanelPosition(row=0, col=0),
-                config={"data_source": "pnors_df100", "limit": 50, "time_range": "24h"},
+                config={"data_source": "pnors1", "limit": 50, "time_range": "24h"},
             ),
             PanelConfig(
                 id="sensor12_table",
                 type=PanelType.TABLE,
                 title="Sensor Data 12 (PNORS12)",
-                position=PanelPosition(row=0, col=1),
+                position=PanelPosition(row=1, col=0),
                 config={"data_source": "pnors12", "limit": 50, "time_range": "24h"},
             ),
             PanelConfig(
                 id="sensor34_table",
                 type=PanelType.TABLE,
                 title="Sensor Data 34 (PNORS34)",
-                position=PanelPosition(row=0, col=2),
+                position=PanelPosition(row=2, col=0),
                 config={"data_source": "pnors34", "limit": 50, "time_range": "24h"},
             ),
             PanelConfig(
                 id="velocity_table",
                 type=PanelType.TABLE,
                 title="Velocity Data (PNORC)",
-                position=PanelPosition(row=1, col=0),
+                position=PanelPosition(row=3, col=0),
                 config={"data_source": "pnorc12", "limit": 100, "time_range": "24h"},
             ),
             PanelConfig(
                 id="velocity_profile",
                 type=PanelType.VELOCITY_PROFILE,
                 title="Depth Profile",
-                position=PanelPosition(row=1, col=1, width=2),
+                position=PanelPosition(row=4, col=0),
                 config={"time_range": "24h"},
             ),
             PanelConfig(
                 id="temp_pressure",
                 type=PanelType.TIME_SERIES,
                 title="Temperature & Pressure",
-                position=PanelPosition(row=2, col=0, width=3),
+                position=PanelPosition(row=5, col=0),
                 config={
                     "series": [
-                        {"source": "pnors_df100", "y": "temperature", "label": "Temp (°C)"},
-                        {"source": "pnors_df100", "y": "pressure", "label": "Pressure (dbar)"},
+                        {"source": "pnors1", "y": "temperature", "label": "Temp (°C)"},
+                        {"source": "pnors1", "y": "pressure", "label": "Pressure (dbar)"},
                     ],
                     "time_range": "24h",
                 },
@@ -509,7 +521,7 @@ DASHBOARD_TEMPLATES = {
     "wave_analysis": DashboardConfig(
         name="Wave Analysis",
         description="Comprehensive wave spectrum and directional analysis",
-        layout=LayoutConfig(columns=3, rows=4),
+        layout=LayoutConfig(columns=1, rows=10),
         panels=[
             PanelConfig(
                 id="wave_params",
@@ -522,63 +534,63 @@ DASHBOARD_TEMPLATES = {
                 id="wave_bands",
                 type=PanelType.TABLE,
                 title="Wave Band Parameters (PNORB)",
-                position=PanelPosition(row=0, col=1),
+                position=PanelPosition(row=1, col=0),
                 config={"data_source": "pnorb_data", "limit": 20},
             ),
             PanelConfig(
                 id="directional_spectrum",
                 type=PanelType.POLAR,
                 title="Directional Spectrum (PNORWD)",
-                position=PanelPosition(row=0, col=2, height=2),
+                position=PanelPosition(row=2, col=0),
                 config={"time_range": "7d"},
             ),
             PanelConfig(
                 id="wave_ener_heatmap",
                 type=PanelType.HEATMAP,
                 title="Wave Energy Density Heatmap",
-                position=PanelPosition(row=1, col=0, width=2, height=1),
+                position=PanelPosition(row=3, col=0),
                 config={"data_source": "pnore_data", "colorscale": "Plasma", "time_range": "7d"},
             ),
             PanelConfig(
                 id="wave_amp_heatmap",
                 type=PanelType.AMPLITUDE_HEATMAP,
                 title="Signal Strength Heatmap",
-                position=PanelPosition(row=2, col=0, width=2, height=1),
+                position=PanelPosition(row=4, col=0),
                 config={"colorscale": "Jet", "time_range": "7d"},
             ),
             PanelConfig(
                 id="fourier_a1",
                 type=PanelType.SPECTRUM,
                 title="Fourier A1 Coefficients",
-                position=PanelPosition(row=2, col=0),
+                position=PanelPosition(row=5, col=0),
                 config={"data_source": "pnorf_data", "coefficient": "A1"},
             ),
             PanelConfig(
                 id="fourier_b1",
                 type=PanelType.SPECTRUM,
                 title="Fourier B1 Coefficients",
-                position=PanelPosition(row=2, col=1),
+                position=PanelPosition(row=6, col=0),
                 config={"data_source": "pnorf_data", "coefficient": "B1"},
             ),
             PanelConfig(
                 id="fourier_a2",
                 type=PanelType.SPECTRUM,
                 title="Fourier A2 Coefficients",
-                position=PanelPosition(row=2, col=2),
+                position=PanelPosition(row=7, col=0),
                 config={"data_source": "pnorf_data", "coefficient": "A2"},
             ),
             PanelConfig(
                 id="fourier_b2",
                 type=PanelType.SPECTRUM,
                 title="Fourier B2 Coefficients",
-                position=PanelPosition(row=3, col=0),
+                position=PanelPosition(row=8, col=0),
                 config={"data_source": "pnorf_data", "coefficient": "B2"},
             ),
             PanelConfig(
                 id="wave_full_table",
                 type=PanelType.TABLE,
                 title="Full Wave Data View (Joined)",
-                position=PanelPosition(row=3, col=1, width=2),
+                position=PanelPosition(row=9, col=0),
                 config={
                     "data_source": "wave_measurement_full",
                     "columns": [

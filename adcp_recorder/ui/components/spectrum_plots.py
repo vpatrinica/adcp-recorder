@@ -6,7 +6,6 @@ navigation instead of manual burst selection.
 """
 
 import json
-from datetime import datetime
 from typing import Any
 
 import numpy as np
@@ -305,11 +304,11 @@ def render_energy_heatmap(
             data=go.Heatmap(
                 z=z_data,
                 x=freq_axis[:max_len],
-                y=list(range(len(timestamps))),
+                y=timestamps,
                 colorscale=colorscale,
                 colorbar=dict(title="Energy (m\u00b2/Hz)"),
                 hovertemplate=(
-                    "Freq: %{x:.3f} Hz<br>Record: %{y}<br>Energy: %{z:.4f}<extra></extra>"
+                    "Freq: %{x:.3f} Hz<br>Time: %{y}<br>Energy: %{z:.4f}<extra></extra>"
                 ),
             ),
         )
@@ -326,12 +325,6 @@ def render_energy_heatmap(
                 title="Time",
                 showgrid=False,
                 autorange="reversed",
-                tickmode="array",
-                tickvals=list(range(len(timestamps))),
-                ticktext=[
-                    ts.strftime("%H:%M:%S") if isinstance(ts, datetime) else str(ts)
-                    for ts in timestamps
-                ],
             ),
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
@@ -528,27 +521,35 @@ def render_directional_spectrum(
 
             intensity_arr = np.array(intensity_grid)
 
-            # Render as go.Barpolar segments
+            # Render as go.Barpolar segments - optimized to a single trace
+            r_all: list[float] = []
+            theta_all: list[float] = []
+            base_all: list[float] = []
+            colors_all: list[float] = []
+
             for i, f in enumerate(freqs):
-                fig.add_trace(
-                    go.Barpolar(
-                        r=[dr] * len(theta_bins),
-                        theta=theta_bins,
-                        base=[f - dr / 2] * len(theta_bins),
-                        marker=dict(
-                            color=intensity_arr[i],
-                            colorscale="Viridis",
-                            showscale=(i == 0),
-                            colorbar=dict(title="Energy Density", orientation="h", y=-0.2)
-                            if i == 0
-                            else None,
-                            line=dict(width=0),
-                        ),
-                        width=[d_theta] * len(theta_bins),
-                        hoverinfo="skip",
-                        name=f"{f:.3f} Hz",
-                    )
+                r_all.extend([dr] * len(theta_bins))
+                theta_all.extend(theta_bins)
+                base_all.extend([f - dr / 2] * len(theta_bins))
+                colors_all.extend(intensity_arr[i])
+
+            fig.add_trace(
+                go.Barpolar(
+                    r=r_all,
+                    theta=theta_all,
+                    base=base_all,
+                    marker=dict(
+                        color=colors_all,
+                        colorscale="Viridis",
+                        showscale=True,
+                        colorbar=dict(title="Energy Density", orientation="h", y=-0.2),
+                        line=dict(width=0),
+                    ),
+                    width=[d_theta] * len(theta_all),
+                    hoverinfo="skip",
+                    name="Directional Energy",
                 )
+            )
 
         # Update Polar Layout
         fig.update_layout(
@@ -596,7 +597,7 @@ def render_amplitude_heatmap(
         raise ImportError("Streamlit and Plotly are required for this component.")
     config = config or {}
 
-    # Auto-detect best current profile source for amplitude data
+    # Auto-detect best current profile source for amplitude data (prefer *_1 views)
     source_name = data_layer.detect_current_profile_view()
     if source_name is None:
         st.info("No current profile data available for amplitude heatmap.")
@@ -659,6 +660,7 @@ def render_amplitude_heatmap(
         height=400,
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
+        yaxis=dict(autorange="reversed"),
     )
 
     st.plotly_chart(fig, width="stretch", key=f"{key_prefix}_chart")

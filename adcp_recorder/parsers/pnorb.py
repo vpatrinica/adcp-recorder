@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass, field
 
-from .sentinels import get_float_sentinels as _fs
 from .utils import (
     parse_nmea_sentence,
     parse_optional_float,
@@ -10,6 +9,8 @@ from .utils import (
     validate_date_mm_dd_yy,
     validate_range,
     validate_time_string,
+    NMEA_OUTLIER_FLOAT_LIST,
+    NMEA_OUTLIER_INT_LIST,
 )
 
 
@@ -39,25 +40,25 @@ class PNORB:
         validate_date_mm_dd_yy(self.date)
         validate_time_string(self.time)
         if self.spectrum_basis is not None:
-            validate_range(self.spectrum_basis, "Spectrum basis", 0, 3)
+            validate_range(self.spectrum_basis, "Spectrum basis", 0, 3, self.spectrum_basis in NMEA_OUTLIER_INT_LIST)
         if self.processing_method is not None:
-            validate_range(self.processing_method, "Processing method", 1, 4)
+            validate_range(self.processing_method, "Processing method", 1, 4, self.processing_method in NMEA_OUTLIER_INT_LIST)
         if self.freq_low is not None:
-            validate_range(self.freq_low, "Frequency low", 0.0, 10.0)
+            validate_range(self.freq_low, "Frequency low", 0.0, 10.0, self.freq_low in NMEA_OUTLIER_FLOAT_LIST)
         if self.freq_high is not None:
-            validate_range(self.freq_high, "Frequency high", 0.0, 10.0)
+            validate_range(self.freq_high, "Frequency high", 0.0, 10.0, self.freq_high in NMEA_OUTLIER_FLOAT_LIST)
         if self.hm0 is not None:
-            validate_range(self.hm0, "Hm0", 0.0, 999.99)
+            validate_range(self.hm0, "Hm0", 0.0, 999.99, self.hm0 in NMEA_OUTLIER_FLOAT_LIST)
         if self.tm02 is not None:
-            validate_range(self.tm02, "Tm02", 0.0, 999.99)
+            validate_range(self.tm02, "Tm02", 0.0, 999.99, self.tm02 in NMEA_OUTLIER_FLOAT_LIST)
         if self.tp is not None:
-            validate_range(self.tp, "Tp", 0.0, 999.99)
+            validate_range(self.tp, "Tp", 0.0, 999.99, self.tp in NMEA_OUTLIER_FLOAT_LIST)
         if self.dir_tp is not None:
-            validate_range(self.dir_tp, "DirTp", 0.0, 360.0)
+            validate_range(self.dir_tp, "DirTp", 0.0, 360.0, self.dir_tp in NMEA_OUTLIER_FLOAT_LIST)
         if self.spr_tp is not None:
-            validate_range(self.spr_tp, "SprTp", 0.0, 360.0)
+            validate_range(self.spr_tp, "SprTp", 0.0, 360.0, self.spr_tp in NMEA_OUTLIER_FLOAT_LIST)
         if self.main_dir is not None:
-            validate_range(self.main_dir, "MainDir", 0.0, 360.0)
+            validate_range(self.main_dir, "MainDir", 0.0, 360.0, self.main_dir in NMEA_OUTLIER_FLOAT_LIST)
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORB":
@@ -73,14 +74,14 @@ class PNORB:
             time=fields[2],
             spectrum_basis=parse_optional_int(fields[3]),
             processing_method=parse_optional_int(fields[4]),
-            freq_low=parse_optional_float(fields[5], _fs(_p, "freq_low")),
-            freq_high=parse_optional_float(fields[6], _fs(_p, "freq_high")),
-            hm0=parse_optional_float(fields[7], _fs(_p, "hm0")),
-            tm02=parse_optional_float(fields[8], _fs(_p, "tm02")),
-            tp=parse_optional_float(fields[9], _fs(_p, "tp")),
-            dir_tp=parse_optional_float(fields[10], _fs(_p, "dir_tp")),
-            spr_tp=parse_optional_float(fields[11], _fs(_p, "spr_tp")),
-            main_dir=parse_optional_float(fields[12], _fs(_p, "main_dir")),
+            freq_low=parse_optional_float(fields[5]),
+            freq_high=parse_optional_float(fields[6]),
+            hm0=parse_optional_float(fields[7]),
+            tm02=parse_optional_float(fields[8]),
+            tp=parse_optional_float(fields[9]),
+            dir_tp=parse_optional_float(fields[10]),
+            spr_tp=parse_optional_float(fields[11]),
+            main_dir=parse_optional_float(fields[12]),
             wave_error_code=fields[13],
             checksum=checksum,
         )

@@ -1010,23 +1010,19 @@ class ParquetDataLayer(DataLayer):
         # alphabetic pnor base anywhere in the name (helps match patterns like
         # 'pnorwdata_something'). Prefer the longest matching view name.
         candidates: list[str] = []
+        bases = ("pnorwd", "pnorw", "pnors", "pnorc", "pnore", "pnorf", "pnorh", "pnori")
         for v in self._loaded_views:
-            if "pnor" in v and any(
-                b in v
-                for b in ("pnorw", "pnors", "pnorc", "pnore", "pnorf", "pnorh", "pnori", "pnorwd")
-            ):
-                if re.search(r"pnor[a-z]+", lname):
-                    if re.search(r"pnor[a-z]+", v):
+            v_lower = v.lower()
+            if "pnor" in v_lower:
+                for b in bases:
+                    if b in lname and b in v_lower:
                         candidates.append(v)
+                        break
 
         if candidates:
-            # Prefer exact substring match, otherwise longest name
-            for c in candidates:
-                m_l = re.search(r"pnor[a-z]+", lname)
-                m_c = re.search(r"pnor[a-z]+", c)
-                if m_l and m_c and m_l.group(0) == m_c.group(0):
-                    return c
-            return max(candidates, key=len)
+            # Prefer the shortest name that matches the base.
+            # This ensures 'pnorw_data' matches 'pq_pnorw' even if 'pq_pnorwd' exists.
+            return min(candidates, key=len)
 
         return None
 

@@ -445,33 +445,47 @@ class DataLayer:
         if not source:
             return {"depths": [], "velocities": {}}
 
-        # Get the latest measurement if no timestamp specified
-        if timestamp is None:
-            query = f"""
-                SELECT DISTINCT measurement_date, measurement_time
-                FROM {source.name}
-                ORDER BY measurement_date DESC, measurement_time DESC
-                LIMIT 1
-            """
-            latest = self.conn.execute(query).fetchone()
-            if not latest:
-                return {"depths": [], "velocities": {}}
-            date_filter, time_filter = latest
-        else:
-            date_filter = timestamp.strftime("%d%m%y")
-            time_filter = timestamp.strftime("%H%M%S")
-
         # Query all cells for this measurement
         cols = ["cell_index", "distance"] + velocity_columns
         valid_cols = [c for c in cols if any(col.name == c for col in source.columns)]
         col_str = ", ".join(valid_cols)
 
-        query = f"""
-            SELECT {col_str} FROM {source.name}
-            WHERE measurement_date = ? AND measurement_time = ?
-            ORDER BY cell_index ASC
-        """
-        result = self.conn.execute(query, [date_filter, time_filter]).fetchall()
+        if timestamp is not None:
+            # Use timestamp (received_at) for robust filtering across different DB schemas
+            query = f"""
+                SELECT {col_str} FROM {source.name}
+                WHERE {source.timestamp_column} = ?
+                ORDER BY cell_index ASC
+            """
+            result = self.conn.execute(query, [timestamp]).fetchall()
+
+            # Fallback to date/time strings if timestamp match fails
+            if not result:
+                # Try multiple common formats to handle both VARCHAR and DATE columns
+                for fmt in ["%m%d%y", "%d%m%y", "%Y-%m-%d"]:
+                    date_val = timestamp.strftime(fmt)
+                    time_val = timestamp.strftime("%H%M%S")
+                    try:
+                        query = f"""
+                            SELECT {col_str} FROM {source.name}
+                            WHERE measurement_date = ? AND measurement_time = ?
+                            ORDER BY cell_index ASC
+                        """
+                        result = self.conn.execute(query, [date_val, time_val]).fetchall()
+                        if result:
+                            break
+                    except Exception:
+                        continue
+        else:
+            # Get the latest measurement using timestamp for reliable sorting
+            query = f"""
+                SELECT {col_str} FROM {source.name}
+                WHERE {source.timestamp_column} = (
+                    SELECT MAX({source.timestamp_column}) FROM {source.name}
+                )
+                ORDER BY cell_index ASC
+            """
+            result = self.conn.execute(query).fetchall()
 
         # Calculate depths and organize velocities
         depths = []
@@ -811,6 +825,7 @@ class DataLayer:
         try:
             # 1. Find the target measurement time
             if timestamp:
+                # Try fetching by exact timestamp first
                 query = f"""
                     SELECT
                         start_frequency, step_frequency, num_frequencies, energy_densities,
@@ -822,13 +837,32 @@ class DataLayer:
 
                 if not energy_data:
                     # Fallback to string matching if timestamp fails
-                    date_str = timestamp.strftime("%m%d%y")
-                    time_str = timestamp.strftime("%H%M%S")
-                else:
+                    # Try multiple formats to handle VARCHAR and DATE columns
+                    for fmt in ["%m%d%y", "%d%m%y", "%Y-%m-%d"]:
+                        date_str = timestamp.strftime(fmt)
+                        time_str = timestamp.strftime("%H%M%S")
+                        try:
+                            query = f"""
+                                SELECT
+                                    start_frequency, step_frequency,
+                                    num_frequencies, energy_densities,
+                                    {ts_col}, measurement_date, measurement_time
+                                FROM {name_pnore}
+                                WHERE measurement_date = ? AND measurement_time = ?
+                            """
+                            energy_data = self.conn.execute(query, [date_str, time_str]).fetchone()
+                            if energy_data:
+                                break
+                        except Exception:
+                            continue
+
+                if energy_data:
                     (start_f, step_f, num_f, energy_densities_json, ts, date_str, time_str) = (
                         energy_data
                     )
                     energy = json.loads(energy_densities_json)
+                else:
+                    return {}
             else:
                 # Use ts_col defined above
                 # Find the latest measurement that has all components
@@ -845,7 +879,7 @@ class DataLayer:
                 latest = self.conn.execute(latest_query).fetchone()
                 if not latest:
                     return {}
-                date_str, time_str, _ = latest
+                date_str, time_str, ts = latest
                 energy_data = None  # Will fetch below
 
             # 2. Fetch Energy if not already fetched
@@ -1174,7 +1208,6 @@ class DataLayer:
                     if has_direction:
                         directions[c_idx][t_idx] = cell.get("direction")
                     if has_cell_distance and cell_distances[c_idx] is None:
-                        directions[c_idx][t_idx] = cell.get("direction")
                         cell_distances[c_idx] = cell.get("cell_distance")
 
             return {

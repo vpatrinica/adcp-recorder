@@ -103,38 +103,31 @@ def render_current_speed_heatmap(
             st.info("Insufficient data for heatmap rendering.")
             return
 
-        # Y-axis labels: use cell distances if available, else cell indices
+        # Use actual values for axes to allow numerical overlays
+        x_axis = timestamps
         if cell_distances and any(d is not None for d in cell_distances):
-            y_labels = [
-                f"{d:.1f} m" if d is not None else f"Cell {ci}"
-                for ci, d in zip(cell_indices, cell_distances, strict=False)
-            ]
+            y_axis = cell_distances
             y_title = "Depth (m)"
         else:
-            y_labels = [f"Cell {ci}" for ci in cell_indices]
+            y_axis = cell_indices
             y_title = "Cell Index"
-
-        # Format timestamps for X-axis
-        x_labels = [
-            ts.strftime("%m-%d %H:%M") if isinstance(ts, datetime) else str(ts) for ts in timestamps
-        ]
 
         fig = go.Figure()
 
         fig.add_trace(
             go.Heatmap(
                 z=speeds,
-                x=x_labels,
-                y=y_labels,
+                x=x_axis,
+                y=y_axis,
                 colorscale=colorscale,
                 colorbar=dict(title="Speed (m/s)"),
-                hovertemplate=("Time: %{x}<br>%{y}<br>Speed: %{z:.3f} m/s<extra></extra>"),
+                hovertemplate=("Time: %{x}<br>Depth: %{y}<br>Speed: %{z:.3f} m/s<extra></extra>"),
             ),
         )
 
         # Overlay direction arrows if requested and data available
         if show_arrows and directions:
-            _add_direction_arrows(fig, x_labels, y_labels, speeds, directions)
+            _add_direction_arrows(fig, x_axis, y_axis, speeds, directions)
 
         fig.update_layout(
             height=500,
@@ -166,31 +159,34 @@ def render_current_speed_heatmap(
 
 def _add_direction_arrows(
     fig: Any,
-    x_labels: list[str],
-    y_labels: list[str],
+    x_values: list[Any],
+    y_values: list[Any],
     speeds: list[list[float | None]],
     directions: list[list[float | None]],
 ) -> None:
-    """Add direction arrows as annotation overlay on the heatmap.
+    """Add direction arrows as a scatter trace overlay on the heatmap.
 
     Subsamples to avoid overcrowding. Arrow points in the flow direction.
 
     Args:
-        fig: Plotly Figure to add annotations to
-        x_labels: X-axis labels (time)
-        y_labels: Y-axis labels (depth/cell)
+        fig: Plotly Figure to add arrows to
+        x_values: X-axis values (timestamps)
+        y_values: Y-axis values (depths or cell indices)
         speeds: 2D speed array [cell][time]
         directions: 2D direction array [cell][time]
 
     """
-    num_cells = len(y_labels)
-    num_times = len(x_labels)
+    num_cells = len(y_values)
+    num_times = len(x_values)
 
-    # Subsample: max ~15 arrows per axis
+    # Subsample: max ~20 arrows per axis
     cell_step = max(1, num_cells // 15)
-    time_step = max(1, num_times // 15)
+    time_step = max(1, num_times // 20)
 
-    annotations = []
+    arrow_x = []
+    arrow_y = []
+    arrow_angles = []
+
     for ci in range(0, num_cells, cell_step):
         for ti in range(0, num_times, time_step):
             direction = (
@@ -198,30 +194,32 @@ def _add_direction_arrows(
             )
             speed = speeds[ci][ti] if ci < len(speeds) and ti < len(speeds[ci]) else None
 
-            if direction is None or speed is None:
+            if direction is None or speed is None or speed < 0.01:
                 continue
 
-            annotations.append(
-                dict(
-                    x=x_labels[ti],
-                    y=y_labels[ci],
-                    ax=x_labels[ti],
-                    ay=y_labels[ci],
-                    xref="x",
-                    yref="y",
-                    axref="x",
-                    ayref="y",
-                    text="",
-                    showarrow=True,
-                    arrowhead=2,
-                    arrowsize=1.5,
-                    arrowwidth=1.5,
-                    arrowcolor="white",
-                )
-            )
+            arrow_x.append(x_values[ti])
+            arrow_y.append(y_values[ci])
+            # Plotly angle: 0 is up, clockwise. ADCP direction: 0 is North (up), clockwise.
+            arrow_angles.append(direction)
 
-    if annotations:
-        fig.update_layout(annotations=annotations)
+    if arrow_x:
+        fig.add_trace(
+            go.Scatter(
+                x=arrow_x,
+                y=arrow_y,
+                mode="markers",
+                marker=dict(
+                    symbol="arrow-wide",
+                    angle=arrow_angles,
+                    size=12,
+                    color="white",
+                    line=dict(width=1, color="rgba(0,0,0,0.5)"),
+                ),
+                name="Direction",
+                hoverinfo="skip",
+                showlegend=False,
+            )
+        )
 
 
 def render_current_direction_polar(

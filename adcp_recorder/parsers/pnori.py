@@ -12,7 +12,6 @@ from typing import Any, ClassVar
 
 from ..core.enums import CoordinateSystem, InstrumentType
 from ..core.nmea import compute_checksum
-from .sentinels import get_float_sentinels as _fs
 from .utils import parse_nmea_sentence, parse_optional_float, parse_optional_int
 
 
@@ -126,8 +125,8 @@ class PNORI:
             head_id=fields[2],
             beam_count=parse_optional_int(fields[3]),
             cell_count=parse_optional_int(fields[4]),
-            blanking_distance=parse_optional_float(fields[5], _fs(_p, "blanking_distance")),
-            cell_size=parse_optional_float(fields[6], _fs(_p, "cell_size")),
+            blanking_distance=parse_optional_float(fields[5]),
+            cell_size=parse_optional_float(fields[6]),
             coordinate_system=CoordinateSystem.from_code(int(fields[7])),
             checksum=checksum,
         )
@@ -240,8 +239,8 @@ class PNORI1:
             head_id=fields[2],
             beam_count=parse_optional_int(fields[3]),
             cell_count=parse_optional_int(fields[4]),
-            blanking_distance=parse_optional_float(fields[5], _fs(_p, "blanking_distance")),
-            cell_size=parse_optional_float(fields[6], _fs(_p, "cell_size")),
+            blanking_distance=parse_optional_float(fields[5]),
+            cell_size=parse_optional_float(fields[6]),
             coordinate_system=CoordinateSystem.from_code(fields[7]),
             checksum=checksum,
         )
@@ -410,11 +409,9 @@ class PNORI2:
             cell_count=parse_optional_int(data[PNORITag.NUM_CELLS]),
             blanking_distance=parse_optional_float(
                 data[PNORITag.BLANKING_DISTANCE],
-                _fs(_p, "blanking_distance"),
             ),
             cell_size=parse_optional_float(
                 data[PNORITag.CELL_SIZE],
-                _fs(_p, "cell_size"),
             ),
             coordinate_system=CoordinateSystem.from_code(data[PNORITag.COORDINATE_SYSTEM]),
             checksum=checksum,

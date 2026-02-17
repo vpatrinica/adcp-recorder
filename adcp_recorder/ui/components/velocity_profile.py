@@ -34,9 +34,11 @@ BEAM_LABELS = {
 
 # Preferred data sources: views first, then raw tables
 _PREFERRED_SOURCES = [
+    "current_profile_1",
     "current_profile_12",
     "current_profile_df100",
     "current_profile_34",
+    "pnorc1",
     "pnorc12",
     "pnorc_df100",
     "pnorc34",

@@ -11,7 +11,6 @@ Implements parsers for:
 from dataclasses import dataclass, field
 from typing import Any
 
-from .sentinels import get_float_sentinels as _fs
 from .utils import (
     parse_nmea_sentence,
     parse_optional_float,
@@ -109,12 +108,12 @@ class PNORC:
             date=fields[1],
             time=fields[2],
             cell_index=int(fields[3]),
-            vel1=parse_optional_float(fields[4], _fs(_p, "vel1")),
-            vel2=parse_optional_float(fields[5], _fs(_p, "vel2")),
-            vel3=parse_optional_float(fields[6], _fs(_p, "vel3")),
-            vel4=parse_optional_float(fields[7], _fs(_p, "vel4")),
-            speed=parse_optional_float(fields[8], _fs(_p, "speed")),
-            direction=parse_optional_float(fields[9], _fs(_p, "direction")),
+            vel1=parse_optional_float(fields[4]),
+            vel2=parse_optional_float(fields[5]),
+            vel3=parse_optional_float(fields[6]),
+            vel4=parse_optional_float(fields[7]),
+            speed=parse_optional_float(fields[8]),
+            direction=parse_optional_float(fields[9]),
             amp_unit=fields[10],
             amp1=parse_optional_int(fields[11]),
             amp2=parse_optional_int(fields[12]),
@@ -202,15 +201,15 @@ class PNORC1:
             date=fields[1],
             time=fields[2],
             cell_index=int(fields[3]),
-            distance=parse_optional_float(fields[4], _fs(_p, "distance")),
-            vel1=parse_optional_float(fields[5], _fs(_p, "vel1")),
-            vel2=parse_optional_float(fields[6], _fs(_p, "vel2")),
-            vel3=parse_optional_float(fields[7], _fs(_p, "vel3")),
-            vel4=parse_optional_float(fields[8], _fs(_p, "vel4")),
-            amp1=parse_optional_float(fields[9], _fs(_p, "amp1")),
-            amp2=parse_optional_float(fields[10], _fs(_p, "amp2")),
-            amp3=parse_optional_float(fields[11], _fs(_p, "amp3")),
-            amp4=parse_optional_float(fields[12], _fs(_p, "amp4")),
+            distance=parse_optional_float(fields[4]),
+            vel1=parse_optional_float(fields[5]),
+            vel2=parse_optional_float(fields[6]),
+            vel3=parse_optional_float(fields[7]),
+            vel4=parse_optional_float(fields[8]),
+            amp1=parse_optional_float(fields[9]),
+            amp2=parse_optional_float(fields[10]),
+            amp3=parse_optional_float(fields[11]),
+            amp4=parse_optional_float(fields[12]),
             corr1=parse_optional_int(fields[13]),
             corr2=parse_optional_int(fields[14]),
             corr3=parse_optional_int(fields[15]),
@@ -320,13 +319,13 @@ class PNORC2:
             elif tag == "CN":
                 data["cell_index"] = int(val)
             elif tag == "CP":
-                data["distance"] = parse_optional_float(val, _fs(_p, "distance"))
+                data["distance"] = parse_optional_float(val)
             elif tag in cls.TAG_GRP_VEL:
                 idx = cls.TAG_GRP_VEL[tag]
-                data[f"vel{idx}"] = parse_optional_float(val, _fs(_p, f"vel{idx}"))
+                data[f"vel{idx}"] = parse_optional_float(val)
             elif tag in cls.TAG_GRP_AMP:
                 idx = cls.TAG_GRP_AMP[tag]
-                data[f"amp{idx}"] = parse_optional_float(val, _fs(_p, f"amp{idx}"))
+                data[f"amp{idx}"] = parse_optional_float(val)
             elif tag in cls.TAG_GRP_CORR:
                 data[f"corr{cls.TAG_GRP_CORR[tag]}"] = parse_optional_int(val)
             else:
@@ -432,7 +431,7 @@ class PNORC3:
             if field_name in ["avg_amplitude", "avg_correlation"]:
                 data[field_name] = parse_optional_int(val)
             else:
-                data[field_name] = parse_optional_float(val, _fs(_p, field_name))
+                data[field_name] = parse_optional_float(val)
 
         # Allow missing fields as None
         for k in cls.TAG_IDS.values():
@@ -487,9 +486,9 @@ class PNORC4:
 
         _p = "PNORC4"
         return cls(
-            distance=parse_optional_float(fields[1], _fs(_p, "distance")),
-            speed=parse_optional_float(fields[2], _fs(_p, "speed")),
-            direction=parse_optional_float(fields[3], _fs(_p, "direction")),
+            distance=parse_optional_float(fields[1]),
+            speed=parse_optional_float(fields[2]),
+            direction=parse_optional_float(fields[3]),
             avg_correlation=parse_optional_int(fields[4]),
             avg_amplitude=parse_optional_int(fields[5]),
             checksum=checksum,

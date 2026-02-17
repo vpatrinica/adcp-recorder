@@ -5,6 +5,10 @@ from datetime import datetime
 
 from adcp_recorder.core.nmea import validate_checksum
 
+## it is a const  
+NMEA_OUTLIER_FLOAT_LIST = [-9.0, -99.0, -999.0, -999, -99, -9]
+NMEA_OUTLIER_INT_LIST = [-9, -99, -999]
+
 
 def parse_nmea_sentence(sentence: str) -> tuple[list[str], str | None]:
     """Split NMEA sentence into fields and validate checksum if present.
@@ -70,9 +74,29 @@ def validate_hex_string(hex_str: str, min_length: int = 1, max_length: int = 8) 
         raise ValueError(f"Invalid hex string: {hex_str}")
 
 
-def validate_range(value: float, field_name: str, range_min: float, range_max: float) -> None:
-    """Validate numeric value within range."""
+def validate_range(
+    value: float,
+    field_name: str,
+    range_min: float,
+    range_max: float,
+    is_outlier: bool = False,
+) -> None:
+    """Validate numeric value within range, allowing an optional outlier value.
+
+    Args:
+        value: Numeric value to validate
+        field_name: Name of the field for error message
+        range_min: Minimum allowed value
+        range_max: Maximum allowed value
+        is_outlier: If True, value is considered valid even if out of range
+
+    Raises:
+        ValueError: If value is not the outlier_value and is NaN or out of range
+    """
     import math
+
+    if is_outlier:
+        return
 
     if math.isnan(value) or not (range_min <= value <= range_max):
         raise ValueError(f"{field_name} out of range ({range_min} to {range_max}): {value}")
@@ -98,18 +122,14 @@ def is_nan_string(value_str: str) -> bool:
 
 def parse_optional_int(
     value_str: str,
-    sentinels: tuple[str, ...] = (),
 ) -> int | None:
-    """Parse int from string, returning None for empty, NaN, sentinel, or unparseable values.
+    """Parse int from string, returning None for empty, or NaN fields.
 
     Args:
         value_str: Raw field string from an NMEA sentence.
-        sentinels: Exact strings that indicate invalid/missing data
-            (e.g. ``("-9", "-999")``).  Obtain from
-            :func:`~adcp_recorder.parsers.sentinels.get_int_sentinels`.
 
     """
-    if not value_str or value_str in sentinels or is_nan_string(value_str):
+    if not value_str or is_nan_string(value_str):
         return None
     try:
         return int(value_str)
@@ -118,19 +138,15 @@ def parse_optional_int(
 
 
 def parse_optional_float(
-    value_str: str,
-    sentinels: tuple[str, ...] = (),
+    value_str: str
 ) -> float | None:
-    """Parse float from string, returning None for sentinel, empty, or NaN fields.
+    """Parse float from string, returning None for empty, or NaN fields.
 
     Args:
         value_str: Raw field string from an NMEA sentence.
-        sentinels: Exact strings that indicate invalid/missing data
-            (e.g. ``("-9.00", "-99.99")``).  Obtain from
-            :func:`~adcp_recorder.parsers.sentinels.get_float_sentinels`.
 
     """
-    if not value_str or value_str in sentinels or is_nan_string(value_str):
+    if not value_str or is_nan_string(value_str):
         return None
     try:
         return float(value_str)

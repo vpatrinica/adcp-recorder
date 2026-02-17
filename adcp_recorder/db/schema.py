@@ -79,22 +79,15 @@ CREATE TABLE IF NOT EXISTS pnori (
     received_at TIMESTAMP DEFAULT current_timestamp,
     original_sentence TEXT NOT NULL,
     instrument_type_name VARCHAR(20) NOT NULL,
-    instrument_type_code TINYINT NOT NULL CHECK (instrument_type_code IN (0, 2, 4)),
-    head_id VARCHAR(30) NOT NULL CHECK (length(head_id) BETWEEN 1 AND 30),
-    beam_count TINYINT NOT NULL CHECK (beam_count > 0 AND beam_count <= 4),
-    cell_count SMALLINT NOT NULL CHECK (cell_count > 0 AND cell_count <= 128),
-    blanking_distance DECIMAL(5,2) NOT NULL
-        CHECK (blanking_distance > 0 AND blanking_distance <= 100),
-    cell_size DECIMAL(5,2) NOT NULL CHECK (cell_size > 0 AND cell_size <= 100),
-    coord_system_name VARCHAR(10) NOT NULL CHECK (coord_system_name IN ('ENU', 'XYZ', 'BEAM')),
-    coord_system_code TINYINT NOT NULL CHECK (coord_system_code IN (0, 1, 2)),
-    checksum CHAR(2),
-    CHECK (
-        (coord_system_name = 'ENU' AND coord_system_code = 0) OR
-        (coord_system_name = 'XYZ' AND coord_system_code = 1) OR
-        (coord_system_name = 'BEAM' AND coord_system_code = 2)
-    ),
-    CHECK (instrument_type_code != 4 OR beam_count = 4)
+    instrument_type_code TINYINT NOT NULL,
+    head_id VARCHAR(30) NOT NULL,
+    beam_count TINYINT NOT NULL,
+    cell_count SMALLINT NOT NULL,
+    blanking_distance DECIMAL(5,2) NOT NULL,
+    cell_size DECIMAL(5,2) NOT NULL,
+    coord_system_name VARCHAR(10) NOT NULL,
+    coord_system_code TINYINT NOT NULL,
+    checksum CHAR(2)
 );
 """
 PNORI_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnori_seq START 1;"
@@ -111,22 +104,15 @@ CREATE TABLE IF NOT EXISTS pnori12 (
     data_format TINYINT NOT NULL CHECK (data_format IN (101, 102)),
     original_sentence TEXT NOT NULL,
     instrument_type_name VARCHAR(20) NOT NULL,
-    instrument_type_code TINYINT NOT NULL CHECK (instrument_type_code IN (0, 2, 4)),
-    head_id VARCHAR(30) NOT NULL CHECK (length(head_id) BETWEEN 1 AND 30),
-    beam_count TINYINT NOT NULL CHECK (beam_count > 0 AND beam_count <= 4),
-    cell_count SMALLINT NOT NULL CHECK (cell_count > 0 AND cell_count <= 128),
-    blanking_distance DECIMAL(5,2) NOT NULL
-        CHECK (blanking_distance > 0 AND blanking_distance <= 100),
-    cell_size DECIMAL(5,2) NOT NULL CHECK (cell_size > 0 AND cell_size <= 100),
-    coord_system_name VARCHAR(10) NOT NULL CHECK (coord_system_name IN ('ENU', 'XYZ', 'BEAM')),
-    coord_system_code TINYINT NOT NULL CHECK (coord_system_code IN (0, 1, 2)),
-    checksum CHAR(2),
-    CHECK (
-        (coord_system_name = 'ENU' AND coord_system_code = 0) OR
-        (coord_system_name = 'XYZ' AND coord_system_code = 1) OR
-        (coord_system_name = 'BEAM' AND coord_system_code = 2)
-    ),
-    CHECK (instrument_type_code != 4 OR beam_count = 4)
+    instrument_type_code TINYINT NOT NULL,
+    head_id VARCHAR(30) NOT NULL,
+    beam_count TINYINT NOT NULL,
+    cell_count SMALLINT NOT NULL,
+    blanking_distance DECIMAL(5,2) NOT NULL,
+    cell_size DECIMAL(5,2) NOT NULL,
+    coord_system_name VARCHAR(10) NOT NULL,
+    coord_system_code TINYINT NOT NULL,
+    checksum CHAR(2)
 );
 """
 PNORI12_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnori12_seq START 1;"
@@ -358,7 +344,7 @@ CREATE TABLE IF NOT EXISTS pnore_data (
     original_sentence TEXT NOT NULL,
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
-    spectrum_basis TINYINT NOT NULL CHECK (spectrum_basis IN (0, 1, 3)),
+    spectrum_basis TINYINT NOT NULL,
     start_frequency DECIMAL(5,2) CHECK (start_frequency >= 0 AND start_frequency <= 10),
     step_frequency DECIMAL(5,2) CHECK (step_frequency >= 0 AND step_frequency <= 10),
     num_frequencies SMALLINT NOT NULL CHECK (num_frequencies >= 1 AND num_frequencies <= 99),
@@ -418,16 +404,16 @@ CREATE TABLE IF NOT EXISTS pnorb_data (
     original_sentence TEXT NOT NULL,
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
-    spectrum_basis TINYINT NOT NULL CHECK (spectrum_basis IN (0, 1, 3)),
-    processing_method TINYINT NOT NULL CHECK (processing_method IN (1, 2, 3, 4)),
-    freq_low DECIMAL(4,2) CHECK (freq_low >= 0 AND freq_low <= 9.99),
-    freq_high DECIMAL(4,2) CHECK (freq_high >= 0 AND freq_high <= 9.99),
-    hm0 DECIMAL(5,2) CHECK (hm0 >= 0 AND hm0 <= 999.99),
-    tm02 DECIMAL(5,2) CHECK (tm02 >= 0 AND tm02 <= 999.99),
-    tp DECIMAL(5,2) CHECK (tp >= 0 AND tp <= 999.99),
-    dir_tp DECIMAL(5,2) CHECK (dir_tp >= 0 AND dir_tp <= 360.0),
-    spr_tp DECIMAL(5,2) CHECK (spr_tp >= 0 AND spr_tp <= 360.0),
-    main_dir DECIMAL(5,2) CHECK (main_dir >= 0 AND main_dir <= 360.0),
+    spectrum_basis TINYINT NOT NULL,
+    processing_method TINYINT NOT NULL,
+    freq_low DECIMAL(4,2),
+    freq_high DECIMAL(4,2),
+    hm0 DECIMAL(5,2),
+    tm02 DECIMAL(5,2),
+    tp DECIMAL(5,2),
+    dir_tp DECIMAL(5,2),
+    spr_tp DECIMAL(5,2),
+    main_dir DECIMAL(5,2),
     wave_error_code CHAR(4),
     checksum CHAR(2)
 );
@@ -448,7 +434,7 @@ CREATE TABLE IF NOT EXISTS pnorf_data (
     coefficient_flag VARCHAR(2) NOT NULL CHECK (coefficient_flag IN ('A1', 'B1', 'A2', 'B2')),
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
-    spectrum_basis TINYINT NOT NULL CHECK (spectrum_basis IN (0, 1, 3)),
+    spectrum_basis TINYINT NOT NULL,
     start_frequency DECIMAL(5,2) CHECK (start_frequency >= 0 AND start_frequency <= 10),
     step_frequency DECIMAL(5,2) CHECK (step_frequency >= 0 AND step_frequency <= 10),
     num_frequencies SMALLINT NOT NULL CHECK (num_frequencies >= 1 AND num_frequencies <= 999),
@@ -473,7 +459,7 @@ CREATE TABLE IF NOT EXISTS pnorwd_data (
     direction_type VARCHAR(2) NOT NULL CHECK (direction_type IN ('MD', 'DS')),
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
-    spectrum_basis TINYINT NOT NULL CHECK (spectrum_basis IN (0, 1, 3)),
+    spectrum_basis TINYINT NOT NULL,
     start_frequency DECIMAL(5,2) CHECK (start_frequency >= 0 AND start_frequency <= 10),
     step_frequency DECIMAL(5,2) CHECK (step_frequency >= 0 AND step_frequency <= 10),
     num_frequencies SMALLINT NOT NULL CHECK (num_frequencies >= 1 AND num_frequencies <= 999),

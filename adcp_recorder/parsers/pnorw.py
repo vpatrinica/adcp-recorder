@@ -2,8 +2,6 @@
 
 from dataclasses import dataclass, field
 
-from .sentinels import get_float_sentinels as _fs
-from .sentinels import get_int_sentinels as _is
 from .utils import (
     parse_nmea_sentence,
     parse_optional_float,
@@ -11,8 +9,8 @@ from .utils import (
     validate_date_mm_dd_yy,
     validate_range,
     validate_time_string,
+    NMEA_CONSTANTS,
 )
-
 
 @dataclass(frozen=True)
 class PNORW:
@@ -53,17 +51,17 @@ class PNORW:
         if self.processing_method is not None:
             validate_range(self.processing_method, "Processing method", 1, 4)
         if self.hm0 is not None:
-            validate_range(self.hm0, "Hm0", 0.0, 999.99)
+            validate_range(self.hm0, "Hm0", 0.0, 999.99, NMEA_CONSTANTS["invalid_float"])
         if self.tm02 is not None:
-            validate_range(self.tm02, "Tm02", 0.0, 999.99)
+            validate_range(self.tm02, "Tm02", 0.0, 999.99, NMEA_CONSTANTS["invalid_float"])
         if self.tp is not None:
-            validate_range(self.tp, "Tp", 0.0, 999.99)
+            validate_range(self.tp, "Tp", 0.0, 999.99, NMEA_CONSTANTS["invalid_float"])
         if self.dir_tp is not None:
-            validate_range(self.dir_tp, "DirTp", 0.0, 360.0)
+            validate_range(self.dir_tp, "DirTp", 0.0, 360.0, NMEA_CONSTANTS["invalid_float"])
         if self.spr_tp is not None:
-            validate_range(self.spr_tp, "SprTp", 0.0, 360.0)
+            validate_range(self.spr_tp, "SprTp", 0.0, 360.0, NMEA_CONSTANTS["invalid_float"])
         if self.main_dir is not None:
-            validate_range(self.main_dir, "MainDir", 0.0, 360.0)
+            validate_range(self.main_dir, "MainDir", 0.0, 360.0, NMEA_CONSTANTS["invalid_float"])
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORW":
@@ -79,22 +77,22 @@ class PNORW:
             time=fields[2],
             spectrum_basis=parse_optional_int(fields[3]),
             processing_method=parse_optional_int(fields[4]),
-            hm0=parse_optional_float(fields[5], _fs(_p, "hm0")),
-            h3=parse_optional_float(fields[6], _fs(_p, "h3")),
-            h10=parse_optional_float(fields[7], _fs(_p, "h10")),
-            hmax=parse_optional_float(fields[8], _fs(_p, "hmax")),
-            tm02=parse_optional_float(fields[9], _fs(_p, "tm02")),
-            tp=parse_optional_float(fields[10], _fs(_p, "tp")),
-            tz=parse_optional_float(fields[11], _fs(_p, "tz")),
-            dir_tp=parse_optional_float(fields[12], _fs(_p, "dir_tp")),
-            spr_tp=parse_optional_float(fields[13], _fs(_p, "spr_tp")),
-            main_dir=parse_optional_float(fields[14], _fs(_p, "main_dir")),
-            uni_index=parse_optional_float(fields[15], _fs(_p, "uni_index")),
-            mean_pressure=parse_optional_float(fields[16], _fs(_p, "mean_pressure")),
-            num_no_detects=parse_optional_int(fields[17], _is(_p, "num_no_detects")),
-            num_bad_detects=parse_optional_int(fields[18], _is(_p, "num_bad_detects")),
-            near_surface_speed=parse_optional_float(fields[19], _fs(_p, "near_surface_speed")),
-            near_surface_dir=parse_optional_float(fields[20], _fs(_p, "near_surface_dir")),
+            hm0=parse_optional_float(fields[5]),
+            h3=parse_optional_float(fields[6]),
+            h10=parse_optional_float(fields[7]),
+            hmax=parse_optional_float(fields[8]),
+            tm02=parse_optional_float(fields[9]),
+            tp=parse_optional_float(fields[10]),
+            tz=parse_optional_float(fields[11]),
+            dir_tp=parse_optional_float(fields[12]),
+            spr_tp=parse_optional_float(fields[13]),
+            main_dir=parse_optional_float(fields[14]),
+            uni_index=parse_optional_float(fields[15]),
+            mean_pressure=parse_optional_float(fields[16]),
+            num_no_detects=parse_optional_int(fields[17]),
+            num_bad_detects=parse_optional_int(fields[18]),
+            near_surface_speed=parse_optional_float(fields[19]),
+            near_surface_dir=parse_optional_float(fields[20]),
             wave_error_code=fields[21],
             checksum=checksum,
         )
