@@ -869,6 +869,12 @@ class DataLayer:
                     return {}
                 energy = json.loads(energy_densities_json)
 
+            # Ensure num_f is an int for safe list multiplications and ranges
+            try:
+                n_freq = int(num_f) if num_f is not None else 0
+            except Exception:
+                n_freq = 0
+
             # Mean Direction
             md_data = self.conn.execute(
                 f"""
@@ -880,12 +886,6 @@ class DataLayer:
             directions = json.loads(md_data[0]) if md_data else [0.0] * n_freq
 
             # Directional Spread
-            # Ensure num_f is an int for safe list multiplications and ranges
-            try:
-                n_freq = int(num_f) if num_f is not None else 0
-            except Exception:
-                n_freq = 0
-
             ds_data = self.conn.execute(
                 f"""
                 SELECT values FROM {name_pnorwd}
