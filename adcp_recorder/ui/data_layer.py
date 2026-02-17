@@ -877,7 +877,7 @@ class DataLayer:
                 """,
                 [date_str, time_str],
             ).fetchone()
-            directions = json.loads(md_data[0]) if md_data else [0.0] * num_f
+            directions = json.loads(md_data[0]) if md_data else [0.0] * n_freq
 
             # Directional Spread
             # Ensure num_f is an int for safe list multiplications and ranges
