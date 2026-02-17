@@ -1022,12 +1022,9 @@ class ParquetDataLayer(DataLayer):
         if candidates:
             # Prefer exact substring match, otherwise longest name
             for c in candidates:
-                if (
-                    re.search(r"pnor[a-z]+", lname)
-                    and re.search(r"pnor[a-z]+", c)
-                    and re.search(r"pnor[a-z]+", lname).group(0)
-                    == re.search(r"pnor[a-z]+", c).group(0)
-                ):
+                m_l = re.search(r"pnor[a-z]+", lname)
+                m_c = re.search(r"pnor[a-z]+", c)
+                if m_l and m_c and m_l.group(0) == m_c.group(0):
                     return c
             return max(candidates, key=len)
 
