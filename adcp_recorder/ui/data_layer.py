@@ -528,33 +528,51 @@ class DataLayer:
         start_time = self._parse_time_range(time_range)
 
         ts_col = source.timestamp_column
-        # We average across all 4 beams for "Average Signal Strength"
+        # Discover amplitude columns (amp1, amp2, ...) dynamically to avoid
+        # binder errors when a source doesn't have all expected columns.
+        amp_cols = [c.name for c in source.columns if c.name.lower().startswith("amp")]
+
+        # If no amplitude-like columns, return empty (no data for heatmap)
+        if not amp_cols:
+            return []
+
+        # Build SQL expression to average only available amplitude columns
+        coalesced = " + ".join(f"COALESCE({col}, 0)" for col in amp_cols)
+        avg_expr = f"({coalesced}) / {len(amp_cols)}.0 AS avg_amp"
+
         query = f"""
             SELECT
                 {ts_col},
                 cell_index,
-                (COALESCE(amp1, 0) + COALESCE(amp2, 0) +
-                 COALESCE(amp3, 0) + COALESCE(amp4, 0)) / 4.0 as avg_amp
+                {avg_expr}
             FROM {source.name}
         """
-        params = []
+
+        params: list[Any] = []
         if start_time:
             query += f" WHERE {ts_col} >= ?"
             params.append(start_time)
 
         query += f" ORDER BY {ts_col} DESC, cell_index ASC LIMIT 20000"
 
-        result = self.conn.execute(query, params).fetchall()
+        try:
+            result = self.conn.execute(query, params).fetchall()
+        except Exception:
+            return []
 
-        # Organize by timestamp for heatmap
-        # Group by received_at, extract list of amplitudes
+        # Organize by timestamp for heatmap (group by ts, collect avg_amp per cell)
         from collections import defaultdict
 
-        grouped = defaultdict(list)
-        for ts, _idx, amp in result:
+        grouped: dict[Any, list[float]] = defaultdict(list)
+        for row in result:
+            # row should be (ts_col, cell_index, avg_amp)
+            if len(row) < 3:
+                continue
+            ts = row[0]
+            amp = row[2]
             grouped[ts].append(amp)
 
-        heatmap_data = []
+        heatmap_data: list[dict[str, Any]] = []
         for ts, amps in grouped.items():
             heatmap_data.append({"received_at": ts, "amplitudes": amps})
 
@@ -702,6 +720,81 @@ class DataLayer:
         """Query unified directional spectrum data merging energy, direction, and spread."""
         import json
 
+        # Prefer using joined view 'wave_measurement_full' if available
+        source_full = self.get_source_metadata("wave_measurement_full")
+        if source_full:
+            # Try to fetch a recent joined measurement and heuristically map fields
+            try:
+                ts_col = source_full.timestamp_column
+                if timestamp:
+                    query = f"SELECT * FROM {source_full.name} WHERE {ts_col} = ? LIMIT 1"
+                    row = self.conn.execute(query, [timestamp]).fetchone()
+                else:
+                    query = f"SELECT * FROM {source_full.name} ORDER BY {ts_col} DESC LIMIT 1"
+                    row = self.conn.execute(query).fetchone()
+
+                if row:
+                    col_names = [d[0] for d in self.conn.description]
+                    record = dict(zip(col_names, row, strict=False))
+
+                    # Heuristics for common field names
+                    def pick(keys: list[str]):
+                        for k in keys:
+                            if k in record and record[k] is not None:
+                                return record[k]
+                        return None
+
+                    start_f = pick(["start_frequency", "start_freq", "freq_start"]) or None
+                    step_f = pick(["step_frequency", "step_freq", "freq_step"]) or None
+                    num_f = pick(["num_frequencies", "num_freq", "n_frequencies"]) or None
+                    energy_json = pick(["energy_densities", "energy", "energy_density"]) or None
+                    directions_json = (
+                        pick(["directions", "dir_values", "md_values", "mean_directions", "values"])
+                        or None
+                    )
+                    spreads_json = pick(["spreads", "ds_values", "directional_spread"]) or None
+
+                    if energy_json is None:
+                        # Cannot construct spectrum without energy
+                        return {}
+
+                    if isinstance(energy_json, str):
+                        energy = json.loads(energy_json)
+                    else:
+                        energy = energy_json
+
+                    if isinstance(directions_json, str):
+                        directions = json.loads(directions_json)
+                    else:
+                        directions = directions_json or [0.0] * (
+                            int(num_f) if num_f else len(energy)
+                        )
+
+                    if isinstance(spreads_json, str):
+                        spreads = json.loads(spreads_json)
+                    else:
+                        spreads = spreads_json or [0.0] * (int(num_f) if num_f else len(energy))
+
+                    if start_f is not None and step_f is not None and num_f is not None:
+                        frequencies = [
+                            round(float(start_f + i * step_f), 4) for i in range(int(num_f))
+                        ]
+                    else:
+                        frequencies = []
+
+                    return {
+                        "timestamp": record.get(ts_col),
+                        "measurement_date": record.get("measurement_date"),
+                        "measurement_time": record.get("measurement_time"),
+                        "frequencies": frequencies,
+                        "energy": energy,
+                        "directions": directions,
+                        "spreads": spreads,
+                    }
+            except Exception:
+                # If anything fails, fall through to older logic
+                pass
+
         source_pnore = self.get_source_metadata("pnore_data")
         source_pnorwd = self.get_source_metadata("pnorwd_data")
 
@@ -787,6 +880,12 @@ class DataLayer:
             directions = json.loads(md_data[0]) if md_data else [0.0] * num_f
 
             # Directional Spread
+            # Ensure num_f is an int for safe list multiplications and ranges
+            try:
+                n_freq = int(num_f) if num_f is not None else 0
+            except Exception:
+                n_freq = 0
+
             ds_data = self.conn.execute(
                 f"""
                 SELECT values FROM {name_pnorwd}
@@ -794,11 +893,11 @@ class DataLayer:
                 """,
                 [date_str, time_str],
             ).fetchone()
-            spreads = json.loads(ds_data[0]) if ds_data else [0.0] * num_f
+            spreads = json.loads(ds_data[0]) if ds_data else [0.0] * n_freq
 
             # 3. Reconstruct frequencies
             if start_f is not None and step_f is not None and num_f is not None:
-                frequencies = [round(float(start_f + i * step_f), 4) for i in range(int(num_f))]
+                frequencies = [round(float(start_f + i * step_f), 4) for i in range(n_freq)]
             else:
                 frequencies = []
 
@@ -1097,10 +1196,13 @@ class DataLayer:
         Priority: current_profile_12 > current_profile_df100 > current_profile_34
         Fallback: pnorc12 > pnorc_df100 > pnorc34
         """
+        # Prefer views that target the '1' suffix (single-frequency/current) when present
         candidates = [
+            "current_profile_1",
             "current_profile_12",
             "current_profile_df100",
             "current_profile_34",
+            "pnorc1",
             "pnorc12",
             "pnorc_df100",
             "pnorc34",
