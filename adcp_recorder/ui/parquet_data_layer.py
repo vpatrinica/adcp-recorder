@@ -554,6 +554,11 @@ class ParquetDataLayer(DataLayer):
 
                 # Helper to find original name
                 def find_orig(name_to_find):
+                    """Find the original column name matching case-insensitively.
+
+                    Returns the first column whose lower-case matches
+                    `name_to_find.lower()`, or None if not found.
+                    """
                     for c in col_names:
                         if c.lower() == name_to_find.lower():
                             return c
@@ -719,15 +724,26 @@ class ParquetDataLayer(DataLayer):
 
                     self._conn.execute(sql)
                 except duckdb.Error:
-                    # Fallback: project only distinct columns if simple wildcard join fails
-                    sql = (
-                        "CREATE OR REPLACE VIEW current_profile_df100 AS "
-                        "SELECT s.*, c.cell_index, c.speed AS cell_speed, "
-                        "c.direction AS cell_direction"
-                    )
+                    # Fallback: enumerate s columns explicitly to avoid duplicates.
+                    # Keep speed/direction names consistent (not cell_speed/cell_direction)
+                    # to match what query_current_speed_heatmap() expects.
+                    cols_s = self._get_view_columns("pq_pnors")
+                    cols_c = self._get_view_columns("pq_pnorc")
+                    # Only select s columns that won't conflict with explicit c columns
+                    c_explicit = {"cell_index", "speed", "direction"}
+                    s_select = [f's."{c}"' for c in sorted(cols_s) if c not in c_explicit]
+                    c_select = [f'c."{c}"' for c in sorted(c_explicit) if c in cols_c]
+                    all_cols = s_select + c_select
                     if cond_i:
-                        sql += ", i.instrument_type_name, i.cell_count, i.cell_size"
-                    sql += f" FROM pq_pnors s JOIN pq_pnorc c ON {cond}"
+                        cols_i = self._get_view_columns("pq_pnori")
+                        for c in ["instrument_type_name", "cell_count", "cell_size"]:
+                            if c in cols_i:
+                                all_cols.append(f'i."{c}"')
+                    sql = (
+                        f"CREATE OR REPLACE VIEW current_profile_df100 AS "
+                        f"SELECT {', '.join(all_cols)} "
+                        f"FROM pq_pnors s JOIN pq_pnorc c ON {cond}"
+                    )
                     if cond_i:
                         sql += f" LEFT JOIN pq_pnori i ON {cond_i}"
                     self._conn.execute(sql)
@@ -760,11 +776,21 @@ class ParquetDataLayer(DataLayer):
 
                     # Build SQL based on existing columns
                     select_cols = ["s.*"]
-                    for c in ["cell_index", "cell_distance", "vel1", "vel2", "vel3", "vel4"]:
+                    for c in ["cell_index", "vel1", "vel2", "vel3", "vel4"]:
                         if c in cols_c:
                             # Avoid duplicates if they exist in s
                             alias = f"c_{c}" if c in cols_s else c
                             select_cols.append(f"c.{c} AS {alias}" if alias != c else f"c.{c}")
+
+                    # Handle distance -> cell_distance mapping
+                    # Parquet files use 'distance' (from parser to_dict()),
+                    # but DB schema uses 'cell_distance'. Alias for consistency.
+                    if "cell_distance" in cols_c:
+                        alias = "c_cell_distance" if "cell_distance" in cols_s else "cell_distance"
+                        select_cols.append(f"c.cell_distance AS {alias}")
+                    elif "distance" in cols_c:
+                        alias = "cell_distance"
+                        select_cols.append(f"c.distance AS {alias}")
 
                     if cond_si:
                         for c in ["instrument_type_name", "beam_count", "cell_count", "cell_size"]:
@@ -797,12 +823,40 @@ class ParquetDataLayer(DataLayer):
                 view_name = f"current_profile_{suffix}"
 
                 try:
+                    cols_h = self._get_view_columns(h_view)
+                    cols_s = self._get_view_columns(s_view)
+                    cols_c = self._get_view_columns(c_view)
+
+                    # Build s-columns: select only those that exist
+                    s_cols = []
+                    for c in ["heading", "pitch", "roll", "pressure", "temperature"]:
+                        if c in cols_s:
+                            alias = f"s_{c}" if c in cols_h else c
+                            s_cols.append(f"s.{c} AS {alias}" if alias != c else f"s.{c}")
+
+                    # Build c-columns dynamically to handle Parquet naming
+                    c_cols = []
+                    # cell_index: exists in DB schema, may not exist in Parquet
+                    # (PNORC3/4 parsers don't output cell_index)
+                    if "cell_index" in cols_c:
+                        c_cols.append("c.cell_index")
+                    # distance -> cell_distance alias for consistency with DB schema
+                    if "cell_distance" in cols_c:
+                        c_cols.append("c.cell_distance")
+                    elif "distance" in cols_c:
+                        c_cols.append("c.distance AS cell_distance")
+                    # speed and direction
+                    if "speed" in cols_c:
+                        c_cols.append("c.speed")
+                    if "direction" in cols_c:
+                        c_cols.append("c.direction")
+
+                    all_extra = ", ".join(s_cols + c_cols)
+                    select_clause = f"h.*, {all_extra}" if all_extra else "h.*"
+
                     self._conn.execute(f"""
                         CREATE OR REPLACE VIEW {view_name} AS
-                        SELECT
-                            h.*,
-                            s.heading, s.pitch, s.roll, s.pressure, s.temperature,
-                            c.cell_index, c.cell_distance, c.speed, c.direction
+                        SELECT {select_clause}
                         FROM {h_view} h
                         JOIN {s_view} s ON {cond_hs}
                         JOIN {c_view} c ON {cond_hc};

@@ -20,6 +20,7 @@ from adcp_recorder.ui.config import (
     SeriesConfig,
     SpectrumPanelConfig,
     TablePanelConfig,
+    WaveRosePanelConfig,
     get_template,
 )
 
@@ -69,6 +70,17 @@ class TestPanelConfig:
 
         with pytest.raises(ValueError):
             SpectrumPanelConfig(coefficient="C1")
+
+    def test_wave_rose_panel_config_mode_validation(self):
+        """Test WaveRosePanelConfig mode validation."""
+        config = WaveRosePanelConfig(mode="full_spectrum")
+        assert config.mode == "full_spectrum"
+
+        config2 = WaveRosePanelConfig(mode="frequency_bands")
+        assert config2.mode == "frequency_bands"
+
+        with pytest.raises(ValueError, match="Mode must be"):
+            WaveRosePanelConfig(mode="invalid_mode")
 
     def test_panel_config_get_typed_config(self):
         """Test typed config extraction."""

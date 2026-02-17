@@ -2,13 +2,19 @@
 
 import streamlit as st
 
+from adcp_recorder.ui.components.current_profile_plots import (
+    render_current_direction_polar,
+    render_current_speed_heatmap,
+)
 from adcp_recorder.ui.components.spectrum_plots import (
+    render_amplitude_heatmap,
     render_directional_spectrum,
     render_energy_heatmap,
     render_fourier_spectrum,
 )
 from adcp_recorder.ui.components.time_series import render_time_series
 from adcp_recorder.ui.components.velocity_profile import render_velocity_profile
+from adcp_recorder.ui.components.wave_rose import render_wave_rose
 from adcp_recorder.ui.config import PanelConfig, PanelPosition, PanelType
 from adcp_recorder.ui.data_layer import DataLayer
 
@@ -30,6 +36,10 @@ def render_plot_builder(data_layer: DataLayer) -> None:
         "Fourier Spectrum": PanelType.SPECTRUM,
         "Wave Energy Heatmap": PanelType.HEATMAP,
         "Directional Spectrum (Polar)": PanelType.POLAR,
+        "Wave Rose": PanelType.WAVE_ROSE,
+        "Current Speed Heatmap": PanelType.CURRENT_SPEED_HEATMAP,
+        "Current Direction Polar": PanelType.CURRENT_DIRECTION_POLAR,
+        "Amplitude Heatmap": PanelType.AMPLITUDE_HEATMAP,
     }
 
     col1, col2 = st.columns([2, 3])
@@ -58,6 +68,14 @@ def render_plot_builder(data_layer: DataLayer) -> None:
         _render_heatmap_builder(data_layer)
     elif plot_type == PanelType.POLAR:
         _render_polar_builder(data_layer)
+    elif plot_type == PanelType.WAVE_ROSE:
+        _render_wave_rose_builder(data_layer)
+    elif plot_type == PanelType.CURRENT_SPEED_HEATMAP:
+        _render_current_speed_heatmap_builder(data_layer)
+    elif plot_type == PanelType.CURRENT_DIRECTION_POLAR:
+        _render_current_direction_polar_builder(data_layer)
+    elif plot_type == PanelType.AMPLITUDE_HEATMAP:
+        _render_amplitude_heatmap_builder(data_layer)
 
     # Save to dashboard option
     st.divider()
@@ -67,11 +85,15 @@ def render_plot_builder(data_layer: DataLayer) -> None:
 def _get_plot_description(plot_type: PanelType) -> str:
     """Return description for each plot type."""
     descriptions = {
-        PanelType.TIME_SERIES: "📊 Plot data series over time. Compare temperature, pressure, etc.",
-        PanelType.VELOCITY_PROFILE: "🌊 Visualize current velocities at different depths.",
-        PanelType.SPECTRUM: "📉 Display Fourier coefficient spectra (A1, B1, A2, B2).",
-        PanelType.HEATMAP: "🔥 View wave energy density as a frequency-time heatmap.",
-        PanelType.POLAR: "🧭 Visualize wave energy distribution by frequency and direction.",
+        PanelType.TIME_SERIES: "Plot data series over time. Compare temperature, pressure, etc.",
+        PanelType.VELOCITY_PROFILE: "Visualize current velocities at different depths.",
+        PanelType.SPECTRUM: "Display Fourier coefficient spectra (A1, B1, A2, B2).",
+        PanelType.HEATMAP: "View wave energy density as a frequency-time heatmap.",
+        PanelType.POLAR: "Visualize wave energy distribution by frequency and direction.",
+        PanelType.WAVE_ROSE: "Polar scatter: wave height vs peak direction, colored by period.",
+        PanelType.CURRENT_SPEED_HEATMAP: "Time x depth heatmap of current speed.",
+        PanelType.CURRENT_DIRECTION_POLAR: "Polar scatter of current speed/direction.",
+        PanelType.AMPLITUDE_HEATMAP: "Signal strength heatmap over time and depth.",
     }
     return descriptions.get(plot_type, "Select a plot type")
 
@@ -129,6 +151,50 @@ def _render_polar_builder(data_layer: DataLayer) -> None:
         data_layer=data_layer,
         config=None,
         key_prefix="pb_polar",
+    )
+
+
+def _render_wave_rose_builder(data_layer: DataLayer) -> None:
+    """Render wave rose builder."""
+    st.subheader("Wave Rose (Polar Scatter)")
+
+    render_wave_rose(
+        data_layer=data_layer,
+        config=None,
+        key_prefix="pb_wave_rose",
+    )
+
+
+def _render_current_speed_heatmap_builder(data_layer: DataLayer) -> None:
+    """Render current speed heatmap builder."""
+    st.subheader("Current Speed Heatmap")
+
+    render_current_speed_heatmap(
+        data_layer=data_layer,
+        config=None,
+        key_prefix="pb_speed_heatmap",
+    )
+
+
+def _render_current_direction_polar_builder(data_layer: DataLayer) -> None:
+    """Render current direction polar builder."""
+    st.subheader("Current Direction Polar")
+
+    render_current_direction_polar(
+        data_layer=data_layer,
+        config=None,
+        key_prefix="pb_current_polar",
+    )
+
+
+def _render_amplitude_heatmap_builder(data_layer: DataLayer) -> None:
+    """Render amplitude heatmap builder."""
+    st.subheader("Amplitude Heatmap (Signal Strength)")
+
+    render_amplitude_heatmap(
+        data_layer=data_layer,
+        config=None,
+        key_prefix="pb_amp_heatmap",
     )
 
 
@@ -205,9 +271,6 @@ def _render_save_panel_ui(plot_type: PanelType) -> None:
 
                     elif plot_type == PanelType.VELOCITY_PROFILE:
                         prefix = "pb_vp"
-                        saved_config["data_source"] = st.session_state.get(
-                            f"{prefix}_source", "pnorc12"
-                        )
                         saved_config["time_range"] = st.session_state.get(
                             f"{prefix}_time_range", "24h"
                         )
@@ -227,6 +290,30 @@ def _render_save_panel_ui(plot_type: PanelType) -> None:
 
                     elif plot_type == PanelType.POLAR:
                         prefix = "pb_polar"
+                        saved_config["time_range"] = st.session_state.get(
+                            f"{prefix}_time_range", "24h"
+                        )
+
+                    elif plot_type == PanelType.WAVE_ROSE:
+                        prefix = "pb_wave_rose"
+                        saved_config["time_range"] = st.session_state.get(
+                            f"{prefix}_time_range", "7d"
+                        )
+
+                    elif plot_type == PanelType.CURRENT_SPEED_HEATMAP:
+                        prefix = "pb_speed_heatmap"
+                        saved_config["time_range"] = st.session_state.get(
+                            f"{prefix}_time_range", "24h"
+                        )
+
+                    elif plot_type == PanelType.CURRENT_DIRECTION_POLAR:
+                        prefix = "pb_current_polar"
+                        saved_config["time_range"] = st.session_state.get(
+                            f"{prefix}_time_range", "24h"
+                        )
+
+                    elif plot_type == PanelType.AMPLITUDE_HEATMAP:
+                        prefix = "pb_amp_heatmap"
                         saved_config["time_range"] = st.session_state.get(
                             f"{prefix}_time_range", "24h"
                         )

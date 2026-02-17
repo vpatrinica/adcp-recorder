@@ -1,3 +1,9 @@
+"""Application configuration helpers and RecorderConfig dataclass.
+
+Provides default paths, environment override logic, and persistence for
+recorder runtime configuration.
+"""
+
 import json
 import logging
 import os
@@ -18,7 +24,10 @@ def get_default_output_dir() -> str:
 
 @dataclass
 class RecorderConfig:
-    """Configuration for the ADCP Recorder."""
+    """Configuration container for the ADCP Recorder application.
+
+    Holds runtime settings, persisted fields, and environment override logic.
+    """
 
     serial_port: str = "/dev/ttyUSB0"
     baudrate: int = 9600
@@ -92,6 +101,12 @@ class RecorderConfig:
 
     @classmethod
     def _apply_env_overrides(cls, config: "RecorderConfig") -> "RecorderConfig":
+        """Apply environment variable overrides to a RecorderConfig instance.
+
+        Reads environment variables prefixed by `ENV_PREFIX` and casts them
+        using the types defined in `ENV_OVERRIDES`.
+        """
+
         overrides = cls.ENV_OVERRIDES or {}
         prefix = cls.ENV_PREFIX
 
@@ -112,6 +127,7 @@ class RecorderConfig:
         return config
 
     def _to_persisted_dict(self) -> dict[str, Any]:
+        """Return a dict containing only fields that should be persisted to disk."""
         return {field: getattr(self, field) for field in self.PERSISTED_FIELDS}
 
     def save(self) -> None:

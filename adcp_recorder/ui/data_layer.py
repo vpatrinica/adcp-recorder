@@ -909,6 +909,208 @@ class DataLayer:
             "y": [row[1] for row in result],
         }
 
+    def query_wave_rose_data(
+        self,
+        source_name: str = "pnorw_data",
+        time_range: str = "7d",
+    ) -> list[dict[str, Any]]:
+        """Query wave parameters for polar rose / scatter plots.
+
+        Returns rows with dir_tp (direction), hm0 (wave height), tp (peak period),
+        and main_dir for plotting theta=DirTp, r=Hm0, color=Tp.
+
+        Args:
+            source_name: Data source name (pnorw_data for full spectrum,
+                         pnorb_data for frequency bands)
+            time_range: Time range filter
+
+        Returns:
+            List of dicts with dir_tp, hm0, tp, main_dir, measurement_date, etc.
+
+        """
+        source = self.get_source_metadata(source_name)
+        if not source:
+            return []
+
+        start_time = self._parse_time_range(time_range)
+        ts_col = source.timestamp_column
+
+        query = f"""
+            SELECT
+                {ts_col},
+                measurement_date, measurement_time,
+                dir_tp, hm0, tp, main_dir
+            FROM {source.name}
+            WHERE hm0 IS NOT NULL AND dir_tp IS NOT NULL
+        """
+        params: list[Any] = []
+
+        if start_time:
+            query += f" AND {ts_col} >= ?"
+            params.append(start_time)
+
+        query += f" ORDER BY {ts_col} DESC LIMIT 5000"
+
+        try:
+            result = self.conn.execute(query, params).fetchall()
+            col_names = [d[0] for d in self.conn.description]
+            return [dict(zip(col_names, row, strict=False)) for row in result]
+        except Exception:
+            return []
+
+    def query_current_speed_heatmap(
+        self,
+        source_name: str = "current_profile_12",
+        time_range: str = "24h",
+    ) -> dict[str, Any]:
+        """Query current profile data structured for speed heatmaps.
+
+        Returns time x depth grid of speed values, plus optional direction data.
+        Uses current_profile_* views which join PNORS+PNORC (+PNORI/PNORH).
+
+        Args:
+            source_name: Current profile view name
+            time_range: Time range filter
+
+        Returns:
+            Dict with 'timestamps', 'cell_indices', 'speeds' (2D), 'directions' (2D)
+
+        """
+        source = self.get_source_metadata(source_name)
+        if not source:
+            return {}
+
+        start_time = self._parse_time_range(time_range)
+        ts_col = source.timestamp_column
+
+        # Determine which speed/direction columns exist
+        col_names_set = {c.name for c in source.columns}
+
+        # Speed: prefer 'speed' column, else compute from vel1/vel2
+        has_speed = "speed" in col_names_set
+        has_direction = "direction" in col_names_set
+        has_vel12 = "vel1" in col_names_set and "vel2" in col_names_set
+        has_cell_distance = "cell_distance" in col_names_set
+
+        if not has_speed and not has_vel12:
+            return {}
+
+        select_cols = [
+            ts_col,
+            "measurement_date",
+            "measurement_time",
+            "cell_index",
+        ]
+
+        if has_cell_distance:
+            select_cols.append("cell_distance")
+
+        if has_speed:
+            select_cols.append("speed")
+        elif has_vel12:
+            select_cols.append("sqrt(vel1*vel1 + vel2*vel2) AS speed")
+
+        if has_direction:
+            select_cols.append("direction")
+
+        query = f"SELECT {', '.join(select_cols)} FROM {source.name}"
+        params: list[Any] = []
+        conditions = []
+
+        if start_time:
+            conditions.append(f"{ts_col} >= ?")
+            params.append(start_time)
+
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+
+        query += f" ORDER BY {ts_col} ASC, cell_index ASC LIMIT 50000"
+
+        try:
+            result = self.conn.execute(query, params).fetchall()
+            if not self.conn.description:
+                return {}
+
+            result_cols = [d[0] for d in self.conn.description]
+            rows = [dict(zip(result_cols, row, strict=False)) for row in result]
+
+            if not rows:
+                return {}
+
+            # Group by measurement (date+time)
+            from collections import OrderedDict
+
+            measurements: OrderedDict[str, list[dict[str, Any]]] = OrderedDict()
+            for row in rows:
+                key = f"{row['measurement_date']}_{row['measurement_time']}"
+                if key not in measurements:
+                    measurements[key] = []
+                measurements[key].append(row)
+
+            # Build 2D arrays
+            timestamps = []
+            all_cell_indices: set[int] = set()
+            for cells in measurements.values():
+                for c in cells:
+                    all_cell_indices.add(c["cell_index"])
+                # Use the timestamp from the first cell of each measurement
+                timestamps.append(cells[0][ts_col])
+
+            sorted_cells = sorted(all_cell_indices)
+            cell_idx_map = {ci: i for i, ci in enumerate(sorted_cells)}
+
+            num_times = len(measurements)
+            num_cells = len(sorted_cells)
+
+            speeds: list[list[float | None]] = [[None] * num_times for _ in range(num_cells)]
+            directions: list[list[float | None]] = [[None] * num_times for _ in range(num_cells)]
+            cell_distances: list[float | None] = [None] * num_cells
+
+            for t_idx, cells in enumerate(measurements.values()):
+                for cell in cells:
+                    c_idx = cell_idx_map.get(cell["cell_index"])
+                    if c_idx is None:
+                        continue  # pragma: no cover
+                    speeds[c_idx][t_idx] = cell.get("speed")
+                    if has_direction:
+                        directions[c_idx][t_idx] = cell.get("direction")
+                    if has_cell_distance and cell_distances[c_idx] is None:
+                        directions[c_idx][t_idx] = cell.get("direction")
+                        cell_distances[c_idx] = cell.get("cell_distance")
+
+            return {
+                "timestamps": timestamps,
+                "cell_indices": sorted_cells,
+                "cell_distances": cell_distances if has_cell_distance else None,
+                "speeds": speeds,
+                "directions": directions if has_direction else None,
+            }
+        except Exception:
+            return {}
+
+    def detect_current_profile_view(self) -> str | None:
+        """Auto-detect the best available current profile view.
+
+        Checks views in priority order and returns the first one that exists
+        and contains data. Returns None if no current profile data is available.
+
+        Priority: current_profile_12 > current_profile_df100 > current_profile_34
+        Fallback: pnorc12 > pnorc_df100 > pnorc34
+        """
+        candidates = [
+            "current_profile_12",
+            "current_profile_df100",
+            "current_profile_34",
+            "pnorc12",
+            "pnorc_df100",
+            "pnorc34",
+        ]
+        for name in candidates:
+            source = self.get_source_metadata(name)
+            if source and source.record_count > 0:
+                return name
+        return None
+
     def get_quality_metrics(self, time_range: str = "24h") -> dict[str, Any]:
         """Get quality metrics (record counts, errors, gaps)."""
         start_time = self._parse_time_range(time_range)

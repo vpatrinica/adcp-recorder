@@ -1,3 +1,9 @@
+"""Command line interface for controlling the ADCP Recorder.
+
+Provides commands to list ports, configure settings, start/stop the
+recorder, migrate databases, and generate service templates.
+"""
+
 import logging
 import sys
 from pathlib import Path

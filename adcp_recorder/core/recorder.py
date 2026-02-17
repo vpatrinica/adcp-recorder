@@ -1,3 +1,9 @@
+"""Core recorder orchestration: producer, consumer, router and storage.
+
+This module wires serial connection management, message routing, the file
+writer and the database manager into a runnable AdcpRecorder instance.
+"""
+
 import logging
 import threading
 import time
@@ -38,7 +44,18 @@ logger = logging.getLogger(__name__)
 
 
 class AdcpRecorder:
+    """High-level recorder that manages producer, consumer, router and storage.
+
+    Responsible for wiring serial producer/consumer threads, file writer, and
+    database manager according to provided RecorderConfig.
+    """
+
     def __init__(self, config: RecorderConfig):
+        """Initialize recorder components and prepare resources.
+
+        Creates output directories, database manager, shared queue, serial
+        producer/consumer, router, and file writer.
+        """
         self.config = config
         self.is_running = False
         self._stop_event = threading.Event()
@@ -76,6 +93,11 @@ class AdcpRecorder:
         )
 
     def _setup_router(self) -> MessageRouter:
+        """Create and register parsers on a MessageRouter instance.
+
+        Registers all known PNOR* parsers and returns the configured router.
+        """
+
         router = MessageRouter()
 
         # PNORI - Configuration

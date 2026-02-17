@@ -1,5 +1,62 @@
 # Changelog
 
+## 2026-02-16: Dashboard Visualization Rework (auto-detect + plot builder)
+
+### What Changed
+Reworked the Streamlit visualization dashboard to remove free-form source selection,
+replace manual burst selection with automated detection, and add 4 new plot types to
+the plot builder.
+
+### Why
+- **Usability**: Users should not need to know DuckDB table names to create plots.
+- **Correctness**: Each plot type has a fixed, known data source based on the schema.
+- **Consistency**: Parquet and DuckDB backends must produce identical visualizations.
+
+### Key Changes
+
+#### 1. Auto-Detection of Current Profile Views
+Added `DataLayer.detect_current_profile_view()` method that checks views in priority
+order and returns the first with data:
+`current_profile_12 > current_profile_df100 > current_profile_34 > pnorc12 > pnorc_df100 > pnorc34`
+
+Updated 4 components to use auto-detect instead of `config.get("data_source", ...)`:
+- `velocity_profile.py` — Removed `st.selectbox("Data Source", ...)`
+- `current_profile_plots.py` — Both `render_current_speed_heatmap()` and `render_current_direction_polar()`
+- `spectrum_plots.py` — `render_amplitude_heatmap()`
+
+#### 2. Plot Builder Expansion
+Added 4 new plot types to `pages/plot_builder.py`:
+- Wave Rose (`PanelType.WAVE_ROSE`)
+- Current Speed Heatmap (`PanelType.CURRENT_SPEED_HEATMAP`)
+- Current Direction Polar (`PanelType.CURRENT_DIRECTION_POLAR`)
+- Amplitude Heatmap (`PanelType.AMPLITUDE_HEATMAP`)
+
+Each has: builder function, description, dispatch entry, and save-panel handler.
+
+#### 3. Config Cleanup
+Marked `data_source` fields in panel configs as "Ignored (auto-detected)" for
+backward YAML compatibility. Removed `data_source` from default dashboard templates.
+
+### Files Modified
+- `ui/data_layer.py` — Added `detect_current_profile_view()`
+- `ui/components/velocity_profile.py` — Auto-detect, removed source selectbox
+- `ui/components/current_profile_plots.py` — Auto-detect for both render functions
+- `ui/components/spectrum_plots.py` — Auto-detect for amplitude heatmap
+- `ui/config.py` — Updated docstrings, removed dead `data_source` from templates
+- `ui/pages/plot_builder.py` — 4 new plot types + builders + save handlers
+
+### Files Created
+- `tests/ui/test_plot_builder.py` — 20 tests (descriptions, builders, dispatch, save)
+
+### Tests Updated
+- `tests/ui/test_spectrum_plots.py` — Fixed amplitude heatmap tests for auto-detect
+- `tests/ui/test_velocity_profile.py` — Rewrote source selection test
+- `tests/ui/test_data_layer_extended.py` — Added 7 `detect_current_profile_view` tests,
+  fixed pre-existing E501 lint error
+
+### Test Results
+1002 passed, 1 skipped, 0 failures. ruff + format clean.
+
 ## 2026-02-16: Sentinel Tuples Narrowed (customer modification)
 
 ### What Changed

@@ -553,7 +553,7 @@ SELECT
     e.energy_densities,
     e.start_frequency AS energy_start_freq,
     e.step_frequency AS energy_step_freq,
-    e.step_frequency AS energy_step_freq,
+    e.num_frequencies AS energy_num_freq,
     b.hm0 AS band_hm0,
     b.tp AS band_tp,
     b.main_dir AS band_main_dir,

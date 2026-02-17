@@ -15,6 +15,10 @@ import streamlit as st
 
 from adcp_recorder.config import RecorderConfig
 from adcp_recorder.db import DatabaseManager
+from adcp_recorder.ui.components.current_profile_plots import (
+    render_current_direction_polar,
+    render_current_speed_heatmap,
+)
 from adcp_recorder.ui.components.file_browser import render_file_browser
 from adcp_recorder.ui.components.spectrum_plots import (
     render_amplitude_heatmap,
@@ -25,6 +29,7 @@ from adcp_recorder.ui.components.spectrum_plots import (
 from adcp_recorder.ui.components.table_view import render_table_view
 from adcp_recorder.ui.components.time_series import render_time_series
 from adcp_recorder.ui.components.velocity_profile import render_velocity_profile
+from adcp_recorder.ui.components.wave_rose import render_wave_rose
 from adcp_recorder.ui.config import DashboardConfig, PanelType
 from adcp_recorder.ui.data_layer import DataLayer
 from adcp_recorder.ui.pages import (
@@ -45,11 +50,19 @@ class DataLayerProtocol(Protocol):
         limit: int = 100,
         order_by: str | None = None,
         order_desc: bool = True,
-    ) -> list[dict[str, Any]]: ...
+    ) -> list[dict[str, Any]]:
+        """Query a data source and return rows as list of dicts.
 
-    def get_column_info(self, view_name: str) -> list[tuple[str, str]]: ...
+        Parameters match the DataLayer API: `view_name`, optional `columns`,
+        `limit`, and ordering options.
+        """
+        ...
 
-    def execute_sql(self, sql: str) -> list[dict[str, Any]]: ...
+    def get_column_info(self, view_name: str) -> list[tuple[str, str]]:
+        """Return list of (column_name, column_type) for a view or table."""
+
+    def execute_sql(self, sql: str) -> list[dict[str, Any]]:
+        """Execute SQL and return rows as list of dicts (column->value)."""
 
 
 # Page configuration
@@ -410,6 +423,15 @@ def render_panel(
 
     elif panel.type == PanelType.POLAR:
         render_directional_spectrum(data_layer, config, key_prefix)
+
+    elif panel.type == PanelType.WAVE_ROSE:
+        render_wave_rose(data_layer, config, key_prefix)
+
+    elif panel.type == PanelType.CURRENT_SPEED_HEATMAP:
+        render_current_speed_heatmap(data_layer, config, key_prefix)
+
+    elif panel.type == PanelType.CURRENT_DIRECTION_POLAR:
+        render_current_direction_polar(data_layer, config, key_prefix)
 
     else:
         st.warning(f"Unknown panel type: {panel.type}")

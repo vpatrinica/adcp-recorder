@@ -1,11 +1,17 @@
 """Targeted tests to close coverage gaps for 100% coverage."""
 
+from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from adcp_recorder.ui.components.table_view import render_table_view
-from adcp_recorder.ui.data_layer import ColumnMetadata, ColumnType, DataSource
+from adcp_recorder.ui.data_layer import (
+    ColumnMetadata,
+    ColumnType,
+    DataLayer,
+    DataSource,
+)
 from adcp_recorder.ui.parquet_data_layer import ParquetDataLayer
 
 # ============================================================================
@@ -79,4 +85,83 @@ def test_pdl_load_source_timestamp_fallback():
 
         source = pdl.get_source_metadata("pq_test")
         assert source is not None
-        assert source.timestamp_column == "received_at"
+    assert source.timestamp_column == "received_at"
+
+
+def test_get_quality_metrics_parse_errors_exception():
+    """Exercise the except: pass branch when counting parse_errors fails."""
+    # Create DataLayer with mock connection
+    mock_conn = MagicMock()
+    dl: Any = DataLayer(mock_conn)
+
+    # Patch get_available_sources to return a single source
+    src = DataSource(
+        name="test_src",
+        display_name="Test",
+        columns=[ColumnMetadata("received_at", ColumnType.TIMESTAMP)],
+        record_count=5,
+        has_timestamp=False,
+        category="test",
+    )
+    dl.get_available_sources = MagicMock(return_value=[src])
+
+    # Ensure get_source_metadata('parse_errors') returns a truthy value so code attempts to count
+    dl.get_source_metadata = MagicMock(side_effect=lambda n: src if n == "parse_errors" else src)
+
+    # Define execute behavior: raise on parse_errors count, otherwise return count 5
+    def exec_side(sql, params=None):
+        sql_str = sql if isinstance(sql, str) else str(sql)
+        m = MagicMock()
+        if "FROM parse_errors" in sql_str:
+            raise Exception("DB failure on parse_errors")
+        m.fetchone.return_value = (5,)
+        m.fetchall.return_value = []
+        return m
+
+    mock_conn.execute.side_effect = exec_side
+
+    metrics = dl.get_quality_metrics()
+    # Should not raise and should contain total_records from the single source
+    assert metrics["total_records"] >= 0
+    # Since parse_errors counting raised, error_count should not be present
+    assert "error_count" not in metrics
+
+
+def test_table_view_timestamp_selection_and_default_range_none(mock_st_module, mock_data_layer):
+    """Cover case where available timestamp columns list is empty and default_time_range is invalid.
+
+    This triggers the branch that sets selected_ts_col to source.timestamp_column
+    and the exception handler that falls back default_idx = 2 when default_time_range
+    doesn't support .lower().
+    """
+    from adcp_recorder.ui.components.table_view import render_table_view
+    from adcp_recorder.ui.data_layer import ColumnMetadata, ColumnType, DataSource
+
+    # Create a source with a timestamp column that is neither received_at nor measurement_datetime
+    src = DataSource(
+        name="ts_src",
+        display_name="TS Source",
+        columns=[
+            ColumnMetadata("other_ts", ColumnType.TIMESTAMP),
+            ColumnMetadata("vel1", ColumnType.NUMERIC),
+        ],
+        record_count=10,
+        has_timestamp=True,
+        timestamp_column="other_ts",
+        category="test",
+    )
+
+    mock_data_layer.get_source_metadata.return_value = src
+    mock_data_layer.query_data.return_value = []
+
+    # Call render_table_view with default_time_range set to None to raise AttributeError in .lower()
+    render_table_view(mock_data_layer, "ts_src", default_time_range=cast(str, None))
+
+    # Verify query_data was called with timestamp_col set to the source timestamp column
+    called = False
+    for call in mock_data_layer.query_data.call_args_list:
+        kwargs = call.kwargs
+        if kwargs.get("timestamp_col") == "other_ts":
+            called = True
+            break
+    assert called

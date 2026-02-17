@@ -31,6 +31,7 @@ class TestSpectrumPlots:
         with patch("adcp_recorder.ui.components.spectrum_plots.st") as mock_st:
             # Setup common mocks
             mock_st.columns.return_value = [MagicMock(), MagicMock(), MagicMock()]
+            mock_st.session_state = {}
             yield mock_st
 
     @pytest.fixture
@@ -40,15 +41,11 @@ class TestSpectrumPlots:
             yield mock_go
 
     def test_render_fourier_spectrum_basic(self, mock_data_layer, mock_st, mock_go):
-        """Test basic rendering of Fourier spectrum."""
+        """Test basic rendering of Fourier spectrum with time slider."""
         # Setup mocks
         mock_st.selectbox.side_effect = ["A1", "24h"]
         mock_st.checkbox.return_value = False
-
-        mock_data_layer.get_available_bursts.return_value = [
-            {"label": "2026-01-23 12:00:00", "received_at": datetime(2026, 1, 23, 12, 0, 0)}
-        ]
-        mock_st.multiselect.return_value = ["2026-01-23 12:00:00"]
+        mock_st.slider.return_value = 0
 
         mock_data_layer.query_spectrum_data.return_value = [
             {
@@ -64,11 +61,11 @@ class TestSpectrumPlots:
         render_fourier_spectrum(mock_data_layer)
 
         # Verify calls
-        mock_data_layer.get_available_bursts.assert_called_once()
         mock_data_layer.query_spectrum_data.assert_called_once_with(
             source_name="pnorf_data", coefficient="A1", time_range="24h"
         )
         mock_st.plotly_chart.assert_called_once()
+        mock_st.slider.assert_called_once()
         assert mock_go.Figure.called
         assert mock_go.Scatter.called
 
@@ -76,7 +73,7 @@ class TestSpectrumPlots:
         """Test rendering Fourier spectrum with JSON string coefficients."""
         mock_st.selectbox.side_effect = ["B1", "6h"]
         mock_st.checkbox.return_value = True
-        mock_data_layer.get_available_bursts.return_value = []
+        mock_st.slider.return_value = 0
 
         mock_data_layer.query_spectrum_data.return_value = [
             {
@@ -95,6 +92,7 @@ class TestSpectrumPlots:
     def test_render_fourier_spectrum_no_data(self, mock_data_layer, mock_st):
         """Test rendering Fourier spectrum when no data is available."""
         mock_st.selectbox.side_effect = ["A1", "24h"]
+        mock_st.checkbox.return_value = False
         mock_data_layer.query_spectrum_data.return_value = []
         render_fourier_spectrum(mock_data_layer)
         mock_st.info.assert_called()
@@ -135,10 +133,11 @@ class TestSpectrumPlots:
         mock_st.plotly_chart.assert_called()
 
     def test_render_directional_spectrum_bubble(self, mock_data_layer, mock_st, mock_go):
-        """Test directional spectrum bubble plot."""
-        mock_st.columns.return_value = [MagicMock(), MagicMock(), MagicMock()]
-        mock_st.selectbox.side_effect = ["24h", "2026-01-23 12:00:00"]
+        """Test directional spectrum bubble plot with time slider."""
+        mock_st.columns.return_value = [MagicMock(), MagicMock()]
+        mock_st.selectbox.return_value = "24h"
         mock_st.radio.return_value = "Bubble Plot"
+        mock_st.slider.return_value = 0
 
         mock_data_layer.get_available_bursts.return_value = [
             {"label": "2026-01-23 12:00:00", "received_at": datetime(2026, 1, 23, 12, 0, 0)}
@@ -160,9 +159,10 @@ class TestSpectrumPlots:
 
     def test_render_directional_spectrum_heatmap(self, mock_data_layer, mock_st, mock_go):
         """Test directional spectrum heatmap (reconstructed) style."""
-        mock_st.columns.return_value = [MagicMock(), MagicMock(), MagicMock()]
-        mock_st.selectbox.side_effect = ["all", "2026-01-23 12:00:00"]
+        mock_st.columns.return_value = [MagicMock(), MagicMock()]
+        mock_st.selectbox.return_value = "all"
         mock_st.radio.return_value = "Heatmap (Reconstructed)"
+        mock_st.slider.return_value = 0
 
         mock_data_layer.get_available_bursts.return_value = [
             {"label": "2026-01-23 12:00:00", "received_at": datetime(2026, 1, 23, 12, 0, 0)}
@@ -180,28 +180,12 @@ class TestSpectrumPlots:
         mock_go.Barpolar.assert_called()
         mock_st.plotly_chart.assert_called()
 
-    def test_render_directional_spectrum_custom_time(self, mock_data_layer, mock_st):
-        """Test directional spectrum with custom time range."""
-        from datetime import date, time
-
-        mock_st.selectbox.return_value = "Custom"
-        mock_st.date_input.side_effect = [date(2026, 1, 23), date(2026, 1, 24)]
-        mock_st.time_input.side_effect = [time(12, 0), time(12, 0)]
-
-        mock_data_layer.get_available_bursts.return_value = []
-
-        render_directional_spectrum(mock_data_layer)
-
-        # Verify custom date/time usage
-        mock_data_layer.get_available_bursts.assert_called_with(
-            time_range="all",
-            start_time=datetime(2026, 1, 23, 12, 0),
-            end_time=datetime(2026, 1, 24, 12, 0),
-        )
-
     def test_render_amplitude_heatmap_basic(self, mock_data_layer, mock_st, mock_go):
-        """Test basic rendering of amplitude heatmap."""
+        """Test basic rendering of amplitude heatmap with auto-detected source."""
         mock_st.selectbox.return_value = "24h"
+
+        # Auto-detect returns a known source
+        mock_data_layer.detect_current_profile_view.return_value = "pnorc12"
 
         mock_data_layer.query_amplitude_heatmap.return_value = [
             {"received_at": datetime(2026, 1, 23, 12, 0, 0), "amplitudes": [10, 20, 30]},
@@ -213,32 +197,40 @@ class TestSpectrumPlots:
 
         render_amplitude_heatmap(mock_data_layer)
 
+        mock_data_layer.detect_current_profile_view.assert_called_once()
         mock_data_layer.query_amplitude_heatmap.assert_called_with("pnorc12", "24h")
         mock_st.plotly_chart.assert_called_once()
         assert mock_go.Heatmap.called
 
     def test_render_amplitude_heatmap_no_data(self, mock_data_layer, mock_st):
         """Test amplitude heatmap with no data."""
+        mock_data_layer.detect_current_profile_view.return_value = "pnorc12"
         mock_data_layer.query_amplitude_heatmap.return_value = []
         render_amplitude_heatmap(mock_data_layer)
         mock_st.info.assert_called_with("No amplitude data found for the selected time range.")
 
     def test_error_handling(self, mock_data_layer, mock_st):
         """Test exception handling in render functions."""
+        # Fourier spectrum error
         mock_st.selectbox.side_effect = ["A1", "24h"]
+        mock_st.checkbox.return_value = False
         mock_data_layer.query_spectrum_data.side_effect = Exception("Test Error")
         render_fourier_spectrum(mock_data_layer)
         mock_st.error.assert_called_with("Error loading Fourier spectrum: Test Error")
 
+        # Energy heatmap error
         mock_st.columns.return_value = [MagicMock(), MagicMock()]
         mock_st.selectbox.side_effect = ["24h", "Viridis"]
         mock_data_layer.query_wave_energy.side_effect = Exception("Test Heatmap Error")
         render_energy_heatmap(mock_data_layer)
         mock_st.error.assert_called_with("Error loading wave energy heatmap: Test Heatmap Error")
 
-        mock_st.columns.return_value = [MagicMock(), MagicMock(), MagicMock()]
-        # Observation Window, Select Burst (must match a burst label)
-        mock_st.selectbox.side_effect = ["24h", "2026-01-23 12:00:00"]
+        # Directional spectrum error
+        mock_st.columns.return_value = [MagicMock(), MagicMock()]
+        mock_st.selectbox.side_effect = None
+        mock_st.selectbox.return_value = "24h"
+        mock_st.radio.return_value = "Bubble Plot"
+        mock_st.slider.return_value = 0
         mock_data_layer.get_available_bursts.return_value = [
             {"label": "2026-01-23 12:00:00", "received_at": datetime(2026, 1, 23, 12, 0, 0)}
         ]
@@ -249,6 +241,8 @@ class TestSpectrumPlots:
     def test_render_fourier_spectrum_json_error(self, mock_data_layer, mock_st):
         """Test JSONDecodeError handling in Fourier spectrum."""
         mock_st.selectbox.side_effect = ["A1", "24h"]
+        mock_st.checkbox.return_value = False
+        mock_st.slider.return_value = 0
         mock_data_layer.query_spectrum_data.return_value = [
             {
                 "coefficients": "INVALID_JSON",
@@ -264,6 +258,8 @@ class TestSpectrumPlots:
     def test_render_fourier_spectrum_invalid_coefficients(self, mock_data_layer, mock_st):
         """Test handling of invalid coefficient types."""
         mock_st.selectbox.side_effect = ["A1", "24h"]
+        mock_st.checkbox.return_value = False
+        mock_st.slider.return_value = 0
         mock_data_layer.query_spectrum_data.return_value = [
             {
                 "coefficients": {},  # Not a list
@@ -309,8 +305,10 @@ class TestSpectrumPlots:
 
     def test_render_directional_spectrum_no_spectrum(self, mock_data_layer, mock_st):
         """Test directional spectrum with missing frequency data."""
-        mock_st.columns.return_value = [MagicMock(), MagicMock(), MagicMock()]
-        mock_st.selectbox.side_effect = ["24h", "2026-01-23 12:00:00"]
+        mock_st.columns.return_value = [MagicMock(), MagicMock()]
+        mock_st.selectbox.return_value = "24h"
+        mock_st.radio.return_value = "Bubble Plot"
+        mock_st.slider.return_value = 0
         mock_data_layer.get_available_bursts.return_value = [
             {"label": "2026-01-23 12:00:00", "received_at": datetime(2026, 1, 23, 12, 0, 0)}
         ]
@@ -326,3 +324,21 @@ class TestSpectrumPlots:
         mock_data_layer.query_wave_energy.return_value = []
         render_energy_heatmap(mock_data_layer)
         mock_st.info.assert_called_with("No wave energy data available in the selected time range.")
+
+    def test_render_directional_spectrum_no_bursts(self, mock_data_layer, mock_st):
+        """Test directional spectrum when no bursts are available."""
+        mock_st.columns.return_value = [MagicMock(), MagicMock()]
+        mock_st.selectbox.return_value = "24h"
+        mock_st.radio.return_value = "Bubble Plot"
+        mock_data_layer.get_available_bursts.return_value = []
+
+        render_directional_spectrum(mock_data_layer)
+        mock_st.info.assert_called()
+
+    def test_render_amplitude_heatmap_detect_returns_none(self, mock_data_layer, mock_st):
+        """Test amplitude heatmap when detect_current_profile_view returns None (lines 602-603)."""
+        mock_data_layer.detect_current_profile_view.return_value = None
+
+        render_amplitude_heatmap(mock_data_layer)
+
+        mock_st.info.assert_called_with("No current profile data available for amplitude heatmap.")

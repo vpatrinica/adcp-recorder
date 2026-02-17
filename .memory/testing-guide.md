@@ -58,3 +58,54 @@ This runs:
 2.  Ruff Lint
 3.  Mypy (Strict)
 4.  Pytest (with Coverage)
+
+## UI Component Testing Patterns
+
+UI tests mock Streamlit and Plotly to test rendering logic without a browser.
+
+### Standard Setup
+```python
+pytest.importorskip("plotly")
+pytest.importorskip("streamlit")
+
+from adcp_recorder.ui.components.wave_rose import render_wave_rose
+```
+
+### Mocking Streamlit
+Patch `st` at the component's module path:
+```python
+with patch("adcp_recorder.ui.components.wave_rose.st") as mock_st:
+    mock_st.session_state = {}
+    mock_st.columns.return_value = [MagicMock(), MagicMock()]
+```
+
+### Mocking DataLayer
+Use a plain `MagicMock()` — no real DuckDB needed:
+```python
+mock_data_layer = MagicMock()
+mock_data_layer.query_wave_rose_data.return_value = [...]
+render_wave_rose(mock_data_layer)
+```
+
+### Mocking Auto-Detection
+Components using `detect_current_profile_view()` need it mocked on the data layer:
+```python
+mock_data_layer.detect_current_profile_view.return_value = "current_profile_12"
+```
+
+### Mocking Local Imports
+When a function uses a local import (e.g., `from adcp_recorder.ui.config import
+DashboardConfig` inside `_render_save_panel_ui`), patch at the **source module**,
+not the importing module:
+```python
+@patch("adcp_recorder.ui.config.DashboardConfig")  # correct
+# NOT: @patch("adcp_recorder.ui.pages.plot_builder.DashboardConfig")
+```
+
+### Testing Plot Builder Save Logic
+Mock `st.button.return_value = True` and `st.selectbox.side_effect = [...]` to
+simulate user interactions through the full `render_plot_builder()` flow:
+```python
+mock_st.selectbox.side_effect = ["Wave Rose", "test_dashboard"]
+mock_dc.list_dashboards.return_value = ["test_dashboard"]
+```

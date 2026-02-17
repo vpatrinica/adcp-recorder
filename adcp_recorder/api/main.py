@@ -19,6 +19,12 @@ _db_manager: DatabaseManager | None = None
 
 
 def get_db():
+    """Return a singleton DatabaseManager instance.
+
+    The DB manager is lazily created using values from RecorderConfig. This
+    function intentionally keeps the global mutable to avoid reinitializing
+    connections during tests or app restarts.
+    """
     global _db_manager
     if _db_manager is None:
         config = RecorderConfig.load()
@@ -29,6 +35,8 @@ def get_db():
 
 
 class RecordResponse(BaseModel):
+    """Response model for raw recorded lines returned by the API."""
+
     line_id: int
     received_at: datetime
     raw_sentence: str
@@ -39,6 +47,8 @@ class RecordResponse(BaseModel):
 
 
 class ErrorResponse(BaseModel):
+    """Response model for parse errors returned by the API."""
+
     error_id: int
     received_at: datetime
     raw_sentence: str
@@ -49,6 +59,7 @@ class ErrorResponse(BaseModel):
 
 @app.get("/")
 async def root():
+    """Health-check root endpoint confirming the API is running."""
     return {"message": "ADCP Recorder API is running", "version": "0.1.0"}
 
 
@@ -58,6 +69,10 @@ async def get_records(
     status: str | None = None,
     limit: int = Query(100, ge=1, le=1000),
 ):
+    """Return recent raw lines optionally filtered by record type or parse status.
+
+    Parameters mirror query args: `record_type`, `status`, and `limit`.
+    """
     db = get_db()
     conn = db.get_connection()
     try:
@@ -68,6 +83,10 @@ async def get_records(
 
 @app.get("/errors", response_model=list[ErrorResponse])
 async def get_errors(error_type: str | None = None, limit: int = Query(100, ge=1, le=1000)):
+    """Return recent parse errors, optionally filtered by `error_type`.
+
+    Results are limited by `limit` and use the `ErrorResponse` model.
+    """
     db = get_db()
     conn = db.get_connection()
     try:

@@ -22,6 +22,9 @@ class PanelType(StrEnum):
     HEATMAP = "heatmap"
     AMPLITUDE_HEATMAP = "amplitude_heatmap"
     POLAR = "polar"
+    WAVE_ROSE = "wave_rose"
+    CURRENT_SPEED_HEATMAP = "current_speed_heatmap"
+    CURRENT_DIRECTION_POLAR = "current_direction_polar"
 
 
 class TimeRange(StrEnum):
@@ -57,6 +60,7 @@ class SeriesConfig(BaseModel):
     @field_validator("color")
     @classmethod
     def validate_color(cls, v: str | None) -> str | None:
+        """Validator ensuring color strings are hex values starting with '#'."""
         if v is not None and not v.startswith("#"):
             raise ValueError("Color must be a hex value starting with #")
         return v
@@ -99,9 +103,16 @@ class SpectrumPanelConfig(BaseModel):
 
 
 class VelocityProfilePanelConfig(BaseModel):
-    """Configuration for velocity profile depth plots."""
+    """Configuration for velocity profile depth plots.
 
-    data_source: str = Field(default="pnorc12")
+    Note: data_source is ignored — the component auto-detects the best
+    available current_profile view at render time.
+    """
+
+    data_source: str = Field(
+        default="current_profile_12",
+        description="Ignored (auto-detected). Kept for YAML backward compatibility.",
+    )
     velocity_columns: list[str] = Field(default_factory=lambda: ["vel1", "vel2", "vel3", "vel4"])
     cell_size: float = Field(default=1.0, description="Cell size in meters")
     blanking_distance: float = Field(default=0.5, description="Blanking distance in m")
@@ -125,6 +136,70 @@ class PolarPanelConfig(BaseModel):
     time_range: str = Field(default="24h")
 
 
+class WaveRosePanelConfig(BaseModel):
+    """Configuration for wave rose / polar scatter plots (PNORW + PNORB).
+
+    Plots theta=DirTp, r=Hm0, color=Tp as a polar scatter.
+    """
+
+    data_source: str = Field(
+        default="wave_measurement_full",
+        description="View providing wave parameters",
+    )
+    band_source: str = Field(
+        default="pnorb_data",
+        description="Band parameters source for frequency band roses",
+    )
+    mode: str = Field(
+        default="full_spectrum",
+        description="'full_spectrum' (PNORW) or 'frequency_bands' (PNORB)",
+    )
+    time_range: str = Field(default="7d")
+
+    @field_validator("mode")
+    @classmethod
+    def validate_mode(cls, v: str) -> str:
+        """Validate the mode flag."""
+        if v not in ("full_spectrum", "frequency_bands"):
+            raise ValueError("Mode must be 'full_spectrum' or 'frequency_bands'")
+        return v
+
+
+class CurrentSpeedHeatmapPanelConfig(BaseModel):
+    """Configuration for current speed heatmaps (time x depth, color=speed).
+
+    Optionally overlays direction arrows.
+    Note: data_source is ignored — the component auto-detects the best
+    available current_profile view at render time.
+    """
+
+    data_source: str = Field(
+        default="current_profile_12",
+        description="Ignored (auto-detected). Kept for YAML backward compatibility.",
+    )
+    colorscale: str = Field(default="Viridis")
+    show_direction_arrows: bool = Field(
+        default=False,
+        description="Overlay direction arrows on heatmap",
+    )
+    time_range: str = Field(default="24h")
+
+
+class CurrentDirectionPolarPanelConfig(BaseModel):
+    """Configuration for current direction polar plots.
+
+    Displays current speed/direction as polar scatter across depth cells.
+    Note: data_source is ignored — the component auto-detects the best
+    available current_profile view at render time.
+    """
+
+    data_source: str = Field(
+        default="current_profile_12",
+        description="Ignored (auto-detected). Kept for YAML backward compatibility.",
+    )
+    time_range: str = Field(default="24h")
+
+
 class PanelConfig(BaseModel):
     """Configuration for a single dashboard panel."""
 
@@ -143,6 +218,9 @@ class PanelConfig(BaseModel):
         | VelocityProfilePanelConfig
         | HeatmapPanelConfig
         | PolarPanelConfig
+        | WaveRosePanelConfig
+        | CurrentSpeedHeatmapPanelConfig
+        | CurrentDirectionPolarPanelConfig
     ):
         """Return the appropriately typed config based on panel type."""
         config_map = {
@@ -153,6 +231,9 @@ class PanelConfig(BaseModel):
             PanelType.HEATMAP: HeatmapPanelConfig,
             PanelType.AMPLITUDE_HEATMAP: HeatmapPanelConfig,
             PanelType.POLAR: PolarPanelConfig,
+            PanelType.WAVE_ROSE: WaveRosePanelConfig,
+            PanelType.CURRENT_SPEED_HEATMAP: CurrentSpeedHeatmapPanelConfig,
+            PanelType.CURRENT_DIRECTION_POLAR: CurrentDirectionPolarPanelConfig,
         }
         config_class = config_map.get(self.type)
         if config_class:
@@ -270,7 +351,6 @@ class DashboardConfig(BaseModel):
                     title="Velocity Profile",
                     position=PanelPosition(row=1, col=0, width=1, height=1),
                     config={
-                        "data_source": "pnorc12",
                         "velocity_columns": ["vel1", "vel2", "vel3"],
                         "cell_size": 1.0,
                     },
@@ -381,7 +461,7 @@ DASHBOARD_TEMPLATES = {
                 type=PanelType.TABLE,
                 title="Sensor Data (PNORS)",
                 position=PanelPosition(row=0, col=0),
-                config={"data_source": "pnors_data", "limit": 50, "time_range": "24h"},
+                config={"data_source": "pnors_df100", "limit": 50, "time_range": "24h"},
             ),
             PanelConfig(
                 id="sensor12_table",
@@ -409,7 +489,7 @@ DASHBOARD_TEMPLATES = {
                 type=PanelType.VELOCITY_PROFILE,
                 title="Depth Profile",
                 position=PanelPosition(row=1, col=1, width=2),
-                config={"data_source": "pnorc12", "time_range": "24h"},
+                config={"time_range": "24h"},
             ),
             PanelConfig(
                 id="temp_pressure",
@@ -418,8 +498,8 @@ DASHBOARD_TEMPLATES = {
                 position=PanelPosition(row=2, col=0, width=3),
                 config={
                     "series": [
-                        {"source": "pnors_data", "y": "temperature", "label": "Temp (°C)"},
-                        {"source": "pnors_data", "y": "pressure", "label": "Pressure (dbar)"},
+                        {"source": "pnors_df100", "y": "temperature", "label": "Temp (°C)"},
+                        {"source": "pnors_df100", "y": "pressure", "label": "Pressure (dbar)"},
                     ],
                     "time_range": "24h",
                 },
@@ -464,7 +544,7 @@ DASHBOARD_TEMPLATES = {
                 type=PanelType.AMPLITUDE_HEATMAP,
                 title="Signal Strength Heatmap",
                 position=PanelPosition(row=2, col=0, width=2, height=1),
-                config={"data_source": "pnorc12", "colorscale": "Jet", "time_range": "7d"},
+                config={"colorscale": "Jet", "time_range": "7d"},
             ),
             PanelConfig(
                 id="fourier_a1",

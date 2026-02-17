@@ -1,4 +1,9 @@
-"""Velocity profile depth plot component."""
+"""Velocity profile depth plot component.
+
+Uses current_profile_* views (joining sensor + current data) as the primary
+data source. Provides continuous time-slider navigation instead of manual burst
+selection.
+"""
 
 from datetime import datetime
 from typing import Any
@@ -27,6 +32,16 @@ BEAM_LABELS = {
     "vel4": "Beam4 (Vel4)",
 }
 
+# Preferred data sources: views first, then raw tables
+_PREFERRED_SOURCES = [
+    "current_profile_12",
+    "current_profile_df100",
+    "current_profile_34",
+    "pnorc12",
+    "pnorc_df100",
+    "pnorc34",
+]
+
 
 def render_velocity_profile(
     data_layer: DataLayer,
@@ -34,6 +49,9 @@ def render_velocity_profile(
     key_prefix: str = "vp",
 ) -> None:
     """Render a velocity profile depth plot showing velocity vs depth.
+
+    Uses current_profile_* views by default, with a continuous time slider
+    for navigating through measurements.
 
     Args:
         data_layer: DataLayer instance for data access
@@ -45,35 +63,22 @@ def render_velocity_profile(
         raise ImportError("Streamlit and Plotly are required for this component.")
     config = config or {}
 
-    # Configuration
-    source_name = config.get("data_source", "pnorc_df101")
+    # Auto-detect best current profile view
+    source_name = data_layer.detect_current_profile_view()
+    if source_name is None:
+        st.info("No current profile data available. Waiting for PNORC data.")
+        return
+
     velocity_columns = config.get("velocity_columns", ["vel1", "vel2", "vel3", "vel4"])
     cell_size = config.get("cell_size", 1.0)
     blanking_distance = config.get("blanking_distance", 0.5)
+    time_range = config.get("time_range", "24h")
 
     # Settings expander
-    with st.expander("⚙️ Profile Settings", expanded=False):
-        col1, col2, col3 = st.columns(3)
+    with st.expander("Profile Settings", expanded=False):
+        col1, col2 = st.columns(2)
 
         with col1:
-            # Get available velocity sources
-            sources = data_layer.get_available_sources()
-            velocity_sources = [
-                s.name
-                for s in sources
-                if "pnorc" in s.name.lower() or "velocity" in s.category.lower()
-            ]
-            if not velocity_sources:
-                velocity_sources = [source_name]
-
-            source_name = st.selectbox(
-                "Data Source",
-                options=velocity_sources,
-                index=velocity_sources.index(source_name) if source_name in velocity_sources else 0,
-                key=f"{key_prefix}_source",
-            )
-
-        with col2:
             cell_size = st.number_input(
                 "Cell Size (m)",
                 min_value=0.1,
@@ -83,7 +88,7 @@ def render_velocity_profile(
                 key=f"{key_prefix}_cell_size",
             )
 
-        with col3:
+        with col2:
             blanking_distance = st.number_input(
                 "Blanking Distance (m)",
                 min_value=0.0,
@@ -106,109 +111,73 @@ def render_velocity_profile(
             key=f"{key_prefix}_velocities",
         )
 
-    # Burst selection for multi-profile comparison
-    available_bursts = data_layer.get_available_bursts(source_name=source_name)
-    burst_options = {
-        f"{b['received_at'].strftime('%Y-%m-%d %H:%M:%S')}": b["received_at"]
-        for b in available_bursts
-    }
-
-    selected_burst_labels = st.multiselect(
-        "Select Bursts to Compare",
-        options=list(burst_options.keys()),
-        default=[list(burst_options.keys())[0]] if burst_options else [],
-        key=f"{key_prefix}_bursts",
-        help="Select one or more bursts to overlay their profiles.",
+    # Continuous time navigation — use a slider over available bursts
+    available_bursts = data_layer.get_available_bursts(
+        source_name=source_name, time_range=time_range
     )
 
-    selected_timestamps = [burst_options[label] for label in selected_burst_labels]
+    if not available_bursts:
+        st.info("No velocity profile data available in the selected time range.")
+        return
+
+    # Time slider for continuous navigation
+    burst_labels = [b["label"] for b in available_bursts]
+    num_bursts = len(burst_labels)
+
+    slider_idx = st.slider(
+        "Time Navigation",
+        min_value=0,
+        max_value=max(0, num_bursts - 1),
+        value=0,
+        format=f"Measurement %d of {num_bursts}",
+        key=f"{key_prefix}_time_slider",
+        help="Slide to navigate through measurements over time.",
+    )
+
+    selected_burst = available_bursts[slider_idx]
+    st.caption(f"Measurement: {selected_burst['label']} ({slider_idx + 1}/{num_bursts})")
 
     # Query velocity profile data
     try:
-        if len(selected_timestamps) > 1:
-            # Multi-burst mode: Compare one component across many timestamps
-            comp_to_compare = st.selectbox(
-                "Component to Compare",
-                options=selected_velocities,
-                index=0,
-                key=f"{key_prefix}_comp_compare",
-            )
+        profile = data_layer.query_velocity_profile(
+            source_name=source_name,
+            velocity_columns=selected_velocities,
+            cell_size=cell_size,
+            blanking_distance=blanking_distance,
+            timestamp=selected_burst["received_at"],
+        )
 
-            profiles = data_layer.query_velocity_profiles(
-                source_name=source_name,
-                velocity_columns=[comp_to_compare],
-                cell_size=cell_size,
-                blanking_distance=blanking_distance,
-                timestamps=selected_timestamps,
-            )
-        else:
-            # Single-burst mode: Show all selected components
-            single_ts = selected_timestamps[0] if selected_timestamps else None
-            profiles = [
-                data_layer.query_velocity_profile(
-                    source_name=source_name,
-                    velocity_columns=selected_velocities,
-                    cell_size=cell_size,
-                    blanking_distance=blanking_distance,
-                    timestamp=single_ts,
-                )
-            ]
+        depths = profile.get("depths", [])
+        velocities = profile.get("velocities", {})
 
-        if not profiles or not any(p.get("depths") for p in profiles):
-            st.info("No velocity profile data available.")
+        if not depths:
+            st.info("No velocity profile data for this measurement.")
             return
 
         # Build the profile plot
         fig = go.Figure()
 
-        if len(selected_timestamps) > 1:
-            for i, profile in enumerate(profiles):
-                ts = selected_timestamps[i]
-                depths = profile.get("depths", [])
-                vel_vals = profile.get("velocities", {}).get(selected_velocities[0], [])
+        for vel_col in selected_velocities:
+            vel_values = velocities.get(vel_col, [])
+            if not vel_values:
+                continue
 
-                if not depths or not vel_vals:
-                    continue
+            color = BEAM_COLORS.get(vel_col, "#888888")
+            label = BEAM_LABELS.get(vel_col, vel_col)
 
-                fig.add_trace(
-                    go.Scatter(
-                        x=vel_vals,
-                        y=depths,
-                        mode="lines",
-                        name=f"Prof {ts.strftime('%H:%M:%S')}",
-                        hovertemplate=(
-                            f"Time: {ts}<br>Velocity: %{{x:.3f}} m/s<br>"
-                            f"Depth: %{{y:.2f}} m<extra></extra>"
-                        ),
-                    )
-                )
-        else:
-            profile = profiles[0]
-            depths = profile.get("depths", [])
-            velocities = profile.get("velocities", {})
-
-            for vel_col in selected_velocities:
-                vel_values = velocities.get(vel_col, [])
-                if not vel_values:
-                    continue
-
-                color = BEAM_COLORS.get(vel_col, "#888888")
-                label = BEAM_LABELS.get(vel_col, vel_col)
-
-                fig.add_trace(
-                    go.Scatter(
-                        x=vel_values,
-                        y=depths,
-                        mode="lines+markers",
-                        name=label,
-                        line=dict(color=color, width=2),
-                        marker=dict(size=6, color=color),
-                        hovertemplate=(
-                            f"{label}<br>Velocity: %{{x:.3f}} m/s<br>"
-                            f"Depth: %{{y:.2f}} m<extra></extra>"
-                        ),
+            fig.add_trace(
+                go.Scatter(
+                    x=vel_values,
+                    y=depths,
+                    mode="lines+markers",
+                    name=label,
+                    line=dict(color=color, width=2),
+                    marker=dict(size=6, color=color),
+                    hovertemplate=(
+                        f"{label}<br>Velocity: %{{x:.3f}} m/s<br>Depth: %{{y:.2f}} m<extra></extra>"
                     ),
-                )
+                ),
+            )
 
         # Update layout for depth profile (inverted Y-axis, depth increases downward)
         fig.update_layout(
@@ -244,23 +213,25 @@ def render_velocity_profile(
         st.plotly_chart(fig, width="stretch", key=f"{key_prefix}_chart")
 
         # Metrics
-        cols = st.columns(len(selected_velocities))
-        for i, vel_col in enumerate(selected_velocities):
-            vel_values = velocities.get(vel_col, [])
-            if vel_values:
-                with cols[i]:
-                    # Filter out None values for stats
-                    valid_values = [v for v in vel_values if v is not None]
-                    if valid_values:
-                        avg_vel = sum(valid_values) / len(valid_values)
-                        st.metric(
-                            BEAM_LABELS.get(vel_col, vel_col),
-                            f"{avg_vel:.3f} m/s",
-                            help=f"Average {vel_col} across all cells",
-                        )
+        if selected_velocities:
+            cols = st.columns(len(selected_velocities))
+            for i, vel_col in enumerate(selected_velocities):
+                vel_values = velocities.get(vel_col, [])
+                if vel_values:
+                    with cols[i]:
+                        valid_values = [v for v in vel_values if v is not None]
+                        if valid_values:
+                            avg_vel = sum(valid_values) / len(valid_values)
+                            st.metric(
+                                BEAM_LABELS.get(vel_col, vel_col),
+                                f"{avg_vel:.3f} m/s",
+                                help=f"Average {vel_col} across all cells",
+                            )
 
     except Exception as e:
         st.error(f"Error loading velocity profile: {e}")
+
+    st.caption(f"Source: {source_name} (auto-detected)")
 
 
 def render_velocity_comparison(
@@ -281,7 +252,10 @@ def render_velocity_comparison(
     if st is None or go is None:
         raise ImportError("Streamlit and Plotly are required for this component.")
     config = config or {}
-    source_name = config.get("data_source", "pnorc_df101")
+    source_name = data_layer.detect_current_profile_view()
+    if source_name is None:
+        st.info("No current profile data available.")
+        return
 
     fig = go.Figure()
 

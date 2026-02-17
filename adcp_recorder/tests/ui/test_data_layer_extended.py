@@ -313,3 +313,370 @@ class TestDataLayerCoverageFinalConsistently:
                 "depths": [],
                 "velocities": {"vel1": [], "vel2": [], "vel3": [], "vel4": []},
             }
+
+
+class TestQueryWaveRoseData:
+    """Tests for DataLayer.query_wave_rose_data (lines 931-959)."""
+
+    @pytest.fixture
+    def real_conn(self):
+        conn = duckdb.connect(":memory:")
+        for sql in ALL_SCHEMA_SQL:
+            conn.execute(sql)
+        return conn
+
+    @pytest.fixture
+    def data_layer(self, real_conn):
+        return DataLayer(real_conn)
+
+    def test_query_wave_rose_basic(self, data_layer, real_conn):
+        """Test basic wave rose query returns data from pnorw_data."""
+        now = datetime.now()
+        real_conn.execute(
+            "INSERT INTO pnorw_data (record_id, received_at, sentence_type, original_sentence, "
+            "measurement_date, measurement_time, hm0, dir_tp, tp, main_dir) "
+            "VALUES (1, ?, 'PNORW', 'test', '010126', '120000', 1.5, 90.0, 8.0, 85.0)",
+            [now],
+        )
+        result = data_layer.query_wave_rose_data("pnorw_data", time_range="24h")
+        assert len(result) == 1
+        assert result[0]["hm0"] == 1.5
+        assert result[0]["dir_tp"] == 90.0
+        assert result[0]["tp"] == 8.0
+        assert result[0]["main_dir"] == 85.0
+
+    def test_query_wave_rose_filters_nulls(self, data_layer, real_conn):
+        """Test wave rose query filters out rows with NULL hm0 or dir_tp."""
+        now = datetime.now()
+        real_conn.execute(
+            "INSERT INTO pnorw_data (record_id, received_at, sentence_type, original_sentence, "
+            "measurement_date, measurement_time, hm0, dir_tp) "
+            "VALUES (1, ?, 'PNORW', 'test', '010126', '120000', NULL, 90.0)",
+            [now],
+        )
+        real_conn.execute(
+            "INSERT INTO pnorw_data (record_id, received_at, sentence_type, original_sentence, "
+            "measurement_date, measurement_time, hm0, dir_tp) "
+            "VALUES (2, ?, 'PNORW', 'test', '010126', '130000', 1.5, NULL)",
+            [now],
+        )
+        result = data_layer.query_wave_rose_data("pnorw_data", time_range="24h")
+        assert len(result) == 0
+
+    def test_query_wave_rose_nonexistent_source(self, data_layer):
+        """Test wave rose query with nonexistent source returns empty."""
+        result = data_layer.query_wave_rose_data("nonexistent_table")
+        assert result == []
+
+    def test_query_wave_rose_from_pnorb(self, data_layer, real_conn):
+        """Test wave rose query from pnorb_data (frequency bands)."""
+        now = datetime.now()
+        real_conn.execute(
+            "INSERT INTO pnorb_data (record_id, received_at, sentence_type, original_sentence, "
+            "measurement_date, measurement_time, spectrum_basis, processing_method, "
+            "hm0, dir_tp, tp, main_dir) "
+            "VALUES (1, ?, 'PNORB', 'test', '010126', '120000', 1, 1, 0.5, 45.0, 4.0, 40.0)",
+            [now],
+        )
+        result = data_layer.query_wave_rose_data("pnorb_data", time_range="24h")
+        assert len(result) == 1
+        assert result[0]["hm0"] == 0.5
+        assert result[0]["dir_tp"] == 45.0
+
+    def test_query_wave_rose_with_time_range_all(self, data_layer, real_conn):
+        """Test wave rose with 'all' time range (no time filter)."""
+        now = datetime.now()
+        real_conn.execute(
+            "INSERT INTO pnorw_data (record_id, received_at, sentence_type, original_sentence, "
+            "measurement_date, measurement_time, hm0, dir_tp, tp) "
+            "VALUES (1, ?, 'PNORW', 'test', '010126', '120000', 2.0, 180.0, 12.0)",
+            [now - timedelta(days=365)],
+        )
+        result = data_layer.query_wave_rose_data("pnorw_data", time_range="all")
+        assert len(result) == 1
+
+    @patch("duckdb.DuckDBPyConnection.execute")
+    def test_query_wave_rose_exception(self, mock_execute, data_layer):
+        """Test wave rose query exception returns empty list."""
+        with patch.object(data_layer, "get_source_metadata") as mock_meta:
+            mock_meta.return_value = DataSource(
+                "pnorw_data", "Wave", [ColumnMetadata("received_at", ColumnType.TIMESTAMP)]
+            )
+            mock_execute.side_effect = Exception("DB Error")
+            result = data_layer.query_wave_rose_data("pnorw_data")
+            assert result == []
+
+
+class TestQueryCurrentSpeedHeatmap:
+    """Tests for DataLayer.query_current_speed_heatmap (lines 979-1089)."""
+
+    @pytest.fixture
+    def real_conn(self):
+        conn = duckdb.connect(":memory:")
+        for sql in ALL_SCHEMA_SQL:
+            conn.execute(sql)
+        return conn
+
+    @pytest.fixture
+    def data_layer(self, real_conn):
+        return DataLayer(real_conn)
+
+    def _insert_current_profile_12_data(self, conn, num_times=2, num_cells=3):
+        """Insert sample data into pnors12 + pnorc12 to populate current_profile_12 view."""
+        now = datetime.now()
+        for t in range(num_times):
+            time_str = f"12{t:02d}00"
+            conn.execute(
+                "INSERT INTO pnors12 (record_id, data_format, received_at, original_sentence, "
+                "measurement_date, measurement_time, heading, pitch, roll, pressure, temperature) "
+                "VALUES (?, 101, ?, 'test', '010126', ?, 10.0, 1.0, 0.5, 100.0, 15.0)",
+                [100 + t, now - timedelta(minutes=t), time_str],
+            )
+            for c in range(num_cells):
+                conn.execute(
+                    "INSERT INTO pnorc12 (record_id, data_format, received_at, original_sentence, "
+                    "measurement_date, measurement_time, cell_index, cell_distance, "
+                    "vel1, vel2, vel3, vel4) "
+                    "VALUES (?, 101, ?, 'test', '010126', ?, ?, ?, ?, ?, 0.0, 0.0)",
+                    [
+                        200 + t * num_cells + c,
+                        now - timedelta(minutes=t),
+                        time_str,
+                        c,
+                        float(c) * 2.0 + 0.5,
+                        round(0.1 * (c + 1) + 0.01 * t, 4),
+                        round(0.05 * (c + 1) + 0.005 * t, 4),
+                    ],
+                )
+
+    def test_query_current_speed_heatmap_basic(self, data_layer, real_conn):
+        """Test basic heatmap query from current_profile_12 view."""
+        self._insert_current_profile_12_data(real_conn, num_times=2, num_cells=3)
+        result = data_layer.query_current_speed_heatmap("current_profile_12", time_range="24h")
+        assert "timestamps" in result
+        assert "cell_indices" in result
+        assert "speeds" in result
+        assert len(result["timestamps"]) == 2
+        assert len(result["cell_indices"]) == 3
+        # speeds should be [cells][times]
+        assert len(result["speeds"]) == 3
+        assert len(result["speeds"][0]) == 2
+        # current_profile_12 has vel1/vel2 but no speed/direction columns directly
+        # So it should compute speed from vel1/vel2 via sqrt(vel1^2 + vel2^2)
+        assert all(s is not None for row in result["speeds"] for s in row)
+
+    def test_query_current_speed_heatmap_with_cell_distances(self, data_layer, real_conn):
+        """Test heatmap query includes cell_distances when available."""
+        self._insert_current_profile_12_data(real_conn, num_times=1, num_cells=2)
+        result = data_layer.query_current_speed_heatmap("current_profile_12", time_range="24h")
+        # current_profile_12 has cell_distance column
+        assert result.get("cell_distances") is not None
+        assert len(result["cell_distances"]) == 2
+
+    def test_query_current_speed_heatmap_nonexistent_source(self, data_layer):
+        """Test heatmap query with nonexistent source returns empty."""
+        result = data_layer.query_current_speed_heatmap("nonexistent_table")
+        assert result == {}
+
+    def test_query_current_speed_heatmap_no_speed_cols(self, data_layer, real_conn):
+        """Test heatmap query returns empty when no speed/vel columns exist."""
+        # Create a table with no speed or vel columns
+        real_conn.execute(
+            "CREATE TABLE fake_current (received_at TIMESTAMP, measurement_date CHAR(6), "
+            "measurement_time CHAR(6), cell_index INT)"
+        )
+        real_conn.execute(
+            "INSERT INTO fake_current VALUES (current_timestamp, '010126', '120000', 0)"
+        )
+        result = data_layer.query_current_speed_heatmap("fake_current")
+        assert result == {}
+
+    def test_query_current_speed_heatmap_empty_data(self, data_layer, real_conn):
+        """Test heatmap query with no rows returns empty."""
+        result = data_layer.query_current_speed_heatmap("current_profile_12", time_range="24h")
+        assert result == {}
+
+    def test_query_current_speed_heatmap_time_range_all(self, data_layer, real_conn):
+        """Test heatmap query with 'all' time range."""
+        self._insert_current_profile_12_data(real_conn, num_times=1, num_cells=2)
+        result = data_layer.query_current_speed_heatmap("current_profile_12", time_range="all")
+        assert len(result["timestamps"]) == 1
+
+    @patch("duckdb.DuckDBPyConnection.execute")
+    def test_query_current_speed_heatmap_exception(self, mock_execute, data_layer):
+        """Test heatmap query exception returns empty dict."""
+        cols = [
+            ColumnMetadata("received_at", ColumnType.TIMESTAMP),
+            ColumnMetadata("vel1", ColumnType.NUMERIC),
+            ColumnMetadata("vel2", ColumnType.NUMERIC),
+            ColumnMetadata("cell_index", ColumnType.NUMERIC),
+            ColumnMetadata("measurement_date", ColumnType.TEXT),
+            ColumnMetadata("measurement_time", ColumnType.TEXT),
+        ]
+        with patch.object(data_layer, "get_source_metadata") as mock_meta:
+            mock_meta.return_value = DataSource("current_profile_12", "Profile", cols)
+            mock_execute.side_effect = Exception("DB Error")
+            result = data_layer.query_current_speed_heatmap("current_profile_12")
+            assert result == {}
+
+    @patch("duckdb.DuckDBPyConnection.execute")
+    def test_query_current_speed_heatmap_no_description(self, mock_execute, data_layer):
+        """Test heatmap query returns empty when conn.description is None."""
+        cols = [
+            ColumnMetadata("received_at", ColumnType.TIMESTAMP),
+            ColumnMetadata("vel1", ColumnType.NUMERIC),
+            ColumnMetadata("vel2", ColumnType.NUMERIC),
+            ColumnMetadata("cell_index", ColumnType.NUMERIC),
+            ColumnMetadata("measurement_date", ColumnType.TEXT),
+            ColumnMetadata("measurement_time", ColumnType.TEXT),
+        ]
+        with patch.object(data_layer, "get_source_metadata") as mock_meta:
+            mock_meta.return_value = DataSource("current_profile_12", "Profile", cols)
+            mock_conn = MagicMock()
+            mock_conn.execute.return_value.fetchall.return_value = []
+            mock_conn.description = None
+            data_layer.conn = mock_conn
+            result = data_layer.query_current_speed_heatmap("current_profile_12")
+            assert result == {}
+
+    def test_query_current_speed_heatmap_with_speed_direction_cols(self, data_layer, real_conn):
+        """Test heatmap query from current_profile_34 with speed/direction columns.
+
+        Covers lines 1009, 1014.
+        """
+        now = datetime.now()
+        # Insert data into pnorh + pnors34 + pnorc34 to populate current_profile_34 view
+        real_conn.execute(
+            "INSERT INTO pnorh (record_id, data_format, received_at, original_sentence, "
+            "measurement_date, measurement_time, error_code, status_code) "
+            "VALUES (1, 103, ?, 'test', '010126', '120000', 0, '00000000')",
+            [now],
+        )
+        real_conn.execute(
+            "INSERT INTO pnors34 (record_id, data_format, received_at, original_sentence, "
+            "measurement_date, measurement_time, heading, pitch, roll, pressure, temperature) "
+            "VALUES (1, 103, ?, 'test', '010126', '120000', 10.0, 1.0, 0.5, 100.0, 15.0)",
+            [now],
+        )
+        for c in range(2):
+            real_conn.execute(
+                "INSERT INTO pnorc34 (record_id, data_format, received_at, original_sentence, "
+                "measurement_date, measurement_time, cell_index, cell_distance, speed, direction) "
+                "VALUES (?, 103, ?, 'test', '010126', '120000', ?, ?, ?, ?)",
+                [100 + c, now, c, float(c) * 2.0 + 0.5, 0.15 + c * 0.1, 90.0 + c * 45.0],
+            )
+
+        result = data_layer.query_current_speed_heatmap("current_profile_34", time_range="24h")
+        assert len(result["timestamps"]) == 1
+        assert len(result["cell_indices"]) == 2
+        assert result["directions"] is not None
+        # Should have actual speed/direction values
+        assert result["speeds"][0][0] is not None
+        assert result["directions"][0][0] is not None
+
+
+class TestDetectCurrentProfileView:
+    """Tests for DataLayer.detect_current_profile_view() auto-detection."""
+
+    @pytest.fixture
+    def real_conn(self):
+        conn = duckdb.connect(":memory:")
+        for sql in ALL_SCHEMA_SQL:
+            conn.execute(sql)
+        return conn
+
+    @pytest.fixture
+    def data_layer(self, real_conn):
+        return DataLayer(real_conn)
+
+    def test_returns_none_when_no_data(self, data_layer):
+        """Return None when no current profile views have data."""
+        result = data_layer.detect_current_profile_view()
+        assert result is None
+
+    def test_returns_highest_priority_view(self, data_layer):
+        """Return current_profile_12 when it has data (highest priority)."""
+        with patch.object(data_layer, "get_source_metadata") as mock_meta:
+            # current_profile_12 has data, others don't
+            def side_effect(name):
+                if name == "current_profile_12":
+                    return DataSource(name, "Profile 12", [], record_count=5)
+                return None
+
+            mock_meta.side_effect = side_effect
+            result = data_layer.detect_current_profile_view()
+            assert result == "current_profile_12"
+
+    def test_skips_empty_views(self, data_layer):
+        """Skip views with zero record count; return next with data."""
+        with patch.object(data_layer, "get_source_metadata") as mock_meta:
+
+            def side_effect(name):
+                if name == "current_profile_12":
+                    return DataSource(name, "Profile 12", [], record_count=0)
+                if name == "current_profile_df100":
+                    return DataSource(name, "DF100", [], record_count=3)
+                return None
+
+            mock_meta.side_effect = side_effect
+            result = data_layer.detect_current_profile_view()
+            assert result == "current_profile_df100"
+
+    def test_falls_back_to_raw_tables(self, data_layer):
+        """Fall back to pnorc12 when no joined views have data."""
+        with patch.object(data_layer, "get_source_metadata") as mock_meta:
+
+            def side_effect(name):
+                if name == "pnorc12":
+                    return DataSource(name, "PNORC12", [], record_count=10)
+                if name in (
+                    "current_profile_12",
+                    "current_profile_df100",
+                    "current_profile_34",
+                ):
+                    return DataSource(name, name, [], record_count=0)
+                return None
+
+            mock_meta.side_effect = side_effect
+            result = data_layer.detect_current_profile_view()
+            assert result == "pnorc12"
+
+    def test_priority_order_is_correct(self, data_layer):
+        """Verify the full priority order of candidates."""
+        expected_order = [
+            "current_profile_12",
+            "current_profile_df100",
+            "current_profile_34",
+            "pnorc12",
+            "pnorc_df100",
+            "pnorc34",
+        ]
+        with patch.object(data_layer, "get_source_metadata") as mock_meta:
+            # All return None — capture the call order
+            mock_meta.return_value = None
+            data_layer.detect_current_profile_view()
+            called_names = [call.args[0] for call in mock_meta.call_args_list]
+            assert called_names == expected_order
+
+    def test_stops_at_first_match(self, data_layer):
+        """Stop checking after finding the first view with data."""
+        with patch.object(data_layer, "get_source_metadata") as mock_meta:
+            # All have data — should stop at first
+            mock_meta.return_value = DataSource("any", "Any", [], record_count=1)
+            result = data_layer.detect_current_profile_view()
+            assert result == "current_profile_12"
+            # Should only call get_source_metadata once
+            assert mock_meta.call_count == 1
+
+    def test_returns_pnorc34_as_last_resort(self, data_layer):
+        """Return pnorc34 when it is the only source with data."""
+        with patch.object(data_layer, "get_source_metadata") as mock_meta:
+
+            def side_effect(name):
+                if name == "pnorc34":
+                    return DataSource(name, "PNORC34", [], record_count=2)
+                return DataSource(name, name, [], record_count=0)
+
+            mock_meta.side_effect = side_effect
+            result = data_layer.detect_current_profile_view()
+            assert result == "pnorc34"
