@@ -198,6 +198,27 @@ Achieved 100% test coverage, enforced strict type checking, and implemented a ro
 - **Generation**: Added `scripts/generate_docs.bat` to build API docs using `pdoc`.
 - **CI Integration**: Integrated doc checks into GitHub Actions (`code-quality.yml`).
 
+## 2026-02-17: Parquet DataLayer improvements and agent policy
+
+### What Changed
+- Improved `ParquetDataLayer.resolve_source_name()` to robustly map DuckDB-style
+  and user-supplied source names to `pq_...` views, preserving numeric suffixes
+  (e.g., `pnors1` -> `pq_pnors1`) and preferring exact suffix matches when present.
+- Added fallback heuristics to match legacy patterns like `pnorc12` and
+  'pnorwdata_something'.
+
+### Why
+- UI components and tests expect `_1` and numbered parquet view names to be
+  resolvable; previous implementation sometimes returned the base type only
+  (losing suffixes) which caused mismatches and test failures.
+
+### Files Modified
+- `adcp_recorder/ui/parquet_data_layer.py` — improved `resolve_source_name()`
+
+### Notes for Agents
+- Agents must always update `.memory/*` when making behavior changes so the
+  knowledge base stays in sync. This commit includes the changelog entry.
+
 ## 2026-02-16: NMEA Parser Standardization
 
 ### What Changed

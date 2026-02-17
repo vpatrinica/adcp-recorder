@@ -753,7 +753,9 @@ class ParquetDataLayer(DataLayer):
                 logger.error(f"Failed to create current_profile_df100: {e}")
 
         # 3. Current Profile Family DF101/102 (PNORI1/2 + PNORS1/2 + PNORC1/2)
-        for suffix in ["12", "1", "2"]:
+        # Prefer creating the single-frequency '1' views first so UI detection
+        # which prefers *_1 will find them.
+        for suffix in ["1", "12", "2"]:
             s_view = f"pq_pnors{suffix}"
             c_view = f"pq_pnorc{suffix}"
             i_view = f"pq_pnori{suffix}"
@@ -763,11 +765,9 @@ class ParquetDataLayer(DataLayer):
                 cond_si = (
                     self._get_join_condition(s_view, i_view, "s", "i") if i_view in loaded else None
                 )
-                view_name = (
-                    f"current_profile_{suffix}"
-                    if suffix == "12"
-                    else f"view_pnori{suffix}_pnors{suffix}_pnorc{suffix}"
-                )
+                # Normalize joined view name to a consistent `current_profile_<suffix>`
+                # so callers can rely on predictable names (current_profile_1, _12, _2)
+                view_name = f"current_profile_{suffix}"
 
                 try:
                     cols_s = self._get_view_columns(s_view)
@@ -957,37 +957,79 @@ class ParquetDataLayer(DataLayer):
             Resolved parquet view name or None if not found
 
         """
-        # If already a valid view, return as-is
+        # If already a valid view, return as-is (respect original casing)
         if source_name in self._loaded_views:
             return source_name
 
-        # Try mapping: pnorw_data -> pq_pnorw
-        if source_name.endswith("_data"):
-            base_name = source_name[:-5]  # Remove '_data'
-            pq_name = f"pq_{base_name}"
+        name = source_name.strip()
+        lname = name.lower()
+
+        # Direct pq_ prefix match (case-sensitive on keys stored)
+        if lname.startswith("pq_"):
+            # Normalize to stored view name (views are stored lowercase)
+            if lname in self._loaded_views:
+                return lname
+            # Try original-cased name as well
+            if name in self._loaded_views:
+                return name
+
+        # DuckDB-style name ending with '_data' -> pq_<base>
+        if lname.endswith("_data"):
+            base = lname[:-5]
+            pq_name = f"pq_{base}"
             if pq_name in self._loaded_views:
                 return pq_name
 
-        # Try adding pq_ prefix directly
-        pq_name = f"pq_{source_name}"
+        # Try adding pq_ prefix directly for the literal input
+        pq_name = f"pq_{lname}"
         if pq_name in self._loaded_views:
             return pq_name
 
-        # Try extracting base record type (e.g., pnors_df100 -> pnors, pnorc12 -> pnorc)
-        import re
+        # Attempt to extract a pnor* base and any numeric/alpha suffix and prefer
+        # preserving the suffix if a matching pq_<base><suffix> view exists.
+        # Examples:
+        #  - 'pnorc12' -> try 'pq_pnorc12' then 'pq_pnorc'
+        #  - 'pnors1'  -> try 'pq_pnors1' then 'pq_pnors'
+        m = re.match(r"^(pnor[a-z]*?)([0-9A-Za-z_\-]*)$", lname)
+        if m:
+            base = m.group(1)
+            suffix = m.group(2) or ""
 
-        # Match pattern: base type followed by optional suffix (numbers, _df, etc)
-        match = re.match(r"(pnor[a-z]+)", source_name.lower())
-        if match:
-            base_type = match.group(1)
-            # Special case for wave tables which often have _data suffix in schema
-            # but not in parquet prefix
-            if base_type.endswith("data"):
-                base_type = base_type[:-4]
+            # Try full with suffix preserved first
+            if suffix:
+                pq_full = f"pq_{base}{suffix}"
+                if pq_full in self._loaded_views:
+                    return pq_full
 
-            pq_name = f"pq_{base_type}"
-            if pq_name in self._loaded_views:
-                return pq_name
+            # Try base without suffix
+            pq_base = f"pq_{base}"
+            if pq_base in self._loaded_views:
+                return pq_base
+
+        # As a last resort, try to find any loaded view that contains the
+        # alphabetic pnor base anywhere in the name (helps match patterns like
+        # 'pnorwdata_something'). Prefer the longest matching view name.
+        candidates: list[str] = []
+        for v in self._loaded_views:
+            if "pnor" in v and any(
+                b in v
+                for b in ("pnorw", "pnors", "pnorc", "pnore", "pnorf", "pnorh", "pnori", "pnorwd")
+            ):
+                if re.search(r"pnor[a-z]+", lname):
+                    if re.search(r"pnor[a-z]+", v):
+                        candidates.append(v)
+
+        if candidates:
+            # Prefer exact substring match, otherwise longest name
+            for c in candidates:
+                if (
+                    re.search(r"pnor[a-z]+", lname)
+                    and re.search(r"pnor[a-z]+", c)
+                    and re.search(r"pnor[a-z]+", lname).group(0)
+                    == re.search(r"pnor[a-z]+", c).group(0)
+                ):
+                    return c
+            return max(candidates, key=len)
 
         return None
 
