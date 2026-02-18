@@ -156,6 +156,12 @@ def test_query_directional_spectrum_freq_none():
         True,
         "received_at",
     )
-    with patch.object(layer, "get_source_metadata", side_effect=lambda name: mock_source):
+
+    def meta_side_effect(name):
+        if name == "wave_measurement_full":
+            return None
+        return mock_source
+
+    with patch.object(layer, "get_source_metadata", side_effect=meta_side_effect):
         result = layer.query_directional_spectrum()
     assert result["frequencies"] == []

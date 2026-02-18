@@ -22,50 +22,50 @@ class TestPNORC:
         assert msg.corr4 == 93
 
     def test_pnorc_validation_errors(self):
-        # Invalid cell index
-        with pytest.raises(ValueError, match="Cell index out of range"):
-            PNORC.from_nmea(
-                "$PNORC,102115,090715,0,0.1,0.2,0.3,0.4,1.5,180.0,C,100,101,102,103,90,91,92,93"
-            )
+        # Invalid cell index - validation no longer raises, stores as-is
+        msg = PNORC.from_nmea(
+            "$PNORC,102115,090715,0,0.1,0.2,0.3,0.4,1.5,180.0,C,100,101,102,103,90,91,92,93"
+        )
+        assert msg.cell_index == 0  # Out of range but still stored
 
     def test_velocity_validation_range(self):
-        """Test velocity validation range (-100 to 100 m/s)."""
+        """Test velocity validation range (-100 to 100 m/s) - values stored as-is."""
         # Too low
-        with pytest.raises(ValueError, match="Velocity 1 out of range"):
-            PNORC.from_nmea(
-                "$PNORC,102115,090715,1,-100.1,0.2,0.3,0.4,1.5,180.0,C,100,101,102,103,90,91,92,93"
-            )
+        msg = PNORC.from_nmea(
+            "$PNORC,102115,090715,1,-100.1,0.2,0.3,0.4,1.5,180.0,C,100,101,102,103,90,91,92,93"
+        )
+        assert msg.vel1 == pytest.approx(-100.1)
         # Too high
-        with pytest.raises(ValueError, match="Velocity 1 out of range"):
-            PNORC.from_nmea(
-                "$PNORC,102115,090715,1,100.1,0.2,0.3,0.4,1.5,180.0,C,100,101,102,103,90,91,92,93"
-            )
+        msg = PNORC.from_nmea(
+            "$PNORC,102115,090715,1,100.1,0.2,0.3,0.4,1.5,180.0,C,100,101,102,103,90,91,92,93"
+        )
+        assert msg.vel1 == pytest.approx(100.1)
 
     def test_amplitude_validation_range(self):
-        """Test amplitude validation range (0-255)."""
+        """Test amplitude validation range (0-255) - values stored as-is."""
         # Negative
-        with pytest.raises(ValueError, match="Amplitude 1 out of range"):
-            PNORC.from_nmea(
-                "$PNORC,102115,090715,1,0.1,0.2,0.3,0.4,1.5,180.0,C,-1,101,102,103,90,91,92,93"
-            )
+        msg = PNORC.from_nmea(
+            "$PNORC,102115,090715,1,0.1,0.2,0.3,0.4,1.5,180.0,C,-1,101,102,103,90,91,92,93"
+        )
+        assert msg.amp1 == -1
         # Too high
-        with pytest.raises(ValueError, match="Amplitude 1 out of range"):
-            PNORC.from_nmea(
-                "$PNORC,102115,090715,1,0.1,0.2,0.3,0.4,1.5,180.0,C,256,101,102,103,90,91,92,93"
-            )
+        msg = PNORC.from_nmea(
+            "$PNORC,102115,090715,1,0.1,0.2,0.3,0.4,1.5,180.0,C,256,101,102,103,90,91,92,93"
+        )
+        assert msg.amp1 == 256
 
     def test_correlation_validation_range(self):
-        """Test correlation validation range (0-100)."""
+        """Test correlation validation range (0-100) - values stored as-is."""
         # Negative
-        with pytest.raises(ValueError, match="Correlation 1 out of range"):
-            PNORC.from_nmea(
-                "$PNORC,102115,090715,1,0.1,0.2,0.3,0.4,1.5,180.0,C,100,101,102,103,-1,91,92,93"
-            )
+        msg = PNORC.from_nmea(
+            "$PNORC,102115,090715,1,0.1,0.2,0.3,0.4,1.5,180.0,C,100,101,102,103,-1,91,92,93"
+        )
+        assert msg.corr1 == -1
         # Too high
-        with pytest.raises(ValueError, match="Correlation 1 out of range"):
-            PNORC.from_nmea(
-                "$PNORC,102115,090715,1,0.1,0.2,0.3,0.4,1.5,180.0,C,100,101,102,103,101,91,92,93"
-            )
+        msg = PNORC.from_nmea(
+            "$PNORC,102115,090715,1,0.1,0.2,0.3,0.4,1.5,180.0,C,100,101,102,103,101,91,92,93"
+        )
+        assert msg.corr1 == 101
 
     def test_pnorc_to_dict(self):
         msg = PNORC(

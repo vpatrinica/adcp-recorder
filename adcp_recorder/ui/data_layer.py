@@ -752,7 +752,14 @@ class DataLayer:
                     record = dict(zip(col_names, row, strict=False))
 
                     # Heuristics for common field names
-                    def pick(keys: list[str]):
+                    def pick(keys: list[str]) -> Any:
+                        """Return the first non-None value from ``record`` for candidate keys.
+
+                        The helper searches the provided candidate ``keys`` in order and
+                        returns the first value that exists in the local ``record``
+                        mapping and is not ``None``.  Returns ``None`` when no
+                        candidate key is present or all matching values are ``None``.
+                        """
                         for k in keys:
                             if k in record and record[k] is not None:
                                 return record[k]

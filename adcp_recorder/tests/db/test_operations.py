@@ -542,64 +542,67 @@ class TestPNORIConfigurationOperations:
         assert len(results) == 5
 
     def test_pnori_database_constraints(self):
-        """Test that database enforces PNORI constraints."""
+        """Test that database no longer enforces PNORI constraints - validation is soft."""
         db = DatabaseManager(":memory:")
         conn = db.get_connection()
 
-        # Test invalid instrument type code (not in 0, 2, 4)
-        import pytest
-
-        with pytest.raises(Exception):  # DuckDB constraint violation
-            conn.execute(
-                """
-                INSERT INTO pnori (
-                    config_id, original_sentence,
-                    instrument_type_name, instrument_type_code, head_id,
-                    beam_count, cell_count, blanking_distance, cell_size,
-                    coord_system_name, coord_system_code, checksum
-                )
-                VALUES (1, '$TEST', 'INVALID', 99, '123', 4, 20, 0.20, 1.00, 'ENU', 0, '00')
-                """
+        # Test invalid instrument type code (not in 0, 2, 4) - no longer raises
+        conn.execute(
+            """
+            INSERT INTO pnori (
+                config_id, original_sentence,
+                instrument_type_name, instrument_type_code, head_id,
+                beam_count, cell_count, blanking_distance, cell_size,
+                coord_system_name, coord_system_code, is_valid, checksum
             )
+            VALUES (1, '$TEST', 'INVALID', 99, '123', 4, 20, 0.20, 1.00, 'ENU', 0, FALSE, '00')
+            """
+        )
+        # Should succeed - validation is now soft
+        result = conn.execute("SELECT * FROM pnori WHERE instrument_type_code = 99").fetchone()
+        assert result is not None
 
     def test_pnori_cross_field_validation(self):
-        """Test cross-field constraint: Signature must have 4 beams."""
+        """Test cross-field validation is now soft - Signature with 3 beams allowed."""
         db = DatabaseManager(":memory:")
         conn = db.get_connection()
 
-        import pytest
-
-        # Signature (type 4) with invalid beam count (3)
-        with pytest.raises(Exception):  # DuckDB constraint violation
-            conn.execute(
-                """
-                INSERT INTO pnori (
-                    config_id, original_sentence,
-                    instrument_type_name, instrument_type_code, head_id,
-                    beam_count, cell_count, blanking_distance, cell_size,
-                    coord_system_name, coord_system_code, checksum
-                )
-                VALUES (1, '$TEST', 'SIGNATURE', 4, '123', 3, 20, 0.20, 1.00, 'ENU', 0, '00')
-                """
+        # Signature (type 4) with invalid beam count (3) - no longer raises
+        conn.execute(
+            """
+            INSERT INTO pnori (
+                config_id, original_sentence,
+                instrument_type_name, instrument_type_code, head_id,
+                beam_count, cell_count, blanking_distance, cell_size,
+                coord_system_name, coord_system_code, is_valid, checksum
             )
+            VALUES (1, '$TEST', 'SIGNATURE', 4, '123', 3, 20, 0.20, 1.00, 'ENU', 0, FALSE, '00')
+            """
+        )
+        # Should succeed - validation is now soft
+        result = conn.execute("SELECT * FROM pnori WHERE beam_count = 3").fetchone()
+        assert result is not None
 
     def test_pnori_coordinate_system_mapping(self):
-        """Test that coordinate system mappings are enforced on pnori12."""
+        """Test that coordinate system mappings are no longer enforced - validation is soft."""
         db = DatabaseManager(":memory:")
         conn = db.get_connection()
 
-        import pytest
-
-        # Invalid mapping: ENU with code 1 (should be 0)
-        with pytest.raises(Exception):  # DuckDB constraint violation
-            conn.execute(
-                """
-                INSERT INTO pnori12 (
-                    config_id, data_format, original_sentence,
-                    instrument_type_name, instrument_type_code, head_id,
-                    beam_count, cell_count, blanking_distance, cell_size,
-                    coord_system_name, coord_system_code, checksum
-                )
-                VALUES (1, 101, '$TEST', 'SIGNATURE', 4, '123', 4, 20, 0.20, 1.00, 'ENU', 1, '00')
-                """
+        # Invalid mapping: ENU with code 1 (should be 0) - no longer raises
+        conn.execute(
+            """
+            INSERT INTO pnori12 (
+                config_id, data_format, original_sentence,
+                instrument_type_name, instrument_type_code, head_id,
+                beam_count, cell_count, blanking_distance, cell_size,
+                coord_system_name, coord_system_code, is_valid, checksum
             )
+            VALUES (1, 101, '$TEST', 'SIGNATURE', 4, '123', 4, 20, 0.20, 1.00,
+                    'ENU', 1, FALSE, '00')
+            """
+        )
+        # Should succeed - validation is now soft
+        result = conn.execute(
+            "SELECT * FROM pnori12 WHERE coord_system_name = 'ENU' AND coord_system_code = 1"
+        ).fetchone()
+        assert result is not None

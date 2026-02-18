@@ -87,9 +87,11 @@ CREATE TABLE IF NOT EXISTS pnori (
     cell_size DECIMAL(5,2) NOT NULL,
     coord_system_name VARCHAR(10) NOT NULL,
     coord_system_code TINYINT NOT NULL,
+    is_valid BOOLEAN DEFAULT TRUE,
     checksum CHAR(2)
 );
 """
+
 PNORI_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnori_seq START 1;"
 PNORI_INDEXES_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_pnori_head_id ON pnori(head_id);",
@@ -112,9 +114,11 @@ CREATE TABLE IF NOT EXISTS pnori12 (
     cell_size DECIMAL(5,2) NOT NULL,
     coord_system_name VARCHAR(10) NOT NULL,
     coord_system_code TINYINT NOT NULL,
+    is_valid BOOLEAN DEFAULT TRUE,
     checksum CHAR(2)
 );
 """
+
 PNORI12_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnori12_seq START 1;"
 PNORI12_INDEXES_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_pnori12_head_id ON pnori12(head_id);",
@@ -145,9 +149,11 @@ CREATE TABLE IF NOT EXISTS pnors_df100 (
     temperature DECIMAL(5,2),
     analog1 SMALLINT,
     analog2 SMALLINT,
+    is_valid BOOLEAN DEFAULT TRUE,
     checksum CHAR(2)
 );
 """
+
 PNORS_DF100_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnors_df100_seq START 1;"
 PNORS_DF100_INDEXES_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_pnors_df100_date_time "
@@ -176,9 +182,11 @@ CREATE TABLE IF NOT EXISTS pnors12 (
     pressure DECIMAL(7,3),
     pressure_std_dev DECIMAL(7,3),
     temperature DECIMAL(5,2),
+    is_valid BOOLEAN DEFAULT TRUE,
     checksum CHAR(2)
 );
 """
+
 PNORS12_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnors12_seq START 1;"
 PNORS12_INDEXES_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_pnors12_date_time "
@@ -202,9 +210,11 @@ CREATE TABLE IF NOT EXISTS pnors34 (
     roll DECIMAL(5,1),
     pressure DECIMAL(7,3),
     temperature DECIMAL(5,2),
+    is_valid BOOLEAN DEFAULT TRUE,
     checksum CHAR(2)
 );
 """
+
 PNORS34_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnors34_seq START 1;"
 PNORS34_INDEXES_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_pnors34_date_time "
@@ -224,7 +234,8 @@ CREATE TABLE IF NOT EXISTS pnorc_df100 (
     original_sentence TEXT NOT NULL,
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
-    cell_index SMALLINT NOT NULL CHECK (cell_index > 0),
+    cell_index SMALLINT NOT NULL,
+
     vel1 DECIMAL(8,4),
     vel2 DECIMAL(8,4),
     vel3 DECIMAL(8,4),
@@ -240,9 +251,11 @@ CREATE TABLE IF NOT EXISTS pnorc_df100 (
     corr2 SMALLINT,
     corr3 SMALLINT,
     corr4 SMALLINT,
+    is_valid BOOLEAN DEFAULT TRUE,
     checksum CHAR(2)
 );
 """
+
 PNORC_DF100_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnorc_df100_seq START 1;"
 PNORC_DF100_INDEXES_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_pnorc_df100_date_time "
@@ -273,9 +286,11 @@ CREATE TABLE IF NOT EXISTS pnorc12 (
     corr2 SMALLINT,
     corr3 SMALLINT,
     corr4 SMALLINT,
+    is_valid BOOLEAN DEFAULT TRUE,
     checksum CHAR(2)
 );
 """
+
 PNORC12_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnorc12_seq START 1;"
 PNORC12_INDEXES_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_pnorc12_date_time "
@@ -297,9 +312,11 @@ CREATE TABLE IF NOT EXISTS pnorc34 (
     cell_distance DECIMAL(8,3),
     speed DECIMAL(8,4),
     direction DECIMAL(5,2),
+    is_valid BOOLEAN DEFAULT TRUE,
     checksum CHAR(2)
 );
 """
+
 PNORC34_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnorc34_seq START 1;"
 PNORC34_INDEXES_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_pnorc34_date_time "
@@ -322,9 +339,11 @@ CREATE TABLE IF NOT EXISTS pnorh (
     measurement_time CHAR(6) NOT NULL,
     error_code INTEGER,
     status_code CHAR(8),
+    is_valid BOOLEAN DEFAULT TRUE,
     checksum CHAR(2)
 );
 """
+
 PNORH_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnorh_seq START 1;"
 PNORH_INDEXES_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_pnorh_date_time ON pnorh(measurement_date, measurement_time);",
@@ -345,13 +364,16 @@ CREATE TABLE IF NOT EXISTS pnore_data (
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
     spectrum_basis TINYINT NOT NULL,
-    start_frequency DECIMAL(5,2) CHECK (start_frequency >= 0 AND start_frequency <= 10),
-    step_frequency DECIMAL(5,2) CHECK (step_frequency >= 0 AND step_frequency <= 10),
-    num_frequencies SMALLINT NOT NULL CHECK (num_frequencies >= 1 AND num_frequencies <= 99),
+    start_frequency DECIMAL(5,2),
+    step_frequency DECIMAL(5,2),
+    num_frequencies SMALLINT NOT NULL,
+
     energy_densities JSON NOT NULL,
+    is_valid BOOLEAN DEFAULT TRUE,
     checksum CHAR(2)
 );
 """
+
 PNORE_DATA_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnore_data_seq START 1;"
 PNORE_DATA_INDEXES_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_pnore_date_time "
@@ -386,9 +408,11 @@ CREATE TABLE IF NOT EXISTS pnorw_data (
     near_surface_speed DECIMAL(5,2),
     near_surface_dir DECIMAL(6,2),
     wave_error_code CHAR(4),
+    is_valid BOOLEAN DEFAULT TRUE,
     checksum CHAR(2)
 );
 """
+
 PNORW_DATA_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnorw_data_seq START 1;"
 PNORW_DATA_INDEXES_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_pnorw_date_time "
@@ -415,9 +439,11 @@ CREATE TABLE IF NOT EXISTS pnorb_data (
     spr_tp DECIMAL(5,2),
     main_dir DECIMAL(5,2),
     wave_error_code CHAR(4),
+    is_valid BOOLEAN DEFAULT TRUE,
     checksum CHAR(2)
 );
 """
+
 PNORB_DATA_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnorb_data_seq START 1;"
 PNORB_DATA_INDEXES_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_pnorb_date_time "
@@ -431,17 +457,21 @@ CREATE TABLE IF NOT EXISTS pnorf_data (
     received_at TIMESTAMP DEFAULT current_timestamp,
     sentence_type VARCHAR(10) NOT NULL CHECK (sentence_type = 'PNORF'),
     original_sentence TEXT NOT NULL,
-    coefficient_flag VARCHAR(2) NOT NULL CHECK (coefficient_flag IN ('A1', 'B1', 'A2', 'B2')),
+    coefficient_flag VARCHAR(2) NOT NULL,
+
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
     spectrum_basis TINYINT NOT NULL,
-    start_frequency DECIMAL(5,2) CHECK (start_frequency >= 0 AND start_frequency <= 10),
-    step_frequency DECIMAL(5,2) CHECK (step_frequency >= 0 AND step_frequency <= 10),
-    num_frequencies SMALLINT NOT NULL CHECK (num_frequencies >= 1 AND num_frequencies <= 999),
+    start_frequency DECIMAL(5,2),
+    step_frequency DECIMAL(5,2),
+    num_frequencies SMALLINT NOT NULL,
+
     coefficients JSON NOT NULL,
+    is_valid BOOLEAN DEFAULT TRUE,
     checksum CHAR(2)
 );
 """
+
 PNORF_DATA_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnorf_data_seq START 1;"
 PNORF_DATA_INDEXES_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_pnorf_date_time "
@@ -456,17 +486,21 @@ CREATE TABLE IF NOT EXISTS pnorwd_data (
     received_at TIMESTAMP DEFAULT current_timestamp,
     sentence_type VARCHAR(10) NOT NULL CHECK (sentence_type = 'PNORWD'),
     original_sentence TEXT NOT NULL,
-    direction_type VARCHAR(2) NOT NULL CHECK (direction_type IN ('MD', 'DS')),
+    direction_type VARCHAR(2) NOT NULL,
+
     measurement_date CHAR(6) NOT NULL,
     measurement_time CHAR(6) NOT NULL,
     spectrum_basis TINYINT NOT NULL,
-    start_frequency DECIMAL(5,2) CHECK (start_frequency >= 0 AND start_frequency <= 10),
-    step_frequency DECIMAL(5,2) CHECK (step_frequency >= 0 AND step_frequency <= 10),
-    num_frequencies SMALLINT NOT NULL CHECK (num_frequencies >= 1 AND num_frequencies <= 999),
+    start_frequency DECIMAL(5,2),
+    step_frequency DECIMAL(5,2),
+    num_frequencies SMALLINT NOT NULL,
+
     values JSON NOT NULL,
+    is_valid BOOLEAN DEFAULT TRUE,
     checksum CHAR(2)
 );
 """
+
 PNORWD_DATA_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnorwd_data_seq START 1;"
 PNORWD_DATA_INDEXES_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_pnorwd_date_time "
@@ -489,9 +523,11 @@ CREATE TABLE IF NOT EXISTS pnora_data (
     status CHAR(2),
     pitch DECIMAL(4,1),
     roll DECIMAL(4,1),
+    is_valid BOOLEAN DEFAULT TRUE,
     checksum CHAR(2)
 );
 """
+
 PNORA_DATA_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS pnora_data_seq START 1;"
 PNORA_DATA_INDEXES_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_pnora_date_time "

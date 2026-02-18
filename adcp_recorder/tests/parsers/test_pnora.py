@@ -20,13 +20,13 @@ class TestPNORA:
         assert msg.roll == 2.3
 
     def test_pnora_validation_errors(self):
-        # Invalid pressure (exceeds ddd.ddd format - max 999.999)
-        with pytest.raises(ValueError, match="Pressure out of range"):
-            PNORA.from_nmea("$PNORA,250101,120000,1000.0,15.50,95,01,1.5,2.3")
+        # Validation no longer raises errors - values are parsed as-is
+        # Out-of-range values are accepted but flagged (is_valid would be False if tracked)
+        msg = PNORA.from_nmea("$PNORA,250101,120000,1000.0,15.50,95,01,1.5,2.3")
+        assert msg.pressure == 1000.0  # Out of range but still parsed
 
-        # Invalid distance (exceeds ddd.ddd format - max 999.999)
-        with pytest.raises(ValueError, match="Distance out of range"):
-            PNORA.from_nmea("$PNORA,250101,120000,10.5,1000.0,95,01,1.5,2.3")
+        msg = PNORA.from_nmea("$PNORA,250101,120000,10.5,1000.0,95,01,1.5,2.3")
+        assert msg.distance == 1000.0  # Out of range but still parsed
 
     def test_pnora_to_dict(self):
         msg = PNORA(

@@ -68,22 +68,18 @@ class TestParserUtils:
             validate_hex_string("ABC", 4)
 
     def test_validate_range_valid(self):
-        validate_range(10.0, "test", 0.0, 20.0)
-        validate_range(0.0, "test", 0.0, 20.0)
-        validate_range(20.0, "test", 0.0, 20.0)
+        assert validate_range(10.0, "test", 0.0, 20.0) is True
+        assert validate_range(0.0, "test", 0.0, 20.0) is True
+        assert validate_range(20.0, "test", 0.0, 20.0) is True
 
     def test_validate_range_invalid(self):
-        with pytest.raises(ValueError, match="out of range"):
-            validate_range(-0.1, "test", 0.0, 20.0)
-        with pytest.raises(ValueError, match="out of range"):
-            validate_range(20.1, "test", 0.0, 20.0)
+        assert validate_range(-0.1, "test", 0.0, 20.0) is False
+        assert validate_range(20.1, "test", 0.0, 20.0) is False
 
     def test_parse_optional_float(self):
         assert parse_optional_float("1.23") == 1.23
         assert parse_optional_float("") is None
         assert parse_optional_float("invalid") is None
-        # Without sentinels, numeric-looking values parse normally
         assert parse_optional_float("-9.000") == -9.0
-        # With sentinels, matching values return None
-        assert parse_optional_float("-9.000", ("-9.000",)) is None
-        assert parse_optional_float("-9.000", ("-9.00",)) == -9.0
+        assert parse_optional_float("nan") is None
+        assert parse_optional_float("NAN") is None

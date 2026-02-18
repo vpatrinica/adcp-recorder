@@ -24,14 +24,12 @@ class TestPNORB:
         assert msg.wave_error_code == "0000"
 
     def test_pnorb_optional_fields(self):
-        # Test -99.99 sentinel (ddd.dd format) — correct precision for PNORB fields
-        sentence = (
-            "$PNORB,102115,090715,1,4,0.02,0.20,-99.99,-99.99,-99.99,-99.99,-99.99,-99.99,0001*65"
-        )
+        # Test -9.0 sentinel (ddd.dd format) — sentinels no longer converted to None
+        sentence = "$PNORB,102115,090715,1,4,0.02,0.20,-9.0,-9.0,-9.0,-9.0,-9.0,-9.0,0001*65"
         msg = PNORB.from_nmea(sentence)
-        assert msg.hm0 is None
-        assert msg.tp is None
-        assert msg.main_dir is None
+        assert msg.hm0 == pytest.approx(-9.0)
+        assert msg.tp == pytest.approx(-9.0)
+        assert msg.main_dir == pytest.approx(-9.0)
 
     def test_pnorb_invalid_field_count(self):
         with pytest.raises(ValueError, match="Expected 14 fields"):
@@ -70,7 +68,7 @@ class TestPNORB:
         assert msg.hm0 is None
 
     def test_pnorb_short_sentinel(self):
-        # Test -9.0 sentinel (encountered in production)
+        # Test -9.0 sentinel (encountered in production) — sentinels no longer converted to None
         sentence = "$PNORB,102115,090715,1,4,0.02,0.20,0.27,-9.0,12.00,82.42,75.46,82.10,0000*71"
         msg = PNORB.from_nmea(sentence)
-        assert msg.tm02 is None
+        assert msg.tm02 == pytest.approx(-9.0)

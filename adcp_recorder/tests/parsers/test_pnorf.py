@@ -14,7 +14,7 @@ class TestPNORFParser:
         sentence = (
             "$PNORF,A1,120720,093150,1,0.02,0.01,10,"
             "0.0348,0.0958,0.1372,0.1049,-0.0215,-0.0143,0.0358,0.0903,"
-            "-999.9999,-999.9999"
+            "-9.0,-9.0"
         )
 
         pnorf = PNORF.from_nmea(sentence)
@@ -34,9 +34,9 @@ class TestPNORFParser:
         assert pnorf.coefficients[1] == pytest.approx(0.0958)
         assert pnorf.coefficients[2] == pytest.approx(0.1372)
 
-        # Verify invalid data markers
-        assert pnorf.coefficients[8] is None
-        assert pnorf.coefficients[9] is None
+        # Verify sentinel values (no longer converted to None)
+        assert pnorf.coefficients[8] == pytest.approx(-9.0)
+        assert pnorf.coefficients[9] == pytest.approx(-9.0)
 
     def test_all_coefficient_types(self):
         """Test all four coefficient types: A1, B1, A2, B2."""
@@ -116,13 +116,13 @@ class TestPNORFParser:
             PNORF.from_nmea(sentence)
 
     def test_frequency_range_validation(self):
-        """Test frequency parameter validation."""
-        # Start frequency too high
+        """Test frequency parameter validation - values stored as-is."""
+        # Start frequency too high - no longer raises
         sentence = "$PNORF,A1,120720,093150,1,15.0,0.02,2,1.0,2.0*17"
-        with pytest.raises(ValueError, match="Start frequency"):
-            PNORF.from_nmea(sentence)
+        pnorf = PNORF.from_nmea(sentence)
+        assert pnorf.start_frequency == 15.0
 
-        # Step frequency negative
+        # Step frequency negative - no longer raises
         sentence = "$PNORF,A1,120720,093150,1,0.05,-0.02,2,1.0,2.0*3B"
-        with pytest.raises(ValueError, match="Step frequency"):
-            PNORF.from_nmea(sentence)
+        pnorf = PNORF.from_nmea(sentence)
+        assert pnorf.step_frequency == -0.02

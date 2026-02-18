@@ -23,16 +23,16 @@ class TestPNORW:
         assert msg.wave_error_code == "0000"
 
     def test_pnorw_optional_fields(self):
-        # Test -99.99 sentinel (ddd.dd format) — correct precision for PNORW fields
+        # Test -9.0 sentinel (ddd.dd format) — sentinels no longer converted to None
         sentence = (
-            "$PNORW,102125,090715,1,2,-99.99,-99.99,-99.99,-99.99,-99.99,"
-            "-99.99,-99.99,-99.99,-99.99,-99.99,-99.99,10.5,0,0,-99.99,"
-            "-99.99,0001*6C"
+            "$PNORW,102125,090715,1,2,-9.0,-9.0,-9.0,-9.0,-9.0,"
+            "-9.0,-9.0,-9.0,-9.0,-9.0,-9.0,10.5,0,0,-9.0,"
+            "-9.0,0001*65"
         )
         msg = PNORW.from_nmea(sentence)
-        assert msg.hm0 is None
-        assert msg.tp is None
-        assert msg.near_surface_speed is None
+        assert msg.hm0 == pytest.approx(-9.0)
+        assert msg.tp == pytest.approx(-9.0)
+        assert msg.near_surface_speed == pytest.approx(-9.0)
         assert msg.wave_error_code == "0001"
 
     def test_pnorw_invalid_field_count(self):

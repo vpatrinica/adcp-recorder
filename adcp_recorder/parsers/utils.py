@@ -5,9 +5,9 @@ from datetime import datetime
 
 from adcp_recorder.core.nmea import validate_checksum
 
-## it is a const  
-NMEA_OUTLIER_FLOAT_LIST = [-9.0, -99.0, -999.0, -999, -99, -9]
+## it is a const
 NMEA_OUTLIER_INT_LIST = [-9, -99, -999]
+NMEA_OUTLIER_FLOAT_LIST = [-9.0, -99.0, -999.0] + NMEA_OUTLIER_INT_LIST
 
 
 def parse_nmea_sentence(sentence: str) -> tuple[list[str], str | None]:
@@ -80,8 +80,8 @@ def validate_range(
     range_min: float,
     range_max: float,
     is_outlier: bool = False,
-) -> None:
-    """Validate numeric value within range, allowing an optional outlier value.
+) -> bool:
+    """Check if numeric value is within range.
 
     Args:
         value: Numeric value to validate
@@ -90,16 +90,18 @@ def validate_range(
         range_max: Maximum allowed value
         is_outlier: If True, value is considered valid even if out of range
 
-    Raises:
-        ValueError: If value is not the outlier_value and is NaN or out of range
+    Returns:
+        True if value is valid, False otherwise
     """
     import math
 
     if is_outlier:
-        return
+        return True
 
-    if math.isnan(value) or not (range_min <= value <= range_max):
-        raise ValueError(f"{field_name} out of range ({range_min} to {range_max}): {value}")
+    if math.isnan(value):
+        return False
+
+    return range_min <= value <= range_max
 
 
 def parse_tagged_field(field_str: str) -> tuple[str, str]:
@@ -137,9 +139,7 @@ def parse_optional_int(
         return None
 
 
-def parse_optional_float(
-    value_str: str
-) -> float | None:
+def parse_optional_float(value_str: str) -> float | None:
     """Parse float from string, returning None for empty, or NaN fields.
 
     Args:

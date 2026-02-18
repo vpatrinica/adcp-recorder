@@ -1,5 +1,3 @@
-import pytest
-
 from adcp_recorder.parsers.pnora import PNORA
 from adcp_recorder.parsers.pnorb import PNORB
 from adcp_recorder.parsers.pnorc import PNORC
@@ -19,15 +17,11 @@ def test_utils_nan_handling():
     assert parse_optional_float("NaN") is None
     assert parse_optional_float("NAN") is None
     assert parse_optional_float("") is None
-    # Without sentinels, sentinel-like values parse as normal floats
     assert parse_optional_float("-9.0000") == -9.0
-    # With sentinels, matching values return None
-    assert parse_optional_float("-9.0000", ("-9.0000",)) is None
     assert parse_optional_float("1.23") == 1.23
 
-    # Test validate_range with NaN (should raise ValueError)
-    with pytest.raises(ValueError, match="out of range"):
-        validate_range(float("nan"), "test_field", 0, 10)
+    # Test validate_range with NaN (returns False)
+    assert validate_range(float("nan"), "test_field", 0, 10) is False
 
 
 def test_pnora_nan():

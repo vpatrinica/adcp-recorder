@@ -106,15 +106,13 @@ class TestPNOREParser:
             PNORE.from_nmea(sentence)
 
     def test_frequency_range_validation(self):
-        """Test frequency parameter validation."""
-        # Start frequency too high
-        # Date: 021626
+        """Test frequency parameter validation - values stored as-is."""
+        # Start frequency too high - no longer raises
         sentence = "$PNORE,021626,093150,1,15.0,0.02,2,1.0,2.0*4F"
-        with pytest.raises(ValueError, match="Start frequency"):
-            PNORE.from_nmea(sentence)
+        pnore = PNORE.from_nmea(sentence)
+        assert pnore.start_frequency == 15.0
 
-        # Step frequency negative
-        # Date: 021626
+        # Step frequency negative - no longer raises
         sentence = "$PNORE,021626,093150,1,0.05,-0.02,2,1.0,2.0*63"
-        with pytest.raises(ValueError, match="Step frequency"):
-            PNORE.from_nmea(sentence)
+        pnore = PNORE.from_nmea(sentence)
+        assert pnore.step_frequency == -0.02

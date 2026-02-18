@@ -1,7 +1,5 @@
 """Extended unit tests for PNORB parser."""
 
-import pytest
-
 from adcp_recorder.parsers.pnorb import PNORB
 
 
@@ -14,7 +12,7 @@ class TestPNORBExtended:
         assert msg.hm0 == 182.29
 
     def test_pnorb_max_range(self):
-        # 999.99 is a sentinel for ddd.dd fields, so use 998.99 as max valid
+        # usually -9.00 is a sentinel for ddd.dd fields, so use 998.99 as max valid
         sentence = (
             "$PNORB,102115,090715,1,4,0.02,0.20,998.99,998.99,998.99,360.0,360.0,360.0,0000*59"
         )
@@ -27,37 +25,39 @@ class TestPNORBExtended:
         assert msg.main_dir == 360.0
 
     def test_pnorb_out_of_new_range(self):
-        with pytest.raises(ValueError, match="Hm0 out of range"):
-            PNORB(
-                date="102115",
-                time="090715",
-                spectrum_basis=1,
-                processing_method=4,
-                freq_low=0.02,
-                freq_high=0.20,
-                hm0=1000.0,
-                tm02=7.54,
-                tp=12.00,
-                dir_tp=82.42,
-                spr_tp=75.46,
-                main_dir=82.10,
-                wave_error_code="0000",
-            )
+        # Validation no longer raises errors - values are stored as-is
+        msg = PNORB(
+            date="102115",
+            time="090715",
+            spectrum_basis=1,
+            processing_method=4,
+            freq_low=0.02,
+            freq_high=0.20,
+            hm0=1000.0,
+            tm02=7.54,
+            tp=12.00,
+            dir_tp=82.42,
+            spr_tp=75.46,
+            main_dir=82.10,
+            wave_error_code="0000",
+        )
+        assert msg.hm0 == 1000.0  # Out of range but still stored
 
     def test_pnorb_direction_out_of_range(self):
-        with pytest.raises(ValueError, match="DirTp out of range"):
-            PNORB(
-                date="102115",
-                time="090715",
-                spectrum_basis=1,
-                processing_method=4,
-                freq_low=0.02,
-                freq_high=0.20,
-                hm0=10.0,
-                tm02=7.54,
-                tp=12.00,
-                dir_tp=360.1,
-                spr_tp=75.46,
-                main_dir=82.10,
-                wave_error_code="0000",
-            )
+        # Validation no longer raises errors - values are stored as-is
+        msg = PNORB(
+            date="102115",
+            time="090715",
+            spectrum_basis=1,
+            processing_method=4,
+            freq_low=0.02,
+            freq_high=0.20,
+            hm0=10.0,
+            tm02=7.54,
+            tp=12.00,
+            dir_tp=360.1,
+            spr_tp=75.46,
+            main_dir=82.10,
+            wave_error_code="0000",
+        )
+        assert msg.dir_tp == 360.1  # Out of range but still stored

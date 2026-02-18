@@ -192,7 +192,8 @@ class TestDataLayerCompleteCoverage:
             conn.execute(sql)
         dl = DataLayer(conn)
         res = dl.query_velocity_profile("pnorc_df100")
-        assert res == {"depths": [], "velocities": {}}
+        # Function returns initialized velocity columns even when empty
+        assert res == {"depths": [], "velocities": {"vel1": [], "vel2": [], "vel3": [], "vel4": []}}
 
     def test_query_velocity_profiles_none(self, data_layer):
         """Line 423."""
@@ -644,9 +645,11 @@ class TestDetectCurrentProfileView:
     def test_priority_order_is_correct(self, data_layer):
         """Verify the full priority order of candidates."""
         expected_order = [
+            "current_profile_1",
             "current_profile_12",
             "current_profile_df100",
             "current_profile_34",
+            "pnorc1",
             "pnorc12",
             "pnorc_df100",
             "pnorc34",
@@ -664,7 +667,7 @@ class TestDetectCurrentProfileView:
             # All have data — should stop at first
             mock_meta.return_value = DataSource("any", "Any", [], record_count=1)
             result = data_layer.detect_current_profile_view()
-            assert result == "current_profile_12"
+            assert result == "current_profile_1"
             # Should only call get_source_metadata once
             assert mock_meta.call_count == 1
 

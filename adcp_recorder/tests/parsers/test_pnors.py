@@ -27,17 +27,18 @@ class TestPNORS:
         assert msg.analog2 == 0
 
     def test_pnors_validation_errors(self):
-        # Invalid heading
-        with pytest.raises(ValueError, match="Heading out of range"):
-            PNORS.from_nmea(
-                "$PNORS,102115,090715,00000000,2A480000,14.4,1523.0,361.0,15.7,2.3,0.000,22.45,0,0"
-            )
+        # Validation no longer raises errors - values stored as-is
+        # Invalid heading (out of range)
+        msg = PNORS.from_nmea(
+            "$PNORS,102115,090715,00000000,2A480000,14.4,1523.0,361.0,15.7,2.3,0.000,22.45,0,0"
+        )
+        assert msg.heading == 361.0  # Out of range but still stored
 
-        # Invalid pitch
-        with pytest.raises(ValueError, match="Pitch out of range"):
-            PNORS.from_nmea(
-                "$PNORS,102115,090715,00000000,2A480000,14.4,1523.0,275.9,1000.0,2.3,0.000,22.45,0,0"
-            )
+        # Invalid pitch (out of range)
+        msg = PNORS.from_nmea(
+            "$PNORS,102115,090715,00000000,2A480000,14.4,1523.0,275.9,1000.0,2.3,0.000,22.45,0,0"
+        )
+        assert msg.pitch == 1000.0  # Out of range but still stored
 
     def test_pnors_to_dict(self):
         msg = PNORS(

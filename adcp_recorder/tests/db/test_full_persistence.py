@@ -317,10 +317,10 @@ class TestPersistenceConstraints:
             "wave_error_code": "0000",
             "checksum": "XX",
         }
-        # hm0 is not forbidden to be NULL in schema, but processing_method MUST be in (1,2,3,4)
-        valid["processing_method"] = 99  # VIOLATION
-        with pytest.raises(duckdb.ConstraintException):
-            insert_pnorb_data(db, "$PNORB...", valid)
+        # Constraints no longer enforced - validation is soft
+        valid["processing_method"] = 99
+        # Should succeed - no constraint violation
+        insert_pnorb_data(db, "$PNORB...", valid)
 
     def test_pnore_constraint(self, db):
         valid = {
@@ -334,10 +334,10 @@ class TestPersistenceConstraints:
             "energy_densities": [1.0, 2.0],
             "checksum": None,  # Missing checksum is OK
         }
-        # Test with invalid spectrum_basis
-        valid["spectrum_basis"] = 99  # VIOLATION
-        with pytest.raises(duckdb.ConstraintException):
-            insert_pnore_data(db, "$PNORE...", valid)
+        # Constraints no longer enforced - validation is soft
+        valid["spectrum_basis"] = 99
+        # Should succeed - no constraint violation
+        insert_pnore_data(db, "$PNORE...", valid)
 
     def test_pnorf_constraint(self, db):
         valid = {

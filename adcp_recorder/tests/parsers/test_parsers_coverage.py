@@ -50,16 +50,16 @@ class TestParserCoverage:
         with pytest.raises(ValueError, match="Invalid time"):
             PNORA.from_nmea("$PNORA,230101,999999,10.5,1.0,1,00,0.0,0.0")
 
-        # Invalid pressure range
-        with pytest.raises(ValueError, match="Pressure"):
-            PNORA.from_nmea("$PNORA,230101,120000,1000.0,1.0,1,00,0.0,0.0")
+        # Invalid pressure range - no longer raises, stores as-is
+        msg = PNORA.from_nmea("$PNORA,230101,120000,1000.0,1.0,1,00,0.0,0.0")
+        assert msg.pressure == 1000.0  # Out of range but stored
 
         # Lines 47-48: Checksum splitting (valid case covers this, but ensure we use *)
         payload = "$PNORA,230101,120000,10.5,1.0,1,00,0.0,0.0"
         cs = compute_checksum(payload)
-        msg = f"{payload}*{cs}"
+        sentence = f"{payload}*{cs}"
         # We now validate checksum in from_nmea via parse_nmea_sentence.
-        p = PNORA.from_nmea(msg)
+        p = PNORA.from_nmea(sentence)
         assert p.checksum == cs
 
         # Line 97: to_dict
@@ -69,8 +69,8 @@ class TestParserCoverage:
 
         # Coverage: positional DF=200 success path
         # (already covered by other tests but good to ensure here)
-        msg = "$PNORA,230101,120000,10.5,1.0,1,00,0.0,0.0"
-        p2 = PNORA.from_nmea(msg)
+        sentence2 = "$PNORA,230101,120000,10.5,1.0,1,00,0.0,0.0"
+        p2 = PNORA.from_nmea(sentence2)
         assert p2.distance == 1.0
 
     def test_pnorc_coverage(self):

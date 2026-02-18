@@ -23,44 +23,48 @@ from .utils import (
 )
 
 
-def _validate_battery(battery: float | None) -> None:
-    """Validate battery voltage (0-30V)."""
+def _validate_battery(battery: float | None) -> bool:
+    """Validate battery voltage (0-30V). Returns True if valid."""
     if battery is not None:
-        validate_range(battery, "Battery", 0.0, 30.0)
+        return validate_range(battery, "Battery", 0.0, 30.0)
+    return True
 
 
-def _validate_sound_speed(speed: float | None) -> None:
-    """Validate speed of sound (1400-2000 m/s)."""
+def _validate_sound_speed(speed: float | None) -> bool:
+    """Validate speed of sound (1400-2000 m/s). Returns True if valid."""
     if speed is not None:
-        validate_range(speed, "Sound speed", 1400.0, 2000.0)
+        return validate_range(speed, "Sound speed", 1400.0, 2000.0)
+    return True
 
 
-def _validate_heading(heading: float | None) -> None:
-    """Validate compass heading (0-360 degrees)."""
+def _validate_heading(heading: float | None) -> bool:
+    """Validate compass heading (0-360 degrees). Returns True if valid."""
     if heading is not None:
         if not (0 <= heading < 360.0):
-            # Allow 360.0 temporarily if it rounds, but generally it's [0, 360)
             if heading != 360.0:
-                raise ValueError(f"Heading out of range [0, 360): {heading}")
+                return False
+    return True
 
 
-def _validate_pitch_roll(value: float | None, field_name: str) -> None:
-    """Validate pitch or roll values (-90 to +90)."""
-    """the actual values from the sensor are -180 to 180"""
+def _validate_pitch_roll(value: float | None, field_name: str) -> bool:
+    """Validate pitch or roll values. Returns True if valid."""
     if value is not None:
-        validate_range(value, field_name, -999.99, 999.99)
+        return validate_range(value, field_name, -999.99, 999.99)
+    return True
 
 
-def _validate_pressure(pressure: float | None) -> None:
-    """Validate water pressure (0-20000 dBar)."""
+def _validate_pressure(pressure: float | None) -> bool:
+    """Validate water pressure (0-20000 dBar). Returns True if valid."""
     if pressure is not None:
-        validate_range(pressure, "Pressure", 0.0, 20000.0)
+        return validate_range(pressure, "Pressure", 0.0, 20000.0)
+    return True
 
 
-def _validate_temperature(temp: float | None) -> None:
-    """Validate water temperature (-5 to +50 C)."""
+def _validate_temperature(temp: float | None) -> bool:
+    """Validate water temperature (-5 to +50 C). Returns True if valid."""
     if temp is not None:
-        validate_range(temp, "Temperature", -5.0, 50.0)
+        return validate_range(temp, "Temperature", -5.0, 50.0)
+    return True
 
 
 @dataclass(frozen=True)
@@ -338,9 +342,7 @@ class PNORS2:
             roll=parse_optional_float(data["roll"]),
             roll_std_dev=parse_optional_float(data["roll_std_dev"]),
             pressure=parse_optional_float(data["pressure"]),
-            pressure_std_dev=parse_optional_float(
-                data["pressure_std_dev"]
-            ),
+            pressure_std_dev=parse_optional_float(data["pressure_std_dev"]),
             temperature=parse_optional_float(data["temperature"]),
             checksum=checksum,
         )

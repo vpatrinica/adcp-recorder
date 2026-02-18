@@ -93,12 +93,12 @@ class TestPNORWDParser:
         assert data["checksum"] == "2E"
 
     def test_invalid_data_markers(self):
-        """Test that invalid data markers (-999.9999) are handled."""
-        sentence = "$PNORWD,MD,120720,093150,1,0.05,0.02,5,45.0,-999.9999,-999.9999,90.0,135.0*33"
+        """Test that invalid data markers (-9.0) are parsed as-is."""
+        sentence = "$PNORWD,MD,120720,093150,1,0.05,0.02,5,45.0,-9.0,-9.0,90.0,135.0*33"
         pnorwd = PNORWD.from_nmea(sentence)
-        # Verify invalid data markers
-        assert pnorwd.values[1] is None
-        assert pnorwd.values[2] is None
+        # Verify sentinel values (no longer converted to None)
+        assert pnorwd.values[1] == pytest.approx(-9.0)
+        assert pnorwd.values[2] == pytest.approx(-9.0)
 
     def test_large_value_array(self):
         """Test with maximum allowed frequencies (999)."""
@@ -122,13 +122,13 @@ class TestPNORWDParser:
             PNORWD.from_nmea(sentence)
 
     def test_frequency_range_validation(self):
-        """Test frequency parameter validation."""
-        # Start frequency too high
+        """Test frequency parameter validation - values stored as-is."""
+        # Start frequency too high - no longer raises
         sentence = "$PNORWD,MD,120720,093150,1,15.0,0.02,2,45.0,90.0*30"
-        with pytest.raises(ValueError, match="Start frequency"):
-            PNORWD.from_nmea(sentence)
+        pnorwd = PNORWD.from_nmea(sentence)
+        assert pnorwd.start_frequency == 15.0
 
-        # Step frequency negative
+        # Step frequency negative - no longer raises
         sentence = "$PNORWD,MD,120720,093150,1,0.05,-0.02,2,45.0,90.0*1C"
-        with pytest.raises(ValueError, match="Step frequency"):
-            PNORWD.from_nmea(sentence)
+        pnorwd = PNORWD.from_nmea(sentence)
+        assert pnorwd.step_frequency == -0.02

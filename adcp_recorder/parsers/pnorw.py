@@ -3,14 +3,15 @@
 from dataclasses import dataclass, field
 
 from .utils import (
+    NMEA_OUTLIER_FLOAT_LIST,
     parse_nmea_sentence,
     parse_optional_float,
     parse_optional_int,
     validate_date_mm_dd_yy,
     validate_range,
     validate_time_string,
-    NMEA_CONSTANTS,
 )
+
 
 @dataclass(frozen=True)
 class PNORW:
@@ -47,21 +48,35 @@ class PNORW:
         validate_date_mm_dd_yy(self.date)
         validate_time_string(self.time)
         if self.spectrum_basis is not None:
-            validate_range(self.spectrum_basis, "Spectrum basis", 0, 3)
+            validate_range(
+                self.spectrum_basis,
+                "Spectrum basis",
+                0,
+                3,
+                self.spectrum_basis in NMEA_OUTLIER_FLOAT_LIST,
+            )
         if self.processing_method is not None:
-            validate_range(self.processing_method, "Processing method", 1, 4)
+            validate_range(
+                self.processing_method,
+                "Processing method",
+                1,
+                4,
+                self.processing_method in NMEA_OUTLIER_FLOAT_LIST,
+            )
         if self.hm0 is not None:
-            validate_range(self.hm0, "Hm0", 0.0, 999.99, NMEA_CONSTANTS["invalid_float"])
+            validate_range(self.hm0, "Hm0", 0.0, 999.99, self.hm0 in NMEA_OUTLIER_FLOAT_LIST)
         if self.tm02 is not None:
-            validate_range(self.tm02, "Tm02", 0.0, 999.99, NMEA_CONSTANTS["invalid_float"])
+            validate_range(self.tm02, "Tm02", 0.0, 999.99, self.tm02 in NMEA_OUTLIER_FLOAT_LIST)
         if self.tp is not None:
-            validate_range(self.tp, "Tp", 0.0, 999.99, NMEA_CONSTANTS["invalid_float"])
+            validate_range(self.tp, "Tp", 0.0, 999.99, self.tp in NMEA_OUTLIER_FLOAT_LIST)
         if self.dir_tp is not None:
-            validate_range(self.dir_tp, "DirTp", 0.0, 360.0, NMEA_CONSTANTS["invalid_float"])
+            validate_range(self.dir_tp, "DirTp", 0.0, 360.0, self.dir_tp in NMEA_OUTLIER_FLOAT_LIST)
         if self.spr_tp is not None:
-            validate_range(self.spr_tp, "SprTp", 0.0, 360.0, NMEA_CONSTANTS["invalid_float"])
+            validate_range(self.spr_tp, "SprTp", 0.0, 360.0, self.spr_tp in NMEA_OUTLIER_FLOAT_LIST)
         if self.main_dir is not None:
-            validate_range(self.main_dir, "MainDir", 0.0, 360.0, NMEA_CONSTANTS["invalid_float"])
+            validate_range(
+                self.main_dir, "MainDir", 0.0, 360.0, self.main_dir in NMEA_OUTLIER_FLOAT_LIST
+            )
 
     @classmethod
     def from_nmea(cls, sentence: str) -> "PNORW":

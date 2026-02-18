@@ -11,7 +11,6 @@ adcp_recorder/
 ├── parsers/           # NMEA sentence parsers (one per sentence type)
 │   ├── __init__.py    # Re-exports all parser classes
 │   ├── utils.py       # Shared parsing utilities (parse_nmea_sentence, validators)
-│   ├── sentinels.py   # Per-field sentinel value registry (invalid/no-data markers)
 │   ├── pnori.py       # PNORI/PNORI2 — Instrument configuration
 │   ├── pnors.py       # PNORS — System status (battery, heading, pitch, roll)
 │   ├── pnora.py       # PNORA — Altimeter/pressure data
@@ -91,10 +90,7 @@ class PNORX:
 
 - **Frozen dataclasses**: All parser outputs are immutable
 - **Optional fields**: Many NMEA fields are optional; we use `float | None` with `parse_optional_float()`
-- **NaN handling**: `"nan"`, `"-nan"`, `""` → `None` (via `is_nan_string()`)
-- **Sentinel handling**: Format-specific sentinel strings (e.g. `"-9.00"`, `"-999.99"`) → `None`.
-  Each `(parser, field)` pair has its own sentinel tuple registered in `parsers/sentinels.py`.
-  Sentinels are passed explicitly to `parse_optional_float()` and `parse_optional_int()`.
+- **NaN handling**: `"nan"`, `"-nan"`, `""` → `None` (via `is_nan_string()`).
 - **Checksum validation**: Centralized in `parse_nmea_sentence()` — validates if present, optional if absent
 - **Date formats**: PNORB/PNORS/PNORC use MMDDYY; PNORE/PNORF/PNORWD use YYMMDD
 

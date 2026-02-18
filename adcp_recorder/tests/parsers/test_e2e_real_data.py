@@ -312,17 +312,16 @@ class TestPNORC1RealData:
 
 
 class TestPNORBRealData:
-    """Real PNORB sentences — includes -99.99 sentinel and fully valid records."""
+    """Real PNORB sentences — includes -9.0 sentinel and fully valid records."""
 
     def test_pnorb_with_minus9_sentinels(self):
-        """Record with -99.99 sentinels for optional wave parameters.
+        """Record with -9.0 sentinel values for optional wave parameters.
 
-        Real record: hm0=20.50 (valid), tm02=-99.99 (None), tp=4.42 (valid),
-        dir_tp/spr_tp/main_dir all -99.99 (None).
+        Since sentinels are no longer converted to None, values are parsed as-is.
+        Real record: hm0=20.50 (valid), tm02=-9.0, tp=4.42 (valid),
+        dir_tp/spr_tp/main_dir all -9.0.
         """
-        sentence = (
-            "$PNORB,021326,225248,1,4,0.21,0.99,20.50,-99.99,4.42,-99.99,-99.99,-99.99,0000*51"
-        )
+        sentence = "$PNORB,021326,225248,1,4,0.21,0.99,20.50,-9.0,4.42,-9.0,-9.0,-9.0,0000*51"
         msg = PNORB.from_nmea(sentence)
         d = msg.to_dict()
 
@@ -334,11 +333,11 @@ class TestPNORBRealData:
         assert d["freq_low"] == pytest.approx(0.21)
         assert d["freq_high"] == pytest.approx(0.99)
         assert d["hm0"] == pytest.approx(20.50)
-        assert d["tm02"] is None  # -99.99 → None
+        assert d["tm02"] == pytest.approx(-9.0)
         assert d["tp"] == pytest.approx(4.42)
-        assert d["dir_tp"] is None  # -99.99 → None
-        assert d["spr_tp"] is None  # -99.99 → None
-        assert d["main_dir"] is None  # -99.99 → None
+        assert d["dir_tp"] == pytest.approx(-9.0)
+        assert d["spr_tp"] == pytest.approx(-9.0)
+        assert d["main_dir"] == pytest.approx(-9.0)
         assert d["wave_error_code"] == "0000"
 
     def test_pnorb_all_valid_fields(self):
@@ -374,12 +373,12 @@ class TestPNORBRealData:
 
 
 class TestPNORWRealData:
-    """Real PNORW sentences — mixed valid/-99.99 and all -99.99 edge cases."""
+    """Real PNORW sentences — mixed valid/-9.0 and all -9.0 edge cases."""
 
     def test_pnorw_mixed_valid_and_sentinels(self):
-        """Record with mix of valid values and -99.99 sentinels."""
+        """Record with mix of valid values and -9.0 sentinels."""
         sentence = (
-            "$PNORW,021326,222348,1,4,0.03,-99.99,0.04,0.05,1.91,2.99,-99.99,"
+            "$PNORW,021326,222348,1,4,0.03,-9.0,0.04,0.05,1.91,2.99,-9.0,"
             "198.40,73.25,94.84,0.12,0.00,550,0,1.96,136.35,0D0B*72"
         )
         msg = PNORW.from_nmea(sentence)
@@ -391,12 +390,12 @@ class TestPNORWRealData:
         assert d["spectrum_basis"] == 1
         assert d["processing_method"] == 4
         assert d["hm0"] == pytest.approx(0.03)
-        assert d["h3"] is None  # -99.99
+        assert d["h3"] == pytest.approx(-9.0)
         assert d["h10"] == pytest.approx(0.04)
         assert d["hmax"] == pytest.approx(0.05)
         assert d["tm02"] == pytest.approx(1.91)
         assert d["tp"] == pytest.approx(2.99)
-        assert d["tz"] is None  # -99.99
+        assert d["tz"] == pytest.approx(-9.0)
         assert d["dir_tp"] == pytest.approx(198.40)
         assert d["spr_tp"] == pytest.approx(73.25)
         assert d["main_dir"] == pytest.approx(94.84)
@@ -409,51 +408,51 @@ class TestPNORWRealData:
         assert d["wave_error_code"] == "0D0B"
 
     def test_pnorw_mostly_sentinels(self):
-        """Record where most wave stats are -99.99 but some are valid."""
+        """Record where most wave stats are -9.0 but some are valid."""
         sentence = (
-            "$PNORW,021326,225248,1,4,-99.99,-99.99,192.68,253.37,-99.99,12.38,"
-            "-99.99,-99.99,-99.99,-99.99,-99.99,0.00,496,0,2.00,136.29,0D9B*47"
+            "$PNORW,021326,225248,1,4,-9.0,-9.0,192.68,253.37,-9.0,12.38,"
+            "-9.0,-9.0,-9.0,-9.0,-9.0,0.00,496,0,2.00,136.29,0D9B*47"
         )
         msg = PNORW.from_nmea(sentence)
         d = msg.to_dict()
 
-        assert d["hm0"] is None
-        assert d["h3"] is None
+        assert d["hm0"] == pytest.approx(-9.0)
+        assert d["h3"] == pytest.approx(-9.0)
         assert d["h10"] == pytest.approx(192.68)
         assert d["hmax"] == pytest.approx(253.37)
-        assert d["tm02"] is None
+        assert d["tm02"] == pytest.approx(-9.0)
         assert d["tp"] == pytest.approx(12.38)
-        assert d["tz"] is None
-        assert d["dir_tp"] is None
-        assert d["spr_tp"] is None
-        assert d["main_dir"] is None
-        assert d["uni_index"] is None
+        assert d["tz"] == pytest.approx(-9.0)
+        assert d["dir_tp"] == pytest.approx(-9.0)
+        assert d["spr_tp"] == pytest.approx(-9.0)
+        assert d["main_dir"] == pytest.approx(-9.0)
+        assert d["uni_index"] == pytest.approx(-9.0)
         assert d["mean_pressure"] == pytest.approx(0.00)
         assert d["num_no_detects"] == 496
         assert d["near_surface_speed"] == pytest.approx(2.00)
         assert d["wave_error_code"] == "0D9B"
 
     def test_pnorw_all_wave_sentinels(self):
-        """Record where all wave measurements are -99.99 (no valid wave data)."""
+        """Record where all wave measurements are -9.0 (no valid wave data)."""
         sentence = (
-            "$PNORW,021326,010748,1,4,-99.99,-99.99,-99.99,-99.99,-99.99,"
-            "-99.99,-99.99,-99.99,-99.99,-99.99,-99.99,0.00,515,0,"
-            "1.97,134.33,0D1B*61"
+            "$PNORW,021326,010748,1,4,-9.0,-9.0,-9.0,-9.0,-9.0,"
+            "-9.0,-9.0,-9.0,-9.0,-9.0,-9.0,0.00,515,0,"
+            "1.97,134.33,0D1B*68"
         )
         msg = PNORW.from_nmea(sentence)
         d = msg.to_dict()
 
-        assert d["hm0"] is None
-        assert d["h3"] is None
-        assert d["h10"] is None
-        assert d["hmax"] is None
-        assert d["tm02"] is None
-        assert d["tp"] is None
-        assert d["tz"] is None
-        assert d["dir_tp"] is None
-        assert d["spr_tp"] is None
-        assert d["main_dir"] is None
-        assert d["uni_index"] is None
+        assert d["hm0"] == pytest.approx(-9.0)
+        assert d["h3"] == pytest.approx(-9.0)
+        assert d["h10"] == pytest.approx(-9.0)
+        assert d["hmax"] == pytest.approx(-9.0)
+        assert d["tm02"] == pytest.approx(-9.0)
+        assert d["tp"] == pytest.approx(-9.0)
+        assert d["tz"] == pytest.approx(-9.0)
+        assert d["dir_tp"] == pytest.approx(-9.0)
+        assert d["spr_tp"] == pytest.approx(-9.0)
+        assert d["main_dir"] == pytest.approx(-9.0)
+        assert d["uni_index"] == pytest.approx(-9.0)
         # Non-wave fields still have real values
         assert d["mean_pressure"] == pytest.approx(0.00)
         assert d["num_no_detects"] == 515
@@ -569,8 +568,8 @@ class TestPNORFRealData:
         assert d["coefficients"][3] == pytest.approx(-0.8006)
 
     def test_pnorf_all_minus9_sentinels(self):
-        """Record where all coefficients are -999.9999 sentinel (no valid data)."""
-        sentinels = ",".join(["-999.9999"] * 98)
+        """Record where all coefficients are -9.0 sentinel (no valid data)."""
+        sentinels = ",".join(["-9.0"] * 98)
         raw = f"$PNORF,A2,021326,225248,1,0.02,0.01,98,{sentinels}"
         sentence = _recompute(raw)
 
@@ -580,8 +579,8 @@ class TestPNORFRealData:
         assert d["coefficient_flag"] == "A2"
         assert d["num_frequencies"] == 98
         assert len(d["coefficients"]) == 98
-        # All -999.9999 should be parsed as None
-        assert all(c is None for c in d["coefficients"])
+        # All -9.0 are parsed as-is (sentinels no longer converted to None)
+        assert all(c == pytest.approx(-9.0) for c in d["coefficients"])
 
     def test_pnorf_all_four_flags_parse(self):
         """Verify all four coefficient flags (A1, B1, A2, B2) parse cleanly."""
@@ -643,8 +642,8 @@ class TestPNORWDRealData:
         assert d["values"][3] == pytest.approx(110.5509)
 
     def test_pnorwd_all_minus9_sentinels(self):
-        """DS record where all values are -999.9999 sentinel (no valid data)."""
-        sentinels = ",".join(["-999.9999"] * 98)
+        """DS record where all values are -9.0 sentinel (no valid data)."""
+        sentinels = ",".join(["-9.0"] * 98)
         raw = f"$PNORWD,DS,021326,225248,1,0.02,0.01,98,{sentinels}"
         sentence = _recompute(raw)
 
@@ -653,7 +652,8 @@ class TestPNORWDRealData:
 
         assert d["direction_type"] == "DS"
         assert d["num_frequencies"] == 98
-        assert all(v is None for v in d["values"])
+        # All -9.0 are parsed as-is (sentinels no longer converted to None)
+        assert all(v == pytest.approx(-9.0) for v in d["values"])
 
 
 # ---------------------------------------------------------------------------

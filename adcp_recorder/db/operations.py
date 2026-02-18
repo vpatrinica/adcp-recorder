@@ -399,13 +399,13 @@ def insert_pnori_configuration(
                 config_id, original_sentence,
                 instrument_type_name, instrument_type_code, head_id,
                 beam_count, cell_count, blanking_distance, cell_size,
-                coord_system_name, coord_system_code, checksum
+                coord_system_name, coord_system_code, is_valid, checksum
             )
             VALUES (
                 nextval('pnori_seq'), ?,
                 ?, ?, ?,
                 ?, ?, ?, ?,
-                ?, ?, ?
+                ?, ?, ?, ?
             )
             RETURNING config_id
             """,
@@ -420,6 +420,7 @@ def insert_pnori_configuration(
                 pnori_dict["cell_size"],
                 pnori_dict["coord_system_name"],
                 pnori_dict["coord_system_code"],
+                pnori_dict.get("is_valid", True),
                 pnori_dict["checksum"],
             ],
         ).fetchone()
@@ -431,13 +432,13 @@ def insert_pnori_configuration(
                 config_id, data_format, original_sentence,
                 instrument_type_name, instrument_type_code, head_id,
                 beam_count, cell_count, blanking_distance, cell_size,
-                coord_system_name, coord_system_code, checksum
+                coord_system_name, coord_system_code, is_valid, checksum
             )
             VALUES (
                 nextval('pnori12_seq'), ?, ?,
                 ?, ?, ?,
                 ?, ?, ?, ?,
-                ?, ?, ?
+                ?, ?, ?, ?
             )
             RETURNING config_id
             """,
@@ -453,6 +454,7 @@ def insert_pnori_configuration(
                 pnori_dict["cell_size"],
                 pnori_dict["coord_system_name"],
                 pnori_dict["coord_system_code"],
+                pnori_dict.get("is_valid", True),
                 pnori_dict["checksum"],
             ],
         ).fetchone()
@@ -563,10 +565,10 @@ def insert_sensor_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
         INSERT INTO pnors_df100 (
             record_id, original_sentence, measurement_date, measurement_time,
             error_code, status_code, battery, sound_speed, heading, pitch, roll,
-            pressure, temperature, analog1, analog2, checksum
+            pressure, temperature, analog1, analog2, is_valid, checksum
         ) VALUES (
             nextval('pnors_df100_seq'), ?, ?, ?,
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         ) RETURNING record_id;
         """
         params_df100 = (
@@ -584,6 +586,7 @@ def insert_sensor_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
             sanitize_float(data.get("temperature")),
             data.get("analog1"),
             data.get("analog2"),
+            data.get("is_valid", True),
             data.get("checksum"),
         )
 
@@ -596,12 +599,12 @@ def insert_sensor_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
             record_id, data_format, original_sentence, measurement_date, measurement_time,
             error_code, status_code, battery, sound_speed, heading_std_dev,
             heading, pitch, pitch_std_dev, roll, roll_std_dev,
-            pressure, pressure_std_dev, temperature, checksum
+            pressure, pressure_std_dev, temperature, is_valid, checksum
         ) VALUES (
             nextval('pnors12_seq'), ?, ?, ?, ?,
             ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?,
-            ?, ?, ?, ?
+            ?, ?, ?, ?, ?
         ) RETURNING record_id;
         """
         params_df101 = (
@@ -622,6 +625,7 @@ def insert_sensor_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
             sanitize_float(data.get("pressure")),
             sanitize_float(data.get("pressure_std_dev")),
             sanitize_float(data.get("temperature")),
+            data.get("is_valid", True),
             data.get("checksum"),
         )
 
@@ -632,10 +636,10 @@ def insert_sensor_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
         query = """
         INSERT INTO pnors34 (
             record_id, data_format, original_sentence, measurement_date, measurement_time,
-            battery, sound_speed, heading, pitch, roll, pressure, temperature, checksum
+            battery, sound_speed, heading, pitch, roll, pressure, temperature, is_valid, checksum
         ) VALUES (
             nextval('pnors34_seq'), ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?
         ) RETURNING record_id;
         """
         params_df103 = (
@@ -650,6 +654,7 @@ def insert_sensor_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
             sanitize_float(data.get("roll")),
             sanitize_float(data.get("pressure")),
             sanitize_float(data.get("temperature")),
+            data.get("is_valid", True),
             data.get("checksum"),
         )
 
@@ -674,11 +679,11 @@ def insert_velocity_data(
         INSERT INTO pnorc_df100 (
             record_id, original_sentence, measurement_date, measurement_time,
             cell_index, vel1, vel2, vel3, vel4, speed, direction, amp_unit,
-            amp1, amp2, amp3, amp4, corr1, corr2, corr3, corr4, checksum
+            amp1, amp2, amp3, amp4, corr1, corr2, corr3, corr4, is_valid, checksum
         ) VALUES (
             nextval('pnorc_df100_seq'), ?, ?, ?,
             ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         ) RETURNING record_id;
         """
         params_df100 = (
@@ -701,8 +706,10 @@ def insert_velocity_data(
             data["corr2"],
             data["corr3"],
             data["corr4"],
+            data.get("is_valid", True),
             data.get("checksum"),
         )
+
         result = conn.execute(query, params_df100).fetchone()
     elif sentence_type in ("PNORC1", "PNORC2"):
         # DF101/102 consolidated into pnorc12
@@ -711,11 +718,11 @@ def insert_velocity_data(
         INSERT INTO pnorc12 (
             record_id, data_format, original_sentence, measurement_date, measurement_time,
             cell_index, cell_distance, vel1, vel2, vel3, vel4,
-            amp1, amp2, amp3, amp4, corr1, corr2, corr3, corr4, checksum
+            amp1, amp2, amp3, amp4, corr1, corr2, corr3, corr4, is_valid, checksum
         ) VALUES (
             nextval('pnorc12_seq'), ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         ) RETURNING record_id;
         """
         params_df101 = (
@@ -737,8 +744,10 @@ def insert_velocity_data(
             data["corr2"],
             data["corr3"],
             data["corr4"],
+            data.get("is_valid", True),
             data.get("checksum"),
         )
+
         result = conn.execute(query, params_df101).fetchone()
     elif sentence_type in ("PNORC3", "PNORC4"):
         # DF103/104 consolidated into pnorc34
@@ -746,10 +755,10 @@ def insert_velocity_data(
         query = """
         INSERT INTO pnorc34 (
             record_id, data_format, original_sentence, measurement_date, measurement_time,
-            cell_index, cell_distance, speed, direction, checksum
+            cell_index, cell_distance, speed, direction, is_valid, checksum
         ) VALUES (
             nextval('pnorc34_seq'), ?, ?, ?, ?,
-            ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?
         ) RETURNING record_id;
         """
         params_df103 = (
@@ -761,6 +770,7 @@ def insert_velocity_data(
             sanitize_float(data.get("distance")),
             sanitize_float(data["speed"]),
             sanitize_float(data["direction"]),
+            data.get("is_valid", True),
             data.get("checksum"),
         )
 
@@ -782,9 +792,9 @@ def insert_header_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
         INSERT INTO pnorh (
             record_id, data_format, original_sentence,
             measurement_date, measurement_time,
-            error_code, status_code, checksum
+            error_code, status_code, is_valid, checksum
         ) VALUES (
-            nextval('pnorh_seq'), ?, ?, ?, ?, ?, ?, ?
+            nextval('pnorh_seq'), ?, ?, ?, ?, ?, ?, ?, ?
         ) RETURNING record_id;
         """
         params = (
@@ -794,8 +804,10 @@ def insert_header_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
             data["time"],
             data["error_code"],
             data["status_code"],
+            data.get("is_valid", True),
             data.get("checksum"),
         )
+
     else:
         raise ValueError(f"Unknown header sentence type: {sentence_type}")
 
@@ -822,12 +834,12 @@ def insert_pnore_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
         record_id, original_sentence, sentence_type,
         measurement_date, measurement_time,
         spectrum_basis, start_frequency, step_frequency, num_frequencies,
-        energy_densities, checksum
+        energy_densities, is_valid, checksum
     ) VALUES (
         nextval('pnore_data_seq'), ?, ?,
         ?, ?,
         ?, ?, ?, ?,
-        ?, ?
+        ?, ?, ?
     ) RETURNING record_id;
     """
 
@@ -844,6 +856,7 @@ def insert_pnore_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
         data["step_frequency"],
         data["num_frequencies"],
         energy_json,
+        data.get("is_valid", True),
         data.get("checksum"),
     )
 
@@ -865,7 +878,7 @@ def insert_pnorw_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
         uni_index, mean_pressure,
         num_no_detects, num_bad_detects,
         near_surface_speed, near_surface_dir,
-        wave_error_code, checksum
+        wave_error_code, is_valid, checksum
     ) VALUES (
         nextval('pnorw_data_seq'), ?, ?,
         ?, ?,
@@ -876,7 +889,7 @@ def insert_pnorw_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
         ?, ?,
         ?, ?,
         ?, ?,
-        ?, ?
+        ?, ?, ?
     ) RETURNING record_id;
     """
     params = (
@@ -903,8 +916,10 @@ def insert_pnorw_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
         sanitize_float(data.get("near_surface_speed")),
         sanitize_float(data.get("near_surface_dir")),
         data.get("wave_error_code"),
+        data.get("is_valid", True),
         data.get("checksum"),
     )
+
     result = conn.execute(query, params).fetchone()
     conn.commit()
     return result[0] if result else -1
@@ -930,7 +945,7 @@ def insert_pnorb_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
         freq_low, freq_high,
         hm0, tm02, tp,
         dir_tp, spr_tp, main_dir,
-        wave_error_code, checksum
+        wave_error_code, is_valid, checksum
     ) VALUES (
         nextval('pnorb_data_seq'), ?, ?,
         ?, ?,
@@ -938,7 +953,7 @@ def insert_pnorb_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
         ?, ?,
         ?, ?, ?,
         ?, ?, ?,
-        ?, ?
+        ?, ?, ?
     ) RETURNING record_id;
     """
 
@@ -958,6 +973,7 @@ def insert_pnorb_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
         sanitize_float(data.get("spr_tp")),
         sanitize_float(data.get("main_dir")),
         data.get("wave_error_code"),
+        data.get("is_valid", True),
         data.get("checksum"),
     )
 
@@ -986,12 +1002,12 @@ def insert_pnorf_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
         record_id, original_sentence, sentence_type,
         coefficient_flag, measurement_date, measurement_time,
         spectrum_basis, start_frequency, step_frequency, num_frequencies,
-        coefficients, checksum
+        coefficients, is_valid, checksum
     ) VALUES (
         nextval('pnorf_data_seq'), ?, ?,
         ?, ?, ?,
         ?, ?, ?, ?,
-        ?, ?
+        ?, ?, ?
     ) RETURNING record_id;
     """
 
@@ -1009,8 +1025,10 @@ def insert_pnorf_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
         data["step_frequency"],
         data["num_frequencies"],
         coefficients_json,
+        data.get("is_valid", True),
         data.get("checksum"),
     )
+
     result = conn.execute(query, params).fetchone()
     conn.commit()
     return result[0] if result else -1
@@ -1036,12 +1054,12 @@ def insert_pnorwd_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
         record_id, original_sentence, sentence_type,
         direction_type, measurement_date, measurement_time,
         spectrum_basis, start_frequency, step_frequency, num_frequencies,
-        values, checksum
+        values, is_valid, checksum
     ) VALUES (
         nextval('pnorwd_data_seq'), ?, ?,
         ?, ?, ?,
         ?, ?, ?, ?,
-        ?, ?
+        ?, ?, ?
     ) RETURNING record_id;
     """
 
@@ -1059,8 +1077,10 @@ def insert_pnorwd_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, 
         data["step_frequency"],
         data["num_frequencies"],
         values_json,
+        data.get("is_valid", True),
         data.get("checksum"),
     )
+
     result = conn.execute(query, params).fetchone()
     conn.commit()
     return result[0] if result else -1
@@ -1074,13 +1094,13 @@ def insert_pnora_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
         measurement_date, measurement_time,
         pressure, altimeter_distance, quality, status,
         pitch, roll,
-        checksum
+        is_valid, checksum
     ) VALUES (
         nextval('pnora_data_seq'), ?, ?,
         ?, ?,
         ?, ?, ?, ?,
         ?, ?,
-        ?
+        ?, ?
     ) RETURNING record_id;
     """
     params = (
@@ -1094,8 +1114,10 @@ def insert_pnora_data(conn: duckdb.DuckDBPyConnection, original_sentence: str, d
         data["status"],
         sanitize_float(data["pitch"]),
         sanitize_float(data["roll"]),
+        data.get("is_valid", True),
         data.get("checksum"),
     )
+
     result = conn.execute(query, params).fetchone()
     conn.commit()
     return result[0] if result else -1
