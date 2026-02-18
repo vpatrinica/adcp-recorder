@@ -17,6 +17,10 @@ venv/*
 .venv/*
 .eggs
 .eggs/*
+
+# Ignore local duckdb files in utils/adcp-data/db
+utils/adcp-data/db/*.duckdb
+
 adcp_recorder.egg-info
 adcp_recorder.egg-info/*
 test_output
