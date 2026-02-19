@@ -42,6 +42,7 @@ class PNORW:
     near_surface_speed: float | None
     near_surface_dir: float | None
     wave_error_code: str  # 4 hex digits
+    is_valid: bool = True
     checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
@@ -109,6 +110,7 @@ class PNORW:
             near_surface_speed=parse_optional_float(fields[19]),
             near_surface_dir=parse_optional_float(fields[20]),
             wave_error_code=fields[21],
+            is_valid=True,
             checksum=checksum,
         )
 
@@ -136,5 +138,6 @@ class PNORW:
             "near_surface_speed": self.near_surface_speed,
             "near_surface_dir": self.near_surface_dir,
             "wave_error_code": self.wave_error_code,
+            "is_valid": self.is_valid,
             "checksum": self.checksum,
         }

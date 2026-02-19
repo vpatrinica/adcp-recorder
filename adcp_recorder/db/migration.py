@@ -420,6 +420,7 @@ def migrate_pnorw_fields(conn: duckdb.DuckDBPyConnection) -> int:
 
     return count
 
+
 def ensure_pnorw_h3(conn: duckdb.DuckDBPyConnection) -> int:
     """Ensure pnorw_data has h3 and other new columns (fixes intermediate schema)."""
     if not get_old_table_exists(conn, "pnorw_data"):

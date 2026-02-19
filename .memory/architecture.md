@@ -49,7 +49,7 @@ adcp_recorder/
 ## Data Flow
 
 ```
-Serial Port → consumer.py → Parser.from_nmea(sentence) → Dataclass → .to_dict() → Parquet/Dashboard
+Serial Port → consumer.py → Parser.from_nmea(sentence) → Dataclass (is_valid=True) → .to_dict() → Parquet/Dashboard
 ```
 
 1. **Serial consumer** reads raw NMEA sentences from the instrument
@@ -67,6 +67,7 @@ Every parser follows the same pattern:
 class PNORX:
     field1: str
     field2: float | None
+    is_valid: bool = True
     checksum: str | None = field(default=None, repr=False)
     
     def __post_init__(self):
@@ -89,6 +90,7 @@ class PNORX:
 ## Key Design Decisions
 
 - **Frozen dataclasses**: All parser outputs are immutable
+- **is_valid**: Every parsed record includes an `is_valid` boolean flag (default `True`)
 - **Optional fields**: Many NMEA fields are optional; we use `float | None` with `parse_optional_float()`
 - **NaN handling**: `"nan"`, `"-nan"`, `""` → `None` (via `is_nan_string()`).
 - **Checksum validation**: Centralized in `parse_nmea_sentence()` — validates if present, optional if absent
@@ -99,7 +101,8 @@ class PNORX:
 ### Data Layers
 - **`DataLayer`**: Wraps a DuckDB connection. Provides `get_available_sources()`,
   `query_data()`, `query_time_series()`, `query_wave_rose_data()`,
-  `query_current_speed_heatmap()`, `detect_current_profile_view()`, etc.
+  `query_current_speed_heatmap()`, `detect_current_profile_view()`,
+  `get_quality_metrics()` (tracks parse errors vs. invalid records), etc.
 - **`ParquetDataLayer`**: Inherits from `DataLayer`. Creates an in-memory DuckDB,
   registers Parquet files as views (`pq_{record_type}`), and creates joined views
   matching the DuckDB schema names (`wave_measurement_full`, `current_profile_12`, etc.).

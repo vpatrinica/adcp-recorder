@@ -26,6 +26,7 @@ class PNORWD:
     step_frequency: float | None
     num_frequencies: int | None
     values: list[float | None]
+    is_valid: bool = True
     checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
@@ -74,6 +75,7 @@ class PNORWD:
             step_frequency=parse_optional_float(fields[6]),
             num_frequencies=num_freq if num_freq > 0 else None,
             values=vals,
+            is_valid=True,
             checksum=checksum,
         )
 
@@ -88,5 +90,6 @@ class PNORWD:
             "step_frequency": self.step_frequency,
             "num_frequencies": self.num_frequencies,
             "values": self.values,
+            "is_valid": self.is_valid,
             "checksum": self.checksum,
         }

@@ -30,6 +30,7 @@ class PNORX:
     date: str
     time: str
     # ... your fields
+    is_valid: bool = True
     checksum: str | None = field(default=None, repr=False)
     
     def __post_init__(self):

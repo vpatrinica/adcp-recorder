@@ -28,6 +28,7 @@ class PNORH3:
     time: str
     error_code: int | None
     status_code: str
+    is_valid: bool = True
     checksum: str | None = field(default=None, repr=False)
 
     TAG_IDS = {"DATE": "date", "TIME": "time", "EC": "error_code", "SC": "status_code"}
@@ -66,6 +67,7 @@ class PNORH3:
             time=str(data["time"]),
             error_code=data["error_code"],
             status_code=str(data["status_code"]),
+            is_valid=True,
             checksum=checksum,
         )
 
@@ -76,6 +78,7 @@ class PNORH3:
             "time": self.time,
             "error_code": self.error_code,
             "status_code": self.status_code,
+            "is_valid": self.is_valid,
             "checksum": self.checksum,
         }
 
@@ -90,6 +93,7 @@ class PNORH4:
     time: str
     error_code: int | None
     status_code: str
+    is_valid: bool = True
     checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
@@ -111,6 +115,7 @@ class PNORH4:
             time=fields[2],
             error_code=parse_optional_int(fields[3]),
             status_code=fields[4],
+            is_valid=True,
             checksum=checksum,
         )
 
@@ -121,5 +126,6 @@ class PNORH4:
             "time": self.time,
             "error_code": self.error_code,
             "status_code": self.status_code,
+            "is_valid": self.is_valid,
             "checksum": self.checksum,
         }

@@ -76,6 +76,7 @@ class PNORC:
     corr2: int | None
     corr3: int | None
     corr4: int | None
+    is_valid: bool = True
     checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
@@ -123,6 +124,7 @@ class PNORC:
             corr2=parse_optional_int(fields[16]),
             corr3=parse_optional_int(fields[17]),
             corr4=parse_optional_int(fields[18]),
+            is_valid=True,
             checksum=checksum,
         )
 
@@ -147,6 +149,7 @@ class PNORC:
             "corr2": self.corr2,
             "corr3": self.corr3,
             "corr4": self.corr4,
+            "is_valid": self.is_valid,
             "checksum": self.checksum,
         }
 
@@ -174,6 +177,7 @@ class PNORC1:
     corr2: int | None
     corr3: int | None
     corr4: int | None
+    is_valid: bool = True
     checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
@@ -214,6 +218,7 @@ class PNORC1:
             corr2=parse_optional_int(fields[14]),
             corr3=parse_optional_int(fields[15]),
             corr4=parse_optional_int(fields[16]),
+            is_valid=True,
             checksum=checksum,
         )
 
@@ -236,6 +241,7 @@ class PNORC1:
             "corr2": self.corr2,
             "corr3": self.corr3,
             "corr4": self.corr4,
+            "is_valid": self.is_valid,
             "checksum": self.checksum,
         }
 
@@ -265,6 +271,7 @@ class PNORC2:
     corr2: int | None
     corr3: int | None
     corr4: int | None
+    is_valid: bool = True
     checksum: str | None = field(default=None, repr=False)
 
     TAG_GRP_VEL = {
@@ -357,6 +364,7 @@ class PNORC2:
         if data["date"] is None or data["time"] is None or data["cell_index"] is None:
             raise ValueError("Missing mandatory tags in PNORC2: DATE, TIME, or CN")
 
+        data["is_valid"] = True
         return cls(**data, checksum=checksum)
 
     def to_dict(self) -> dict:
@@ -378,6 +386,7 @@ class PNORC2:
             "corr2": self.corr2,
             "corr3": self.corr3,
             "corr4": self.corr4,
+            "is_valid": self.is_valid,
             "checksum": self.checksum,
         }
 
@@ -393,6 +402,7 @@ class PNORC3:
     direction: float | None
     avg_amplitude: int | None
     avg_correlation: int | None
+    is_valid: bool = True
     checksum: str | None = field(default=None, repr=False)
 
     TAG_IDS = {
@@ -438,6 +448,7 @@ class PNORC3:
             if k not in data:
                 data[k] = None
 
+        data["is_valid"] = True
         return cls(**data, checksum=checksum)
 
     def to_dict(self) -> dict:
@@ -448,6 +459,7 @@ class PNORC3:
             "direction": self.direction,
             "avg_amplitude": self.avg_amplitude,
             "avg_correlation": self.avg_correlation,
+            "is_valid": self.is_valid,
             "checksum": self.checksum,
         }
 
@@ -463,6 +475,7 @@ class PNORC4:
     direction: float | None
     avg_correlation: int | None
     avg_amplitude: int | None
+    is_valid: bool = True
     checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
@@ -491,6 +504,7 @@ class PNORC4:
             direction=parse_optional_float(fields[3]),
             avg_correlation=parse_optional_int(fields[4]),
             avg_amplitude=parse_optional_int(fields[5]),
+            is_valid=True,
             checksum=checksum,
         )
 
@@ -502,5 +516,6 @@ class PNORC4:
             "direction": self.direction,
             "avg_amplitude": self.avg_amplitude,
             "avg_correlation": self.avg_correlation,
+            "is_valid": self.is_valid,
             "checksum": self.checksum,
         }

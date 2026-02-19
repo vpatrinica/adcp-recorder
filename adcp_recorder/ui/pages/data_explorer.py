@@ -24,21 +24,29 @@ def render_data_explorer(data_layer: DataLayer, time_range: str = "24h") -> None
     with st.expander("🛡️ Quality Overview", expanded=True):
         try:
             metrics = data_layer.get_quality_metrics(time_range)
-            q_cols = st.columns(4)
+            q_cols = st.columns(5)
             with q_cols[0]:
                 st.metric("Total Records", f"{metrics.get('total_records', 0):,}")
             with q_cols[1]:
+                invalid_count = metrics.get("invalid_records", 0)
+                st.metric(
+                    "Invalid Data",
+                    f"{invalid_count:,}",
+                    delta=None if invalid_count == 0 else f"-{invalid_count}",
+                    delta_color="inverse",
+                )
+            with q_cols[2]:
                 error_count = metrics.get("error_count", 0)
                 st.metric(
                     "Errors",
                     f"{error_count:,}",
-                    delta=None if error_count == 0 else f"{error_count}",
+                    delta=None if error_count == 0 else f"-{error_count}",
                     delta_color="inverse",
                 )
-            with q_cols[2]:
-                error_rate = metrics.get("error_rate", 0.0) * 100
-                st.metric("Error Rate", f"{error_rate:.2f}%")
             with q_cols[3]:
+                error_rate = metrics.get("error_rate", 0.0) * 100
+                st.metric("Overall Error Rate", f"{error_rate:.2f}%")
+            with q_cols[4]:
                 st.metric("Report Range", time_range)
         except Exception as e:
             st.warning(f"Could not load quality metrics: {e}")

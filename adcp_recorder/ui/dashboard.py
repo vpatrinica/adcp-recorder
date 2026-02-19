@@ -273,7 +273,7 @@ def main() -> None:
                 st.rerun()
         with col_q2:
             if st.button("⚠️ Errors"):
-                st.session_state["quick_view"] = "parse_errors"
+                st.session_state["quick_view"] = "Errors"
                 st.rerun()
 
     # Footer

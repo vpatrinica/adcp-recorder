@@ -34,6 +34,7 @@ class PNORB:
     spr_tp: float | None
     main_dir: float | None
     wave_error_code: str  # 4 hex digits
+    is_valid: bool = True
     checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
@@ -105,6 +106,7 @@ class PNORB:
             spr_tp=parse_optional_float(fields[11]),
             main_dir=parse_optional_float(fields[12]),
             wave_error_code=fields[13],
+            is_valid=True,
             checksum=checksum,
         )
 
@@ -124,5 +126,6 @@ class PNORB:
             "spr_tp": self.spr_tp,
             "main_dir": self.main_dir,
             "wave_error_code": self.wave_error_code,
+            "is_valid": self.is_valid,
             "checksum": self.checksum,
         }

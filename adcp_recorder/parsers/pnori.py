@@ -85,6 +85,7 @@ class PNORI:
     blanking_distance: float | None
     cell_size: float | None
     coordinate_system: CoordinateSystem
+    is_valid: bool = True
     checksum: str | None = field(default=None, repr=False)
 
     HEAD_ID_PATTERN: ClassVar[re.Pattern] = re.compile(r"^[A-Za-z0-9_]{1,30}$")
@@ -128,6 +129,7 @@ class PNORI:
             blanking_distance=parse_optional_float(fields[5]),
             cell_size=parse_optional_float(fields[6]),
             coordinate_system=CoordinateSystem.from_code(int(fields[7])),
+            is_valid=True,
             checksum=checksum,
         )
 
@@ -174,6 +176,7 @@ class PNORI:
             "cell_size": float(self.cell_size) if self.cell_size is not None else None,
             "coord_system_name": self.coordinate_system.value,
             "coord_system_code": self.coordinate_system.to_numeric_code(),
+            "is_valid": self.is_valid,
             "checksum": self.checksum,
         }
 
@@ -201,6 +204,7 @@ class PNORI1:
     blanking_distance: float | None
     cell_size: float | None
     coordinate_system: CoordinateSystem
+    is_valid: bool = True
     checksum: str | None = field(default=None, repr=False)
 
     HEAD_ID_PATTERN: ClassVar[re.Pattern] = re.compile(r"^\d{1,20}$")
@@ -242,6 +246,7 @@ class PNORI1:
             blanking_distance=parse_optional_float(fields[5]),
             cell_size=parse_optional_float(fields[6]),
             coordinate_system=CoordinateSystem.from_code(fields[7]),
+            is_valid=True,
             checksum=checksum,
         )
 
@@ -288,6 +293,7 @@ class PNORI1:
             "cell_size": float(self.cell_size) if self.cell_size is not None else None,
             "coord_system_name": self.coordinate_system.value,
             "coord_system_code": self.coordinate_system.to_numeric_code(),
+            "is_valid": self.is_valid,
             "checksum": self.checksum,
         }
 
@@ -358,6 +364,7 @@ class PNORI2:
     blanking_distance: float | None
     cell_size: float | None
     coordinate_system: CoordinateSystem
+    is_valid: bool = True
     checksum: str | None = field(default=None, repr=False)
 
     HEAD_ID_PATTERN: ClassVar[re.Pattern] = re.compile(r"^\d{1,20}$")
@@ -414,6 +421,7 @@ class PNORI2:
                 data[PNORITag.CELL_SIZE],
             ),
             coordinate_system=CoordinateSystem.from_code(data[PNORITag.COORDINATE_SYSTEM]),
+            is_valid=True,
             checksum=checksum,
         )
 
@@ -460,5 +468,6 @@ class PNORI2:
             "cell_size": float(self.cell_size) if self.cell_size is not None else None,
             "coord_system_name": self.coordinate_system.value,
             "coord_system_code": self.coordinate_system.to_numeric_code(),
+            "is_valid": self.is_valid,
             "checksum": self.checksum,
         }

@@ -112,6 +112,7 @@ SOURCE_CATEGORIES = {
     "pnora_data": "Altitude Data",
     "raw_lines": "Raw Data",
     "parse_errors": "Errors",
+    "Errors": "Errors",
 }
 
 
@@ -1257,33 +1258,62 @@ class DataLayer:
         """Get quality metrics (record counts, errors, gaps)."""
         start_time = self._parse_time_range(time_range)
 
-        metrics: dict[str, Any] = {"total_records": 0, "error_rate": 0.0, "sources": {}}
+        metrics: dict[str, Any] = {
+            "total_records": 0,
+            "valid_records": 0,
+            "invalid_records": 0,
+            "error_rate": 0.0,
+            "sources": {},
+        }
 
         # Get record counts for all sources
         sources = self.get_available_sources()
         for source in sources:
-            # Skip error tables
-            if "error" in source.name.lower():
+            # Skip error tables and raw lines
+            if any(term in source.name.lower() for term in ["error", "raw_lines"]):
                 continue
 
-            query = f"SELECT COUNT(*) FROM {source.name}"
+            query_total = f"SELECT COUNT(*) FROM {source.name}"
+            conditions = []
             params = []
             if start_time and source.has_timestamp:
-                query += f" WHERE {source.timestamp_column} >= ?"
+                conditions.append(f"{source.timestamp_column} >= ?")
                 params.append(start_time)
 
+            where_clause = " WHERE " + " AND ".join(conditions) if conditions else ""
+
             try:
-                row = self.conn.execute(query, params).fetchone()
-                if row:
-                    count = row[0]
+                row_total = self.conn.execute(query_total + where_clause, params).fetchone()
+                if row_total:
+                    count = row_total[0]
                     metrics["total_records"] += count
                     metrics["sources"][source.name] = count
+
+                    # Check for is_valid column
+                    has_is_valid = any(c.name == "is_valid" for c in source.columns)
+                    if has_is_valid:
+                        query_valid = f"SELECT COUNT(*) FROM {source.name} WHERE is_valid = TRUE"
+                        if conditions:
+                            query_valid += " AND " + " AND ".join(conditions)
+                        row_valid = self.conn.execute(query_valid, params).fetchone()
+                        if row_valid:
+                            metrics["valid_records"] += row_valid[0]
+                            metrics["invalid_records"] += count - row_valid[0]
+                    else:
+                        # If no is_valid column, assume all are valid for now
+                        metrics["valid_records"] += count
             except Exception:
                 pass
 
-        # Get error counts if parse_errors exists
+        # Get error counts (prefer parse_errors view if present)
         if self.get_source_metadata("parse_errors"):
             query = "SELECT COUNT(*) FROM parse_errors"
+        elif self.get_source_metadata("Errors"):
+            query = "SELECT COUNT(*) FROM Errors"
+        else:
+            query = None
+
+        if query:
             params = []
             if start_time:
                 query += " WHERE received_at >= ?"
@@ -1294,10 +1324,11 @@ class DataLayer:
                 if row:
                     error_count = row[0]
                     metrics["error_count"] = error_count
-                    if metrics["total_records"] > 0:
-                        metrics["error_rate"] = error_count / (
-                            metrics["total_records"] + error_count
-                        )
+                    # Error rate is based on (parse_errors + invalid_records) / total
+                    unsuccessful = error_count + metrics["invalid_records"]
+                    total_potential = metrics["total_records"] + error_count
+                    if total_potential > 0:
+                        metrics["error_rate"] = unsuccessful / total_potential
             except Exception:
                 pass
 

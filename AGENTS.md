@@ -19,11 +19,13 @@ Serial Port → consumer.py → Parser.from_nmea(sentence) → Dataclass → .to
 ```
 1.  **Serial consumer** reads raw NMEA sentences.
 2.  **Parsers** validate and parse sentences into frozen `@dataclass` objects.
-3.  **Database Manager** stores raw lines immediately and parsed data after validation.
-4.  **Exporters** write daily CSV/Parquet files.
+3.  **is_valid Field**: Every parsed record includes an `is_valid` boolean (default `True`).
+4.  **Database Manager** stores raw lines immediately and parsed data after validation.
+5.  **Exporters** write daily CSV/Parquet files.
 
 ### Key Design Decisions
 *   **Frozen Dataclasses**: All parser outputs are immutable.
+*   **is_valid**: Every record must have an `is_valid: bool = True` field.
 *   **Optional Fields**: NMEA fields are often optional; use `float | None` and `parse_optional_float()`.
 *   **NaN Handling**: Strings like `"nan"`, `"-9.0000"`, or `""` must be converted to `None`.
 *   **Checksum Validation**: Centralized in `adcp_recorder.parsers.utils.parse_nmea_sentence()`.
@@ -94,7 +96,7 @@ The project uses `ruff` for linting/formatting and `mypy` for static analysis. *
 
 The database uses **DuckDB** with a "Consolidated Schema" approach:
 *   **Raw Data**: `raw_lines` table.
-*   **Errors**: `parse_errors` table.
+*   **Errors**: `Errors` view (aliasing `parse_errors` table).
 *   **Consolidation**: Related NMEA sentences (e.g., `PNORS1`, `PNORS2`) map to unified tables (e.g., `pnors12`).
 *   **Views**: SQL Views normalize access across NMEA versions.
 *   **Migration**: Always update `adcp_recorder/db/schema.py` when changing data structures.

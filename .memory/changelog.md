@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-02-19: Implementation of `is_valid` and Quality Metrics Overhaul
+
+### What Changed
+- Implemented `is_valid: bool = True` field across all ADCP recorder parsers.
+- Updated database schema with an `Errors` view (aliasing `parse_errors`).
+- Enhanced `DataLayer.get_quality_metrics()` to differentiate between "Parse Errors" and "Invalid Data".
+- Updated Dashboad UI (**Data Explorer**) to display comprehensive quality statistics.
+
+### Why
+- **Data Integrity**: Differentiates between records that failed NMEA parsing vs. those that failed data validation rules.
+- **UI Consistency**: Unifies error tracking under a more user-friendly "Errors" name.
+- **Improved Monitoring**: Allows users to quickly assess the health of the data stream.
+
+### Key Changes
+- **Parser Standards**: every parsed dataclass now includes `is_valid`.
+- **Schema Evolution**: `adcp_recorder/db/schema.py` now includes the `Errors` view and `is_valid` columns.
+- **UI Refinement**: "Quick Action" buttons now route to the unified `Errors` view.
+
+### Files Modified
+- `adcp_recorder/parsers/*.py` — Added `is_valid` field and updated `to_dict()`.
+- `adcp_recorder/db/schema.py` — Added `Errors` view.
+- `adcp_recorder/ui/data_layer.py` — Improved `get_quality_metrics`.
+- `adcp_recorder/ui/dashboard.py` — Updated quick actions.
+- `adcp_recorder/ui/pages/data_explorer.py` — Updated quality overview display.
+
+### Test Results
+129 parser tests passed. UI regressions resolved after manual fixes.
+
 ## 2026-02-17: Soft Validation - No More Record Dropping
 
 ### What Changed

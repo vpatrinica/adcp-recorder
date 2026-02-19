@@ -87,6 +87,7 @@ class PNORS:
     temperature: float | None
     analog1: int | None
     analog2: int | None
+    is_valid: bool = True
     checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
@@ -125,6 +126,7 @@ class PNORS:
             temperature=parse_optional_float(fields[11]),
             analog1=parse_optional_int(fields[12]),
             analog2=parse_optional_int(fields[13]),
+            is_valid=True,
             checksum=checksum,
         )
 
@@ -144,6 +146,7 @@ class PNORS:
             "temperature": self.temperature,
             "analog1": self.analog1,
             "analog2": self.analog2,
+            "is_valid": self.is_valid,
             "checksum": self.checksum,
         }
 
@@ -171,6 +174,7 @@ class PNORS1:
     pressure: float | None
     pressure_std_dev: float | None
     temperature: float | None
+    is_valid: bool = True
     checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
@@ -210,6 +214,7 @@ class PNORS1:
             pressure=parse_optional_float(fields[13]),
             pressure_std_dev=parse_optional_float(fields[14]),
             temperature=parse_optional_float(fields[15]),
+            is_valid=True,
             checksum=checksum,
         )
 
@@ -231,6 +236,7 @@ class PNORS1:
             "pressure": self.pressure,
             "pressure_std_dev": self.pressure_std_dev,
             "temperature": self.temperature,
+            "is_valid": self.is_valid,
             "checksum": self.checksum,
         }
 
@@ -258,6 +264,7 @@ class PNORS2:
     pressure: float | None
     pressure_std_dev: float | None
     temperature: float | None
+    is_valid: bool = True
     checksum: str | None = field(default=None, repr=False)
 
     TAG_IDS = {
@@ -344,6 +351,7 @@ class PNORS2:
             pressure=parse_optional_float(data["pressure"]),
             pressure_std_dev=parse_optional_float(data["pressure_std_dev"]),
             temperature=parse_optional_float(data["temperature"]),
+            is_valid=True,
             checksum=checksum,
         )
 
@@ -365,6 +373,7 @@ class PNORS2:
             "pressure": self.pressure,
             "pressure_std_dev": self.pressure_std_dev,
             "temperature": self.temperature,
+            "is_valid": self.is_valid,
             "checksum": self.checksum,
         }
 
@@ -382,6 +391,7 @@ class PNORS3:
     roll: float | None
     pressure: float | None
     temperature: float | None
+    is_valid: bool = True
     checksum: str | None = field(default=None, repr=False)
 
     TAG_IDS = {
@@ -424,6 +434,7 @@ class PNORS3:
             if k not in data:
                 data[k] = None
 
+        data["is_valid"] = True
         return cls(**data, checksum=checksum)
 
     def to_dict(self) -> dict:
@@ -436,6 +447,7 @@ class PNORS3:
             "roll": self.roll,
             "pressure": self.pressure,
             "temperature": self.temperature,
+            "is_valid": self.is_valid,
             "checksum": self.checksum,
         }
 
@@ -453,6 +465,7 @@ class PNORS4:
     roll: float | None
     pressure: float | None
     temperature: float | None
+    is_valid: bool = True
     checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
@@ -481,6 +494,7 @@ class PNORS4:
             roll=parse_optional_float(fields[5]),
             pressure=parse_optional_float(fields[6]),
             temperature=parse_optional_float(fields[7]),
+            is_valid=True,
             checksum=checksum,
         )
 
@@ -494,5 +508,6 @@ class PNORS4:
             "roll": self.roll,
             "pressure": self.pressure,
             "temperature": self.temperature,
+            "is_valid": self.is_valid,
             "checksum": self.checksum,
         }

@@ -31,6 +31,7 @@ class PNORA:
     status: str
     pitch: float | None
     roll: float | None
+    is_valid: bool = True
     checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
@@ -77,6 +78,7 @@ class PNORA:
                     status=data_map.get("ST", ""),
                     pitch=parse_optional_float(data_map.get("PI", "")),
                     roll=parse_optional_float(data_map.get("R", "")),
+                    is_valid=True,
                     checksum=checksum,
                 )
             except ValueError as e:
@@ -95,6 +97,7 @@ class PNORA:
             status=fields[6],
             pitch=parse_optional_float(fields[7]),
             roll=parse_optional_float(fields[8]),
+            is_valid=True,
             checksum=checksum,
         )
 
@@ -109,5 +112,6 @@ class PNORA:
             "status": self.status,
             "pitch": self.pitch,
             "roll": self.roll,
+            "is_valid": self.is_valid,
             "checksum": self.checksum,
         }

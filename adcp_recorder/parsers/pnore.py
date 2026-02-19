@@ -25,6 +25,7 @@ class PNORE:
     step_frequency: float | None
     num_frequencies: int | None
     energy_densities: list[float | None]
+    is_valid: bool = True
     checksum: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
@@ -79,6 +80,7 @@ class PNORE:
             step_frequency=parse_optional_float(fields[5]),
             num_frequencies=num_freq if num_freq > 0 else None,
             energy_densities=energies,
+            is_valid=True,
             checksum=checksum,
         )
 
@@ -92,5 +94,6 @@ class PNORE:
             "step_frequency": self.step_frequency,
             "num_frequencies": self.num_frequencies,
             "energy_densities": self.energy_densities,
+            "is_valid": self.is_valid,
             "checksum": self.checksum,
         }

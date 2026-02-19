@@ -25,6 +25,7 @@ TABLE_DESCRIPTIONS = {
     "pnora_data": "Altimeter Data",
     "raw_lines": "Raw NMEA Sentences",
     "parse_errors": "Parse Errors",
+    "Errors": "Parse Errors",
 }
 
 # ============================================================================
@@ -727,6 +728,7 @@ VIEW_SCHEMA_SQL = [
     CURRENT_PROFILE_DF100_VIEW_SQL,
     CURRENT_PROFILE_12_VIEW_SQL,
     CURRENT_PROFILE_34_VIEW_SQL,
+    "CREATE OR REPLACE VIEW Errors AS SELECT * FROM parse_errors;",
 ]
 
 # ============================================================================

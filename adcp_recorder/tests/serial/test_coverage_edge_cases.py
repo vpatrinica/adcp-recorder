@@ -123,7 +123,16 @@ def test_pnori_coverage():
         PNORI.from_nmea("$PNORI,4,Test,5,20,0.20,1.00,0")
 
     # Valid init
-    msg = PNORI(InstrumentType.SIGNATURE, "H1", 4, 20, 0.2, 1.0, CoordinateSystem.ENU, "00")
+    msg = PNORI(
+        InstrumentType.SIGNATURE,
+        "H1",
+        4,
+        20,
+        0.2,
+        1.0,
+        CoordinateSystem.ENU,
+        checksum="00",
+    )
     d = msg.to_dict()
     assert d["head_id"] == "H1"
 
