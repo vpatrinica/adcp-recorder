@@ -408,6 +408,7 @@ def migrate_pnorw_fields(conn: duckdb.DuckDBPyConnection) -> int:
             CAST(NULL AS DECIMAL(5,2)) AS near_surface_speed,
             CAST(NULL AS DECIMAL(6,2)) AS near_surface_dir,
             wave_error_code,
+            CAST(TRUE AS BOOLEAN) AS is_valid_migrated,
             SUBSTRING(checksum, 1, 2) AS checksum
         FROM pnorw_data
     """)
@@ -415,9 +416,9 @@ def migrate_pnorw_fields(conn: duckdb.DuckDBPyConnection) -> int:
     # Drop old table, rename new
     conn.execute("DROP TABLE pnorw_data")
     conn.execute("ALTER TABLE pnorw_data_new RENAME TO pnorw_data")
+    conn.execute("ALTER TABLE pnorw_data RENAME COLUMN is_valid_migrated TO is_valid")
 
     return count
-
 
 def ensure_pnorw_h3(conn: duckdb.DuckDBPyConnection) -> int:
     """Ensure pnorw_data has h3 and other new columns (fixes intermediate schema)."""
@@ -461,6 +462,44 @@ def ensure_pnorw_h3(conn: duckdb.DuckDBPyConnection) -> int:
                 logger.warning(f"Failed to add column {col}: {e}")
 
     return count
+
+
+def ensure_is_valid_column(conn: duckdb.DuckDBPyConnection) -> None:
+    """Ensure all relevant data tables have the is_valid column.
+
+    This is necessary because early schema versions or incomplete migrations
+    might have missed this column, which is expected by the operations module.
+    """
+    tables = [
+        "pnori",
+        "pnori12",
+        "pnors_df100",
+        "pnors12",
+        "pnors34",
+        "pnorc_df100",
+        "pnorc12",
+        "pnorc34",
+        "pnorh",
+        "pnore_data",
+        "pnorw_data",
+        "pnorb_data",
+        "pnorf_data",
+        "pnorwd_data",
+        "pnora_data",
+    ]
+
+    for table in tables:
+        if not get_old_table_exists(conn, table):
+            continue
+
+        try:
+            # Get column names (index 1 is name)
+            cols = [row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+            if "is_valid" not in cols:
+                logger.info(f"Adding is_valid column to {table}")
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN is_valid BOOLEAN DEFAULT TRUE")
+        except Exception as e:
+            logger.warning(f"Failed to check/add is_valid to {table}: {e}")
 
 
 def fix_pnorb_typos(conn: duckdb.DuckDBPyConnection) -> int:
@@ -607,6 +646,10 @@ def migrate_database(
         # 1. Fix existing tables that might have typos or old field names
         # These MUST happen before views are created to avoid Dependency Errors
         # and Binder Errors.
+        stats["is_valid column fix"] = 1  # Mark as attempted
+        ensure_is_valid_column(conn)
+        conn.execute("CHECKPOINT")
+
         stats["pnorw_data (field update)"] = migrate_pnorw_fields(conn)
         stats["pnorw_data (h3 fix)"] = ensure_pnorw_h3(conn)
         stats["pnorb_data (typo fix)"] = fix_pnorb_typos(conn)
@@ -661,14 +704,14 @@ def migrate_database(
         logger.info("Migration completed successfully!")
         logger.info(f"Migrated database saved to: {target_path}")
 
-        return stats
-
     except Exception as e:
         logger.error(f"Migration failed: {e}")
         raise MigrationError(f"Migration failed: {e}") from e
 
     finally:
         conn.close()
+
+    return stats
 
 
 def verify_migration(db_path: str | Path) -> dict[str, int]:
