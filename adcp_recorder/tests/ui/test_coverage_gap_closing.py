@@ -127,6 +127,42 @@ def test_get_quality_metrics_parse_errors_exception():
     assert "error_count" not in metrics
 
 
+def test_get_quality_metrics_uses_errors_view():
+    """When `parse_errors` view is absent, use legacy `Errors` view instead."""
+    mock_conn = MagicMock()
+    dl: Any = DataLayer(mock_conn)
+
+    src = DataSource(
+        name="test_src",
+        display_name="Test",
+        columns=[ColumnMetadata("received_at", ColumnType.TIMESTAMP)],
+        record_count=5,
+        has_timestamp=False,
+        category="test",
+    )
+    dl.get_available_sources = MagicMock(return_value=[src])
+
+    # Simulate parse_errors missing but Errors present
+    dl.get_source_metadata = MagicMock(side_effect=lambda n: src if n == "Errors" else None)
+
+    def exec_side(sql, params=None):
+        sql_str = sql if isinstance(sql, str) else str(sql)
+        m = MagicMock()
+        if "FROM Errors" in sql_str:
+            m.fetchone.return_value = (3,)
+        else:
+            m.fetchone.return_value = (5,)
+        return m
+
+    mock_conn.execute.side_effect = exec_side
+
+    metrics = dl.get_quality_metrics()
+    assert metrics["total_records"] >= 0
+    assert metrics.get("error_count") == 3
+    # Error rate should be present and between 0 and 1
+    assert 0.0 <= metrics.get("error_rate", 0.0) <= 1.0
+
+
 def test_table_view_timestamp_selection_and_default_range_none(mock_st_module, mock_data_layer):
     """Cover case where available timestamp columns list is empty and default_time_range is invalid.
 

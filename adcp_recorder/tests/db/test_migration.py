@@ -584,6 +584,36 @@ def test_ensure_pnorw_h3_check_exception(tmp_path, caplog):
     assert count == 0
 
 
+def test_ensure_is_valid_column_exception(caplog):
+    """Exercise the exception branch when checking/adding `is_valid` in migration."""
+    from adcp_recorder.db import migration
+
+    mock_conn = MagicMock()
+
+    # get_old_table_exists should return True for one table to trigger the loop
+    def exists_side(table_conn, table_name):
+        # Return True for a table that exists in ensure_is_valid_column's table list
+        return table_name == "pnori"
+
+    # Replace the real check so function enters the try/except branch
+    patcher = patch("adcp_recorder.db.migration.get_old_table_exists", side_effect=exists_side)
+    patcher.start()
+
+    # Simulate failure during PRAGMA table_info (raises) to hit except block
+    def exec_side(query, params=None):
+        if "PRAGMA table_info" in str(query):
+            raise Exception("Schema read failure")
+        return MagicMock()
+
+    mock_conn.execute.side_effect = exec_side
+
+    with caplog.at_level(logging.WARNING):
+        migration.ensure_is_valid_column(mock_conn)
+        assert "Failed to check/add is_valid" in caplog.text
+
+    patcher.stop()
+
+
 def test_migrate_pnorc_df101_102_exception(tmp_path):
     """Test exception handling in migrate_pnorc_df101_102 column check."""
     from adcp_recorder.db.migration import migrate_pnorc_df101_102
