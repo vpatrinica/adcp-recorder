@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Directional spectrum polar plots for wave analysis
 
+## [0.2.6] - 2026-02-23
+
+### Fixed
+
+- **Code Quality**: Resolved code formatting issues in `spectrum_plots.py` and `data_layer.py`.
+- **Bug Fixes**: Fixed an `Undefined name params` error in `data_layer.py`.
+- **Code Coverage**: Achieved 100% test coverage for `spectrum_plots.py` by adding targeted test cases for directional spectrum rendering and marker size logic.
+
 ## [0.2.5] - 2026-02-16
 
 ### Fixed
