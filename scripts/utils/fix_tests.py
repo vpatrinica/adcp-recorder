@@ -6,6 +6,7 @@ Skips f-strings with expressions to avoid corruption.
 """
 
 import re
+
 from adcp_recorder.core.nmea import compute_checksum
 
 FILES = [
@@ -73,7 +74,7 @@ def fix_multiline_sentences(content: str) -> str:
 
 
 def fix_file(path: str) -> None:
-    with open(path, "r") as f:
+    with open(path) as f:
         content = f.read()
 
     # First pass: fix multi-line concatenated sentences

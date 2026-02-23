@@ -32,7 +32,8 @@ def create_pnorw_data():
     """)
     # Inserting date as MMDDYY and time as HHMMSS
     conn.execute(
-        "INSERT INTO pnorw_data (received_at, date, time, data) VALUES ('2026-02-10 12:00:00', '021026', '120000', 100)"
+        "INSERT INTO pnorw_data (received_at, date, time, data) "
+        "VALUES ('2026-02-10 12:00:00', '021026', '120000', 100)"
     )
 
     # Export to parquet

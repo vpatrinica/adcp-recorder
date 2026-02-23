@@ -36,6 +36,9 @@ RAW_LINES_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS raw_lines (
     line_id BIGINT PRIMARY KEY,
     received_at TIMESTAMP DEFAULT current_timestamp,
+    measurement_date CHAR(6),
+    measurement_time CHAR(6),
+    measurement_datetime TIMESTAMP,
     raw_sentence TEXT NOT NULL,
     parse_status VARCHAR(10) CHECK (parse_status IN ('OK', 'FAIL', 'PENDING')),
     record_type VARCHAR(20),
@@ -46,6 +49,7 @@ CREATE TABLE IF NOT EXISTS raw_lines (
 RAW_LINES_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS raw_lines_seq START 1;"
 RAW_LINES_INDEXES_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_raw_lines_received_at ON raw_lines(received_at);",
+    "CREATE INDEX IF NOT EXISTS idx_raw_lines_measurement_dt ON raw_lines(measurement_datetime);",
     "CREATE INDEX IF NOT EXISTS idx_raw_lines_record_type ON raw_lines(record_type);",
     "CREATE INDEX IF NOT EXISTS idx_raw_lines_parse_status ON raw_lines(parse_status);",
 ]
@@ -54,6 +58,9 @@ PARSE_ERRORS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS parse_errors (
     error_id BIGINT PRIMARY KEY,
     received_at TIMESTAMP DEFAULT current_timestamp,
+    measurement_date CHAR(6),
+    measurement_time CHAR(6),
+    measurement_datetime TIMESTAMP,
     raw_sentence TEXT NOT NULL,
     error_type VARCHAR(50) NOT NULL,
     error_message TEXT,
@@ -65,6 +72,7 @@ CREATE TABLE IF NOT EXISTS parse_errors (
 PARSE_ERRORS_SEQUENCE_SQL = "CREATE SEQUENCE IF NOT EXISTS parse_errors_seq START 1;"
 PARSE_ERRORS_INDEXES_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_errors_received_at ON parse_errors(received_at);",
+    "CREATE INDEX IF NOT EXISTS idx_errors_measurement_dt ON parse_errors(measurement_datetime);",
     "CREATE INDEX IF NOT EXISTS idx_errors_type ON parse_errors(error_type);",
     "CREATE INDEX IF NOT EXISTS idx_errors_prefix ON parse_errors(attempted_prefix);",
 ]

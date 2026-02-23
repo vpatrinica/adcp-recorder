@@ -463,9 +463,9 @@ def render_directional_spectrum(
                     marker=dict(
                         size=[max(5, np.sqrt(e if e is not None else 0.0) * 40) for e in energies],
                         color=energies,
-                        colorscale="Viridis",
+                        colorscale="Turbo",
                         showscale=True,
-                        colorbar=dict(title="Energy", orientation="h", y=-0.2),
+                        colorbar=dict(title="Energy Density (m\u00b2/Hz)", orientation="h", y=-0.2),
                         line=dict(width=1, color="white"),
                     ),
                     text=[
@@ -540,9 +540,9 @@ def render_directional_spectrum(
                     base=base_all,
                     marker=dict(
                         color=colors_all,
-                        colorscale="Viridis",
+                        colorscale="Turbo",
                         showscale=True,
-                        colorbar=dict(title="Energy Density", orientation="h", y=-0.2),
+                        colorbar=dict(title="Energy Density (m\u00b2/Hz)", orientation="h", y=-0.2),
                         line=dict(width=0),
                     ),
                     width=[d_theta] * len(theta_all),

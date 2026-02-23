@@ -771,7 +771,16 @@ class DataLayer:
                     num_f = pick(["num_frequencies", "num_freq", "n_frequencies"]) or None
                     energy_json = pick(["energy_densities", "energy", "energy_density"]) or None
                     directions_json = (
-                        pick(["directions", "dir_values", "md_values", "mean_directions", "values"])
+                        pick(
+                            [
+                                "directions",
+                                "dir_values",
+                                "md_values",
+                                "mean_directions",
+                                "directional_values",
+                                "values",
+                            ]
+                        )
                         or None
                     )
                     spreads_json = pick(["spreads", "ds_values", "directional_spread"]) or None

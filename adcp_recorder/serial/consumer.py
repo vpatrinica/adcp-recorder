@@ -312,6 +312,9 @@ class SerialConsumer:
         parse_status: str = "FAIL",
         checksum_expected: str | None = None,
         checksum_actual: str | None = None,
+        measurement_date: str | None = None,
+        measurement_time: str | None = None,
+        measurement_datetime: Any | None = None,
     ) -> None:
         """Centralized error recording for parsers and processing."""
         if isinstance(raw_content, bytes):
@@ -330,6 +333,9 @@ class SerialConsumer:
             attempted_prefix=prefix,
             checksum_expected=checksum_expected,
             checksum_actual=checksum_actual,
+            measurement_date=measurement_date,
+            measurement_time=measurement_time,
+            measurement_datetime=measurement_datetime,
         )
         insert_raw_line(
             conn,
@@ -338,6 +344,9 @@ class SerialConsumer:
             record_type=prefix,
             error_message=error_message,
             checksum_valid=False if error_type == "CHECKSUM_ERROR" else None,
+            measurement_date=measurement_date,
+            measurement_time=measurement_time,
+            measurement_datetime=measurement_datetime,
         )
 
         # Write to files
@@ -359,6 +368,9 @@ class SerialConsumer:
                         "error_type": error_type,
                         "error_message": error_message,
                         "attempted_prefix": prefix,
+                        "measurement_date": measurement_date,
+                        "measurement_time": measurement_time,
+                        "measurement_datetime": measurement_datetime,
                     },
                 )
                 self._file_writer.write_record(
@@ -369,6 +381,9 @@ class SerialConsumer:
                         "record_type": prefix,
                         "error_message": error_message,
                         "checksum_valid": False if error_type == "CHECKSUM_ERROR" else None,
+                        "measurement_date": measurement_date,
+                        "measurement_time": measurement_time,
+                        "measurement_datetime": measurement_datetime,
                     },
                 )
 
@@ -430,6 +445,30 @@ class SerialConsumer:
             # Route to parser
             parsed = self._router.route(sentence)
 
+            # Extract date/time for raw_lines if available
+            m_date = None
+            m_time = None
+            m_dt = None
+            if parsed and hasattr(parsed, "to_dict"):
+                try:
+                    p_dict = parsed.to_dict()
+                    m_date = p_dict.get("date")
+                    m_time = p_dict.get("time")
+                    if m_date and m_time:
+                        from datetime import datetime
+
+                        # Try common MMDDYY/HHMMSS format
+                        try:
+                            m_dt = datetime.strptime(f"{m_date}{m_time}", "%m%d%y%H%M%S")
+                        except ValueError:
+                            # Try YYMMDD
+                            try:
+                                m_dt = datetime.strptime(f"{m_date}{m_time}", "%y%m%d%H%M%S")
+                            except ValueError:
+                                pass
+                except Exception:
+                    pass
+
             if parsed is None:
                 # Unknown message type - log and store as PENDING
                 logger.debug(f"Unknown message type: {prefix}")
@@ -453,6 +492,9 @@ class SerialConsumer:
                                 "record_type": prefix,
                                 "error_message": f"No parser for {prefix}",
                                 "checksum_valid": True if "*" in sentence else None,
+                                "measurement_date": m_date,
+                                "measurement_time": m_time,
+                                "measurement_datetime": m_dt,
                             },
                         )
                 return
@@ -467,6 +509,9 @@ class SerialConsumer:
                 parse_status="OK",
                 record_type=prefix,
                 checksum_valid=True if "*" in sentence else None,
+                measurement_date=m_date,
+                measurement_time=m_time,
+                measurement_datetime=m_dt,
             )
 
             if self._file_writer:
@@ -480,6 +525,9 @@ class SerialConsumer:
                             "parse_status": "OK",
                             "record_type": prefix,
                             "checksum_valid": True if "*" in sentence else None,
+                            "measurement_date": m_date,
+                            "measurement_time": m_time,
+                            "measurement_datetime": m_dt,
                         },
                     )
 
@@ -491,7 +539,11 @@ class SerialConsumer:
         self, conn: duckdb.DuckDBPyConnection, sentence: str, prefix: str, parsed: Any
     ) -> None:
         """Store parsed message to appropriate table and export to Parquet."""
-        data = parsed.to_dict()
+        try:
+            data = parsed.to_dict()
+        except Exception as e:
+            logger.error(f"Failed to convert parsed message to dict for {prefix}: {e}")
+            return
 
         # 1. Export structured data to DuckLake (Parquet) - ISOLATED
         if self._file_writer:

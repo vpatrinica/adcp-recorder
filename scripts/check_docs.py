@@ -69,7 +69,7 @@ class DocstringChecker(ast.NodeVisitor):
 
 def check_file(filepath):
     try:
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             content = f.read()
         tree = ast.parse(content, filename=filepath)
         checker = DocstringChecker(filepath)

@@ -414,6 +414,9 @@ class TestSerialConsumer:
                 "parse_status": "OK",
                 "record_type": "PNORI",
                 "checksum_valid": True,
+                "measurement_date": None,
+                "measurement_time": None,
+                "measurement_datetime": None,
             },
         )
 
@@ -453,6 +456,8 @@ class TestSerialConsumer:
         raw_lines_call = next(c for c in calls if c[0][0] == "raw_lines")
         assert raw_lines_call[0][1]["record_type"] == "BINARY"
         assert raw_lines_call[0][1]["content"] == "\x00\x01\x02"
+        assert "measurement_date" in raw_lines_call[0][1]
+        assert "measurement_datetime" in raw_lines_call[0][1]
 
     def test_consume_writes_unknown_to_file(self, db_path):
         """Test that consumer writes unknown messages to file writer."""
@@ -479,6 +484,9 @@ class TestSerialConsumer:
                 "record_type": "UNKNOWN",
                 "error_message": "No parser for UNKNOWN",
                 "checksum_valid": None,
+                "measurement_date": None,
+                "measurement_time": None,
+                "measurement_datetime": None,
             },
         )
 
@@ -510,6 +518,9 @@ class TestSerialConsumer:
                 "error_type": "PARSE_ERROR",
                 "error_message": "Expected 8 fields, got 3",
                 "attempted_prefix": "PNORI",
+                "measurement_date": None,
+                "measurement_time": None,
+                "measurement_datetime": None,
             },
         )
         mock_file_writer.write_record.assert_any_call(
@@ -520,6 +531,9 @@ class TestSerialConsumer:
                 "record_type": "PNORI",
                 "error_message": "Expected 8 fields, got 3",
                 "checksum_valid": None,
+                "measurement_date": None,
+                "measurement_time": None,
+                "measurement_datetime": None,
             },
         )
 

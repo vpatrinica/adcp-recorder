@@ -709,7 +709,9 @@ class ParquetDataLayer(DataLayer):
                 # Use subquery to avoid prefix conflicts on common columns
                 sql = (
                     "CREATE OR REPLACE VIEW current_profile_df100 AS "
-                    "SELECT s.*, c.cell_index, c.speed, c.direction"
+                    "SELECT s.*, c.cell_index, c.speed, c.direction, "
+                    "c.amp1, c.amp2, c.amp3, c.amp4, "
+                    "c.corr1, c.corr2, c.corr3, c.corr4"
                 )
                 if cond_i:
                     sql += ", i.instrument_type_name, i.cell_count, i.cell_size"
@@ -730,7 +732,19 @@ class ParquetDataLayer(DataLayer):
                     cols_s = self._get_view_columns("pq_pnors")
                     cols_c = self._get_view_columns("pq_pnorc")
                     # Only select s columns that won't conflict with explicit c columns
-                    c_explicit = {"cell_index", "speed", "direction"}
+                    c_explicit = {
+                        "cell_index",
+                        "speed",
+                        "direction",
+                        "amp1",
+                        "amp2",
+                        "amp3",
+                        "amp4",
+                        "corr1",
+                        "corr2",
+                        "corr3",
+                        "corr4",
+                    }
                     s_select = [f's."{c}"' for c in sorted(cols_s) if c not in c_explicit]
                     c_select = [f'c."{c}"' for c in sorted(c_explicit) if c in cols_c]
                     all_cols = s_select + c_select
@@ -776,7 +790,21 @@ class ParquetDataLayer(DataLayer):
 
                     # Build SQL based on existing columns
                     select_cols = ["s.*"]
-                    for c in ["cell_index", "vel1", "vel2", "vel3", "vel4"]:
+                    for c in [
+                        "cell_index",
+                        "vel1",
+                        "vel2",
+                        "vel3",
+                        "vel4",
+                        "amp1",
+                        "amp2",
+                        "amp3",
+                        "amp4",
+                        "corr1",
+                        "corr2",
+                        "corr3",
+                        "corr4",
+                    ]:
                         if c in cols_c:
                             # Avoid duplicates if they exist in s
                             alias = f"c_{c}" if c in cols_s else c

@@ -27,7 +27,7 @@ Serial Port → consumer.py → Parser.from_nmea(sentence) → Dataclass → .to
 *   **Frozen Dataclasses**: All parser outputs are immutable.
 *   **is_valid**: Every record must have an `is_valid: bool = True` field.
 *   **Optional Fields**: NMEA fields are often optional; use `float | None` and `parse_optional_float()`.
-*   **NaN Handling**: Strings like `"nan"`, `"-9.0000"`, or `""` must be converted to `None`.
+*   **NaN Handling**: Strings like `"nan"` or `""` must be converted to `None`.
 *   **Checksum Validation**: Centralized in `adcp_recorder.parsers.utils.parse_nmea_sentence()`.
 
 ## Development Environment

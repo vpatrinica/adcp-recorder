@@ -109,11 +109,17 @@ def get_parquet_layer(config: RecorderConfig | None = None) -> ParquetDataLayer:
     layer = st.session_state.parquet_layer
 
     # Set default path from config if not already set
-    if config and "parquet_default_set" not in st.session_state:
-        default_dir = config.output_dir
-        if default_dir:
-            st.session_state.parquet_data_dir = default_dir
+    if "parquet_default_set" not in st.session_state:
+        # Priority: literal path c:\ADCP_Data\parquet > config output_dir
+        fixed_path = Path(r"c:\ADCP_Data\parquet")
+        if fixed_path.exists():
+            st.session_state.parquet_data_dir = str(fixed_path)
             st.session_state.parquet_default_set = True
+        elif config:
+            default_dir = config.output_dir
+            if default_dir:
+                st.session_state.parquet_data_dir = default_dir
+                st.session_state.parquet_default_set = True
 
     return layer
 

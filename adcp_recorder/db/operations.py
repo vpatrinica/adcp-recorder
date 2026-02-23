@@ -19,6 +19,9 @@ def insert_raw_line(
     record_type: str | None = None,
     checksum_valid: bool | None = None,
     error_message: str | None = None,
+    measurement_date: str | None = None,
+    measurement_time: str | None = None,
+    measurement_datetime: datetime | None = None,
 ) -> int:
     """Insert a single raw NMEA sentence into the database.
 
@@ -29,6 +32,9 @@ def insert_raw_line(
         record_type: NMEA message type (e.g., 'PNORI', 'PNORS')
         checksum_valid: Whether checksum validation passed
         error_message: Error message if parsing failed
+        measurement_date: Measurement date from payload (MMDDYY)
+        measurement_time: Measurement time from payload (HHMMSS)
+        measurement_datetime: Combined measurement datetime
 
     Returns:
         The generated line_id for the inserted record
@@ -40,12 +46,22 @@ def insert_raw_line(
     result = conn.execute(
         """
         INSERT INTO raw_lines (
-            line_id, raw_sentence, parse_status, record_type, checksum_valid, error_message
+            line_id, raw_sentence, parse_status, record_type, checksum_valid,
+            error_message, measurement_date, measurement_time, measurement_datetime
         )
-        VALUES (nextval('raw_lines_seq'), ?, ?, ?, ?, ?)
+        VALUES (nextval('raw_lines_seq'), ?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING line_id
         """,
-        [sentence, parse_status, record_type, checksum_valid, error_message],
+        [
+            sentence,
+            parse_status,
+            record_type,
+            checksum_valid,
+            error_message,
+            measurement_date,
+            measurement_time,
+            measurement_datetime,
+        ],
     ).fetchone()
 
     conn.commit()
@@ -87,6 +103,9 @@ def batch_insert_raw_lines(conn: duckdb.DuckDBPyConnection, records: list[dict[s
         "record_type": None,
         "checksum_valid": None,
         "error_message": None,
+        "measurement_date": None,
+        "measurement_time": None,
+        "measurement_datetime": None,
     }
     for col, default in required_cols.items():
         if col not in df.columns:
@@ -103,7 +122,8 @@ def batch_insert_raw_lines(conn: duckdb.DuckDBPyConnection, records: list[dict[s
         conn.execute(
             """
             INSERT INTO raw_lines (
-                line_id, raw_sentence, parse_status, record_type, checksum_valid, error_message
+                line_id, raw_sentence, parse_status, record_type, checksum_valid,
+                error_message, measurement_date, measurement_time, measurement_datetime
             )
             SELECT
                 nextval('raw_lines_seq'),
@@ -111,7 +131,10 @@ def batch_insert_raw_lines(conn: duckdb.DuckDBPyConnection, records: list[dict[s
                 parse_status,
                 record_type,
                 checksum_valid,
-                error_message
+                error_message,
+                measurement_date,
+                measurement_time,
+                measurement_datetime
             FROM records_batch_df
             """
         )
@@ -136,6 +159,9 @@ def insert_parse_error(
     attempted_prefix: str | None = None,
     checksum_expected: str | None = None,
     checksum_actual: str | None = None,
+    measurement_date: str | None = None,
+    measurement_time: str | None = None,
+    measurement_datetime: datetime | None = None,
 ) -> int:
     """Insert a parsing error record.
 
@@ -147,6 +173,9 @@ def insert_parse_error(
         attempted_prefix: NMEA prefix that was attempted to parse
         checksum_expected: Expected checksum value
         checksum_actual: Actual checksum value
+        measurement_date: Measurement date from payload (MMDDYY)
+        measurement_time: Measurement time from payload (HHMMSS)
+        measurement_datetime: Combined measurement datetime
 
     Returns:
         The generated error_id for the inserted record
@@ -161,9 +190,10 @@ def insert_parse_error(
         """
         INSERT INTO parse_errors (
             error_id, raw_sentence, error_type, error_message,
-            attempted_prefix, checksum_expected, checksum_actual
+            attempted_prefix, checksum_expected, checksum_actual,
+            measurement_date, measurement_time, measurement_datetime
         )
-        VALUES (nextval('parse_errors_seq'), ?, ?, ?, ?, ?, ?)
+        VALUES (nextval('parse_errors_seq'), ?, ?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING error_id
         """,
         [
@@ -173,6 +203,9 @@ def insert_parse_error(
             attempted_prefix,
             checksum_expected,
             checksum_actual,
+            measurement_date,
+            measurement_time,
+            measurement_datetime,
         ],
     ).fetchone()
 
@@ -261,7 +294,8 @@ def query_raw_lines(
     where_clause = " AND ".join(where_clauses) if where_clauses else "1=1"
 
     sql = f"""
-        SELECT line_id, received_at, raw_sentence, parse_status, record_type,
+        SELECT line_id, received_at, measurement_date, measurement_time,
+               measurement_datetime, raw_sentence, parse_status, record_type,
                checksum_valid, error_message
         FROM raw_lines
         WHERE {where_clause}
@@ -278,11 +312,14 @@ def query_raw_lines(
         {
             "line_id": row[0],
             "received_at": row[1],
-            "raw_sentence": row[2],
-            "parse_status": row[3],
-            "record_type": row[4],
-            "checksum_valid": row[5],
-            "error_message": row[6],
+            "measurement_date": row[2],
+            "measurement_time": row[3],
+            "measurement_datetime": row[4],
+            "raw_sentence": row[5],
+            "parse_status": row[6],
+            "record_type": row[7],
+            "checksum_valid": row[8],
+            "error_message": row[9],
         }
         for row in results
     ]

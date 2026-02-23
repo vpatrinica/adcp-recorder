@@ -503,6 +503,30 @@ def ensure_is_valid_column(conn: duckdb.DuckDBPyConnection) -> None:
             logger.warning(f"Failed to check/add is_valid to {table}: {e}")
 
 
+def ensure_raw_lines_time_columns(conn: duckdb.DuckDBPyConnection) -> None:
+    """Ensure raw_lines and parse_errors have measurement time columns."""
+    tables = ["raw_lines", "parse_errors"]
+    new_cols = [
+        ("measurement_date", "CHAR(6)"),
+        ("measurement_time", "CHAR(6)"),
+        ("measurement_datetime", "TIMESTAMP"),
+    ]
+
+    for table in tables:
+        if not get_old_table_exists(conn, table):
+            continue
+
+        try:
+            # Get column names
+            cols = [row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+            for col, dtype in new_cols:
+                if col not in cols:
+                    logger.info(f"Adding {col} column to {table}")
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {dtype}")
+        except Exception as e:
+            logger.warning(f"Failed to check/add time columns to {table}: {e}")
+
+
 def fix_pnorb_typos(conn: duckdb.DuckDBPyConnection) -> int:
     """Fix typos in pnorb_data column names from early development.
 
@@ -649,6 +673,7 @@ def migrate_database(
         # and Binder Errors.
         stats["is_valid column fix"] = 1  # Mark as attempted
         ensure_is_valid_column(conn)
+        ensure_raw_lines_time_columns(conn)
         conn.execute("CHECKPOINT")
 
         stats["pnorw_data (field update)"] = migrate_pnorw_fields(conn)
