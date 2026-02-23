@@ -315,6 +315,55 @@ class TestDataLayerCoverageFinalConsistently:
                 "velocities": {"vel1": [], "vel2": [], "vel3": [], "vel4": []},
             }
 
+    def test_missing_source_metadata_returns_empty(self, data_layer):
+        """Lines 542, 615, 666, 713."""
+        assert data_layer.query_amplitude_heatmap("nonexistent") == []
+        assert data_layer.query_spectrum_data("nonexistent") == []
+        assert data_layer.query_wave_energy("nonexistent") == []
+        assert data_layer.get_available_bursts(source_name="nonexistent") == []
+
+    def test_query_amplitude_heatmap_no_amp_cols(self, data_layer, real_conn):
+        """Line 556."""
+        real_conn.execute("CREATE TABLE no_amp_table (received_at TIMESTAMP, cell_index INT)")
+        assert data_layer.query_amplitude_heatmap("no_amp_table") == []
+
+    def test_query_spectral_json_loading(self, real_conn):
+        """Lines 807, 812, 819."""
+        # Using a mocked record to hit the json.loads branches in query_directional_spectrum
+        mock_conn = MagicMock()
+        data_layer = DataLayer(mock_conn)
+
+        with patch.object(data_layer, "get_source_metadata") as mock_meta:
+            mock_meta.return_value = DataSource(
+                "wave_measurement_full", "Full", [], timestamp_column="received_at"
+            )
+            mock_conn.execute.return_value.fetchone.return_value = (
+                datetime.now(),
+                "010123",
+                "120000",
+                0.5,
+                0.1,
+                1,
+                "[1.0]",
+                "[90.0]",
+                "[15.0]",
+            )
+            mock_conn.description = [
+                ("received_at",),
+                ("measurement_date",),
+                ("measurement_time",),
+                ("start_frequency",),
+                ("step_frequency",),
+                ("num_frequencies",),
+                ("energy_densities",),
+                ("directions",),
+                ("spreads",),
+            ]
+            res = data_layer.query_directional_spectrum()
+            assert res["energy"] == [1.0]
+            assert res["directions"] == [90.0]
+            assert res["spreads"] == [15.0]
+
 
 class TestQueryWaveRoseData:
     """Tests for DataLayer.query_wave_rose_data (lines 931-959)."""

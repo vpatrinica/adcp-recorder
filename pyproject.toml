@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "adcp-recorder"
 version = "0.2.6"
 description = "NMEA telemetry recorder for Nortek ADCP instruments with DuckDB backend"
+requires-python = ">=3.13"
 maintainers = [
     {name = "V P", email = "vp@avp-systeme.de"},
 ]
