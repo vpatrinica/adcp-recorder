@@ -245,7 +245,7 @@ class LayoutConfig(BaseModel):
     """Dashboard grid layout configuration."""
 
     columns: int = Field(default=3, ge=1, le=6, description="Number of grid columns")
-    rows: int = Field(default=2, ge=1, le=10, description="Number of grid rows")
+    rows: int = Field(default=2, ge=1, le=20, description="Number of grid rows")
 
 
 class DashboardConfig(BaseModel):
@@ -521,7 +521,7 @@ DASHBOARD_TEMPLATES = {
     "wave_analysis": DashboardConfig(
         name="Wave Analysis",
         description="Comprehensive wave spectrum and directional analysis",
-        layout=LayoutConfig(columns=1, rows=10),
+        layout=LayoutConfig(columns=1, rows=11),
         panels=[
             PanelConfig(
                 id="wave_params",
@@ -545,52 +545,52 @@ DASHBOARD_TEMPLATES = {
                 config={"time_range": "7d"},
             ),
             PanelConfig(
+                id="wave_rose",
+                type=PanelType.WAVE_ROSE,
+                title="Wave Rose (PNORW)",
+                position=PanelPosition(row=3, col=0),
+                config={"data_source": "pnorw_data", "time_range": "7d"},
+            ),
+            PanelConfig(
                 id="wave_ener_heatmap",
                 type=PanelType.HEATMAP,
                 title="Wave Energy Density Heatmap",
-                position=PanelPosition(row=3, col=0),
-                config={"data_source": "pnore_data", "colorscale": "Plasma", "time_range": "7d"},
-            ),
-            PanelConfig(
-                id="wave_amp_heatmap",
-                type=PanelType.AMPLITUDE_HEATMAP,
-                title="Signal Strength Heatmap",
                 position=PanelPosition(row=4, col=0),
-                config={"colorscale": "Jet", "time_range": "7d"},
+                config={"data_source": "pnore_data", "colorscale": "Plasma", "time_range": "7d"},
             ),
             PanelConfig(
                 id="fourier_a1",
                 type=PanelType.SPECTRUM,
                 title="Fourier A1 Coefficients",
-                position=PanelPosition(row=5, col=0),
+                position=PanelPosition(row=6, col=0),
                 config={"data_source": "pnorf_data", "coefficient": "A1"},
             ),
             PanelConfig(
                 id="fourier_b1",
                 type=PanelType.SPECTRUM,
                 title="Fourier B1 Coefficients",
-                position=PanelPosition(row=6, col=0),
+                position=PanelPosition(row=7, col=0),
                 config={"data_source": "pnorf_data", "coefficient": "B1"},
             ),
             PanelConfig(
                 id="fourier_a2",
                 type=PanelType.SPECTRUM,
                 title="Fourier A2 Coefficients",
-                position=PanelPosition(row=7, col=0),
+                position=PanelPosition(row=8, col=0),
                 config={"data_source": "pnorf_data", "coefficient": "A2"},
             ),
             PanelConfig(
                 id="fourier_b2",
                 type=PanelType.SPECTRUM,
                 title="Fourier B2 Coefficients",
-                position=PanelPosition(row=8, col=0),
+                position=PanelPosition(row=9, col=0),
                 config={"data_source": "pnorf_data", "coefficient": "B2"},
             ),
             PanelConfig(
                 id="wave_full_table",
                 type=PanelType.TABLE,
                 title="Full Wave Data View (Joined)",
-                position=PanelPosition(row=9, col=0),
+                position=PanelPosition(row=10, col=0),
                 config={
                     "data_source": "wave_measurement_full",
                     "columns": [

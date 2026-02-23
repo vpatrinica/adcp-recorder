@@ -294,7 +294,11 @@ def render_energy_heatmap(
             padded = row + [0] * (max_len - len(row))
             padded_matrix.append(padded)
 
-        z_data = np.array(padded_matrix)
+        z_data = np.array(padded_matrix, dtype=float)
+
+        # Compute explicit zmax from actual values so the colorscale
+        # spans the real data range and small values are clearly visible.
+        z_max = float(np.max(z_data)) if z_data.size > 0 else 1.0
 
         # Generate frequency axis
         sorted_freqs = sorted(all_frequencies)
@@ -306,7 +310,9 @@ def render_energy_heatmap(
                 x=freq_axis[:max_len],
                 y=timestamps,
                 colorscale=colorscale,
-                colorbar=dict(title="Energy (m\u00b2/Hz)"),
+                zmin=0,
+                zmax=z_max,
+                colorbar=dict(title="Energy (m²/Hz)"),
                 hovertemplate=(
                     "Freq: %{x:.3f} Hz<br>Time: %{y}<br>Energy: %{z:.4f}<extra></extra>"
                 ),
@@ -419,65 +425,107 @@ def render_directional_spectrum(
             )
             return
 
-        if data.get("frequencies"):
-            min_f = min(data["frequencies"])
-            max_f = max(data["frequencies"])
+        # Validate the returned data has non-empty arrays
+        frequencies = data.get("frequencies", [])
+        energies = data.get("energy", [])
+        directions = data.get("directions", [])
+        spreads = data.get("spreads", [])
+
+        if not frequencies or not energies:
+            st.warning("Directional spectrum data is incomplete.")
             st.caption(
-                f"Frequency Range: {min_f:.2f} - {max_f:.2f} Hz"
-                if min_f is not None and max_f is not None
-                else "Frequency Range: N/A"
+                f"Retrieved: {len(frequencies)} frequencies, {len(energies)} energy values, "
+                f"{len(directions)} directions, {len(spreads)} spreads. "
+                f"Keys in data: {list(data.keys())}"
             )
+            return
+
+        # Ensure all arrays have the same length
+        n = len(frequencies)
+        if len(energies) < n:
+            energies = energies + [0.0] * (n - len(energies))
+        if len(directions) < n:
+            directions = directions + [0.0] * (n - len(directions))
+        if len(spreads) < n:
+            spreads = spreads + [20.0] * (n - len(spreads))
+
+        # Clean None values
+        clean_energies = [float(e) if e is not None else 0.0 for e in energies[:n]]
+        clean_directions = [float(d) if d is not None else 0.0 for d in directions[:n]]
+        clean_spreads = [float(s) if s is not None else 20.0 for s in spreads[:n]]
+
+        min_f = min(frequencies)
+        max_f = max(frequencies)
+        max_energy = max(clean_energies) if clean_energies else 0.0
+        st.caption(
+            f"Frequency: {min_f:.3f}–{max_f:.3f} Hz  |  "
+            f"{n} bins  |  Peak energy: {max_energy:.4f} m²/Hz"
+        )
 
         # Prepare Polar Data
         fig = go.Figure()
 
-        # Find peak for normalization and metrics
-        energies = data.get("energy", [])
-        if energies:
-            # Handle possible None values in data
-            clean_energies = [e if e is not None else 0.0 for e in energies]
+        # Find peak for metrics
+        if max_energy > 0:
             peak_idx = int(np.argmax(clean_energies))
-
-            peak_f = data["frequencies"][peak_idx] if peak_idx < len(data["frequencies"]) else None
+            peak_f = frequencies[peak_idx]
             peak_e = clean_energies[peak_idx]
+            peak_d = clean_directions[peak_idx]
 
-            directions = data.get("directions", [])
-            peak_d = directions[peak_idx] if peak_idx < len(directions) else None
-
-            # Safe formatting for metrics
-            f_label = f"{peak_f:.3f} Hz" if peak_f is not None else "N/A"
-            e_label = f"{peak_e:.4f} m\u00b2/Hz" if peak_e is not None else "N/A"
-            d_label = f"{peak_d:.1f}\u00b0" if peak_d is not None else "N/A"
-
-            st.sidebar.metric("Peak Frequency", f_label)
-            st.sidebar.metric("Peak Energy", e_label)
-            st.sidebar.metric("Peak Direction", d_label)
+            st.sidebar.metric("Peak Frequency", f"{peak_f:.3f} Hz")
+            st.sidebar.metric("Peak Energy", f"{peak_e:.4f} m²/Hz")
+            st.sidebar.metric("Peak Direction", f"{peak_d:.1f}°")
 
         if plot_style == "Bubble Plot":
-            # Bubble plot: Energy vs Frequency/Direction
+            # Scale marker sizes: use log-scaled sizes so small values are visible.
+            # Map energy to a visible range [8, 40] using log normalization.
+            if max_energy > 0:
+                marker_sizes = []
+                for e in clean_energies:
+                    if e > 0:
+                        # Log-normalize: log(e) relative to range
+                        log_e = np.log10(e)
+                        log_max = np.log10(max_energy)
+                        log_min = np.log10(max(min(ce for ce in clean_energies if ce > 0), 1e-10))
+                        log_range = max(log_max - log_min, 1.0)
+                        normalized = (log_e - log_min) / log_range
+                        marker_sizes.append(8 + normalized * 32)
+                    else:
+                        marker_sizes.append(6)
+            else:
+                marker_sizes = [8] * n
+
             fig.add_trace(
                 go.Scatterpolar(
-                    r=data["frequencies"],
-                    theta=data["directions"],
+                    r=frequencies,
+                    theta=clean_directions,
                     mode="markers",
                     marker=dict(
-                        size=[max(5, np.sqrt(e if e is not None else 0.0) * 40) for e in energies],
-                        color=energies,
+                        size=marker_sizes,
+                        color=clean_energies,
                         colorscale="Turbo",
                         showscale=True,
-                        colorbar=dict(title="Energy Density (m\u00b2/Hz)", orientation="h", y=-0.2),
+                        cmin=0,
+                        cmax=max_energy if max_energy > 0 else 1.0,
+                        colorbar=dict(
+                            title="Energy (m²/Hz)",
+                            orientation="h",
+                            y=-0.15,
+                            thickness=15,
+                        ),
                         line=dict(width=1, color="white"),
+                        opacity=0.85,
                     ),
                     text=[
-                        (f"Freq: {f:.3f} Hz<br>" if f is not None else "Freq: N/A<br>")
-                        + (f"Dir: {d:.1f}\u00b0<br>" if d is not None else "Dir: N/A<br>")
-                        + (f"Energy: {e:.4f}<br>" if e is not None else "Energy: N/A<br>")
-                        + (f"Spread: {s:.1f}\u00b0" if s is not None else "Spread: N/A")
+                        f"Freq: {f:.3f} Hz<br>"
+                        f"Dir: {d:.1f}°<br>"
+                        f"Energy: {e:.5f} m²/Hz<br>"
+                        f"Spread: {s:.1f}°"
                         for f, d, e, s in zip(
-                            data.get("frequencies", []),
-                            data.get("directions", []),
-                            data.get("energy", []),
-                            data.get("spreads", []),
+                            frequencies,
+                            clean_directions,
+                            clean_energies,
+                            clean_spreads,
                             strict=False,
                         )
                     ],
@@ -487,32 +535,25 @@ def render_directional_spectrum(
             )
         else:
             # Heatmap Reconstructed
-            # Define directional bins (e.g., 5 degree resolution)
-            theta_bins = np.linspace(0, 360, 73)[:-1]  # 72 bins
+            theta_bins = np.linspace(0, 360, 73)[:-1]  # 72 bins × 5° each
             d_theta = 360 / 72
 
-            # For each frequency bin, calculate the distribution
-            freqs = np.array(data["frequencies"])
+            freqs = np.array(frequencies)
             dr: float = 0.01
             if len(freqs) > 1:
                 dr = float(np.mean(np.diff(freqs)))
 
             # Build a 2D intensity grid
             intensity_grid = []
-
             for i, _f in enumerate(freqs):
-                e_total = data["energy"][i] if data["energy"][i] is not None else 0.0
-                theta_m = data["directions"][i] if data["directions"][i] is not None else 0.0
-                sigma = data["spreads"][i] if data["spreads"][i] is not None else 20.0
-
-                # Ensure sigma is positive to avoid div by zero
-                sigma = max(1.0, sigma)
+                e_total = clean_energies[i]
+                theta_m = clean_directions[i]
+                sigma = max(1.0, clean_spreads[i])
 
                 # Gaussian spreading function
                 diff = (theta_bins - theta_m + 180) % 360 - 180
                 dist = np.exp(-0.5 * (diff / sigma) ** 2)
 
-                # Normalize
                 dist_sum = np.sum(dist)
                 if dist_sum > 0:
                     dist = (dist / dist_sum) * (e_total / d_theta)
@@ -521,7 +562,7 @@ def render_directional_spectrum(
 
             intensity_arr = np.array(intensity_grid)
 
-            # Render as go.Barpolar segments - optimized to a single trace
+            # Render as go.Barpolar segments
             r_all: list[float] = []
             theta_all: list[float] = []
             base_all: list[float] = []
@@ -542,7 +583,12 @@ def render_directional_spectrum(
                         color=colors_all,
                         colorscale="Turbo",
                         showscale=True,
-                        colorbar=dict(title="Energy Density (m\u00b2/Hz)", orientation="h", y=-0.2),
+                        colorbar=dict(
+                            title="Energy (m²/Hz)",
+                            orientation="h",
+                            y=-0.15,
+                            thickness=15,
+                        ),
                         line=dict(width=0),
                     ),
                     width=[d_theta] * len(theta_all),
@@ -599,6 +645,7 @@ def render_amplitude_heatmap(
 
     # Auto-detect best current profile source for amplitude data (prefer *_1 views)
     source_name = data_layer.detect_current_profile_view()
+    st.write(f"Selected source: {source_name}")
     if source_name is None:
         st.info("No current profile data available for amplitude heatmap.")
         return

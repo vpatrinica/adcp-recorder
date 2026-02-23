@@ -335,10 +335,95 @@ class TestSpectrumPlots:
         render_directional_spectrum(mock_data_layer)
         mock_st.info.assert_called()
 
-    def test_render_amplitude_heatmap_detect_returns_none(self, mock_data_layer, mock_st):
-        """Test amplitude heatmap when detect_current_profile_view returns None (lines 602-603)."""
+    def test_render_directional_spectrum_detect_returns_none(self, mock_data_layer, mock_st):
+        """Test amplitude heatmap when detect_current_profile_view returns None."""
         mock_data_layer.detect_current_profile_view.return_value = None
 
         render_amplitude_heatmap(mock_data_layer)
 
         mock_st.info.assert_called_with("No current profile data available for amplitude heatmap.")
+
+    def test_render_directional_spectrum_incomplete_data(self, mock_data_layer, mock_st):
+        """Test directional spectrum with incomplete data (lines 435-441)."""
+        mock_st.columns.return_value = [MagicMock(), MagicMock()]
+        mock_st.selectbox.return_value = "24h"
+        mock_st.radio.return_value = "Bubble Plot"
+        mock_st.slider.return_value = 0
+        mock_data_layer.get_available_bursts.return_value = [
+            {"label": "2026-01-23 12:00:00", "received_at": datetime(2026, 1, 23, 12, 0, 0)}
+        ]
+
+        # Incomplete data: frequencies provided, but energies empty
+        mock_data_layer.query_directional_spectrum.return_value = {
+            "frequencies": [0.1, 0.2],
+            "energy": [],  # Empty
+            "directions": [0.0],
+            "spreads": [20.0],
+        }
+
+        render_directional_spectrum(mock_data_layer)
+        mock_st.warning.assert_called_with("Directional spectrum data is incomplete.")
+
+    def test_render_directional_spectrum_padding(self, mock_data_layer, mock_st, mock_go):
+        """Test directional spectrum with array padding (lines 446, 448, 450)."""
+        mock_st.columns.return_value = [MagicMock(), MagicMock()]
+        mock_st.selectbox.return_value = "24h"
+        mock_st.radio.return_value = "Bubble Plot"
+        mock_st.slider.return_value = 0
+        mock_data_layer.get_available_bursts.return_value = [
+            {"label": "2026-01-23 12:00:00", "received_at": datetime(2026, 1, 23, 12, 0, 0)}
+        ]
+
+        # Provide arrays of different lengths to trigger padding
+        mock_data_layer.query_directional_spectrum.return_value = {
+            "frequencies": [0.1, 0.2, 0.3],
+            "energy": [1.0],  # Short
+            "directions": [90.0],  # Short
+            "spreads": [10.0],  # Short
+        }
+
+        render_directional_spectrum(mock_data_layer)
+        mock_go.Scatterpolar.assert_called()
+
+    def test_render_directional_spectrum_zero_energy(self, mock_data_layer, mock_st, mock_go):
+        """Test directional spectrum with max energy <= 0 (line 496)."""
+        mock_st.columns.return_value = [MagicMock(), MagicMock()]
+        mock_st.selectbox.return_value = "24h"
+        mock_st.radio.return_value = "Bubble Plot"
+        mock_st.slider.return_value = 0
+        mock_data_layer.get_available_bursts.return_value = [
+            {"label": "2026-01-23 12:00:00", "received_at": datetime(2026, 1, 23, 12, 0, 0)}
+        ]
+
+        # Provide energy all 0
+        mock_data_layer.query_directional_spectrum.return_value = {
+            "frequencies": [0.1, 0.2],
+            "energy": [0.0, 0.0],
+            "directions": [90.0, 180.0],
+            "spreads": [20.0, 20.0],
+        }
+
+        render_directional_spectrum(mock_data_layer)
+        # Should call Scatterpolar with default marker sizes if energy is 0
+        mock_go.Scatterpolar.assert_called()
+
+    def test_render_directional_spectrum_mixed_energy(self, mock_data_layer, mock_st, mock_go):
+        """Test directional spectrum with mixed energy values (line 494)."""
+        mock_st.columns.return_value = [MagicMock(), MagicMock()]
+        mock_st.selectbox.return_value = "24h"
+        mock_st.radio.return_value = "Bubble Plot"
+        mock_st.slider.return_value = 0
+        mock_data_layer.get_available_bursts.return_value = [
+            {"label": "2026-01-23 12:00:00", "received_at": datetime(2026, 1, 23, 12, 0, 0)}
+        ]
+
+        # Provide mixed energy (one > 0, one <= 0) to hit line 494
+        mock_data_layer.query_directional_spectrum.return_value = {
+            "frequencies": [0.1, 0.2],
+            "energy": [1.0, 0.0],  # Mixed
+            "directions": [90.0, 180.0],
+            "spreads": [20.0, 20.0],
+        }
+
+        render_directional_spectrum(mock_data_layer)
+        mock_go.Scatterpolar.assert_called()

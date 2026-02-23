@@ -537,15 +537,19 @@ class DataLayer:
     ) -> list[dict[str, Any]]:
         """Query average signal strength (amplitude) for heatmaps."""
         source = self.get_source_metadata(source_name)
+        print(f"Selected source: {source_name}")
         if not source:
             return []
 
         start_time = self._parse_time_range(time_range)
-
+        print(f"Start time: {start_time}")
         ts_col = source.timestamp_column
+        print(f"Timestamp column: {ts_col}")
+        params: list[Any] = []
         # Discover amplitude columns (amp1, amp2, ...) dynamically to avoid
         # binder errors when a source doesn't have all expected columns.
         amp_cols = [c.name for c in source.columns if c.name.lower().startswith("amp")]
+        print(f"Amplitude columns: {amp_cols}")
 
         # If no amplitude-like columns, return empty (no data for heatmap)
         if not amp_cols:
@@ -562,14 +566,20 @@ class DataLayer:
                 {avg_expr}
             FROM {source.name}
         """
+        print(f"Query: {query}")
+        print(f"Params: {params}")
+        print(f"Start time: {start_time}")
+        print(f"Timestamp column: {ts_col}")
+        print(f"Amplitude columns: {amp_cols}")
+        print(f"Source: {source}")
 
-        params: list[Any] = []
         if start_time:
             query += f" WHERE {ts_col} >= ?"
             params.append(start_time)
 
         query += f" ORDER BY {ts_col} DESC, cell_index ASC LIMIT 20000"
-
+        print(f"Query: {query}")
+        print(f"Params: {params}")
         try:
             result = self.conn.execute(query, params).fetchall()
         except Exception:
@@ -586,11 +596,11 @@ class DataLayer:
             ts = row[0]
             amp = row[2]
             grouped[ts].append(amp)
-
+        print(f"Grouped: {grouped}")
         heatmap_data: list[dict[str, Any]] = []
         for ts, amps in grouped.items():
             heatmap_data.append({"received_at": ts, "amplitudes": amps})
-
+        print(f"Heatmap data: {heatmap_data}")
         return sorted(heatmap_data, key=lambda x: x["received_at"], reverse=True)
 
     def query_spectrum_data(
@@ -707,7 +717,7 @@ class DataLayer:
         ts_col = source.timestamp_column
         query = f"""
             SELECT
-                {ts_col},
+                {ts_col} AS received_at,
                 start_frequency, step_frequency, num_frequencies,
                 energy_densities
             FROM {source.name}
@@ -766,24 +776,28 @@ class DataLayer:
                                 return record[k]
                         return None
 
-                    start_f = pick(["start_frequency", "start_freq", "freq_start"]) or None
-                    step_f = pick(["step_frequency", "step_freq", "freq_step"]) or None
-                    num_f = pick(["num_frequencies", "num_freq", "n_frequencies"]) or None
-                    energy_json = pick(["energy_densities", "energy", "energy_density"]) or None
-                    directions_json = (
-                        pick(
-                            [
-                                "directions",
-                                "dir_values",
-                                "md_values",
-                                "mean_directions",
-                                "directional_values",
-                                "values",
-                            ]
-                        )
-                        or None
+                    # pick() already returns None when no key matches.
+                    # Do NOT use `or None` here — start_frequency=0 is valid
+                    # and `0 or None` would discard it.
+                    # Include aliased names from wave_measurement_full view
+                    # (energy_start_freq, energy_step_freq).
+                    start_f = pick(
+                        ["start_frequency", "energy_start_freq", "start_freq", "freq_start"]
                     )
-                    spreads_json = pick(["spreads", "ds_values", "directional_spread"]) or None
+                    step_f = pick(["step_frequency", "energy_step_freq", "step_freq", "freq_step"])
+                    num_f = pick(["num_frequencies", "num_freq", "n_frequencies"])
+                    energy_json = pick(["energy_densities", "energy", "energy_density"])
+                    directions_json = pick(
+                        [
+                            "directions",
+                            "dir_values",
+                            "md_values",
+                            "mean_directions",
+                            "directional_values",
+                            "values",
+                        ]
+                    )
+                    spreads_json = pick(["spreads", "ds_values", "directional_spread"])
 
                     if energy_json is None:
                         # Cannot construct spectrum without energy
@@ -806,7 +820,16 @@ class DataLayer:
                     else:
                         spreads = spreads_json or [0.0] * (int(num_f) if num_f else len(energy))
 
-                    if start_f is not None and step_f is not None and num_f is not None:
+                    # Infer num_f from energy array length if not available
+                    if num_f is None and isinstance(energy, list):
+                        num_f = len(energy)
+
+                    if (
+                        start_f is not None
+                        and step_f is not None
+                        and num_f is not None
+                        and num_f > 0
+                    ):
                         frequencies = [
                             round(float(start_f + i * step_f), 4) for i in range(int(num_f))
                         ]
@@ -961,7 +984,12 @@ class DataLayer:
                 "directions": directions,
                 "spreads": spreads,
             }
-        except Exception:
+        except Exception as exc:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "query_directional_spectrum fallback failed: %s", exc, exc_info=True
+            )
             return {}
 
     def get_column_stats(
