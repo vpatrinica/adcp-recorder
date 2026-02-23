@@ -22,9 +22,13 @@ from adcp_recorder.ui.components.current_profile_plots import (
 from adcp_recorder.ui.components.file_browser import render_file_browser
 from adcp_recorder.ui.components.spectrum_plots import (
     render_amplitude_heatmap,
+    render_direction_surface_3d,
     render_directional_spectrum,
     render_energy_heatmap,
+    render_energy_surface_3d,
     render_fourier_spectrum,
+    render_fourier_surface_3d,
+    render_spread_surface_3d,
 )
 from adcp_recorder.ui.components.table_view import render_table_view
 from adcp_recorder.ui.components.time_series import render_time_series
@@ -438,6 +442,18 @@ def render_panel(
 
     elif panel.type == PanelType.CURRENT_DIRECTION_POLAR:
         render_current_direction_polar(data_layer, config, key_prefix)
+
+    elif panel.type == PanelType.FOURIER_SURFACE_3D:
+        render_fourier_surface_3d(data_layer, config, key_prefix)
+
+    elif panel.type == PanelType.ENERGY_SURFACE_3D:
+        render_energy_surface_3d(data_layer, config, key_prefix)
+
+    elif panel.type == PanelType.DIRECTION_SURFACE_3D:
+        render_direction_surface_3d(data_layer, config, key_prefix)
+
+    elif panel.type == PanelType.SPREAD_SURFACE_3D:
+        render_spread_surface_3d(data_layer, config, key_prefix)
 
     else:
         st.warning(f"Unknown panel type: {panel.type}")

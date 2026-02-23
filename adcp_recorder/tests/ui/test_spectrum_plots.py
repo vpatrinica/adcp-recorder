@@ -11,9 +11,13 @@ pytest.importorskip("streamlit")
 
 from adcp_recorder.ui.components.spectrum_plots import (
     render_amplitude_heatmap,
+    render_direction_surface_3d,
     render_directional_spectrum,
     render_energy_heatmap,
+    render_energy_surface_3d,
     render_fourier_spectrum,
+    render_fourier_surface_3d,
+    render_spread_surface_3d,
 )
 
 
@@ -427,3 +431,129 @@ class TestSpectrumPlots:
 
         render_directional_spectrum(mock_data_layer)
         mock_go.Scatterpolar.assert_called()
+
+    # ── 3D Surface plot tests ──────────────────────────────────────────
+
+    def test_render_fourier_surface_3d_basic(self, mock_data_layer, mock_st, mock_go):
+        """Test basic rendering of Fourier 3D surface."""
+        mock_st.selectbox.side_effect = ["A1", "7d", "Viridis"]
+
+        mock_data_layer.query_spectrum_data.return_value = [
+            {
+                "measurement_date": "2026-01-23",
+                "measurement_time": "12:00:00",
+                "start_frequency": 0.1,
+                "step_frequency": 0.05,
+                "num_frequencies": 3,
+                "coefficients": [1.0, 1.1, 1.2],
+            },
+            {
+                "measurement_date": "2026-01-23",
+                "measurement_time": "13:00:00",
+                "start_frequency": 0.1,
+                "step_frequency": 0.05,
+                "num_frequencies": 3,
+                "coefficients": [2.0, 2.1, 2.2],
+            },
+        ]
+
+        render_fourier_surface_3d(mock_data_layer)
+        mock_go.Surface.assert_called()
+        mock_st.plotly_chart.assert_called()
+
+    def test_render_fourier_surface_3d_no_data(self, mock_data_layer, mock_st):
+        """Test Fourier 3D surface with no data."""
+        mock_st.selectbox.side_effect = ["A1", "7d", "Viridis"]
+        mock_data_layer.query_spectrum_data.return_value = []
+        render_fourier_surface_3d(mock_data_layer)
+        mock_st.info.assert_called()
+
+    def test_render_energy_surface_3d_basic(self, mock_data_layer, mock_st, mock_go):
+        """Test basic rendering of energy 3D surface."""
+        mock_st.columns.return_value = [MagicMock(), MagicMock()]
+        mock_st.selectbox.side_effect = ["7d", "Plasma"]
+
+        mock_data_layer.query_wave_energy.return_value = [
+            {
+                "received_at": datetime(2026, 1, 23, 12, 0, 0),
+                "start_frequency": 0.1,
+                "step_frequency": 0.05,
+                "energy_densities": [0.5, 0.6, 0.7],
+            },
+            {
+                "received_at": datetime(2026, 1, 23, 13, 0, 0),
+                "start_frequency": 0.1,
+                "step_frequency": 0.05,
+                "energy_densities": [0.8, 0.9, 1.0],
+            },
+        ]
+
+        render_energy_surface_3d(mock_data_layer)
+        mock_go.Surface.assert_called()
+        mock_st.plotly_chart.assert_called()
+
+    def test_render_energy_surface_3d_no_data(self, mock_data_layer, mock_st):
+        """Test energy 3D surface with no data."""
+        mock_st.columns.return_value = [MagicMock(), MagicMock()]
+        mock_st.selectbox.side_effect = ["7d", "Plasma"]
+        mock_data_layer.query_wave_energy.return_value = []
+        render_energy_surface_3d(mock_data_layer)
+        mock_st.info.assert_called()
+
+    def test_render_direction_surface_3d_basic(self, mock_data_layer, mock_st, mock_go):
+        """Test basic rendering of mean direction (MD) 3D surface."""
+        mock_st.columns.return_value = [MagicMock(), MagicMock()]
+        mock_st.selectbox.side_effect = ["7d", "HSV"]
+
+        mock_data_layer.get_available_bursts.return_value = [
+            {"label": "2026-01-23 12:00:00", "received_at": datetime(2026, 1, 23, 12, 0, 0)},
+            {"label": "2026-01-23 13:00:00", "received_at": datetime(2026, 1, 23, 13, 0, 0)},
+        ]
+
+        mock_data_layer.query_directional_spectrum.return_value = {
+            "frequencies": [0.1, 0.2, 0.3],
+            "energy": [1.0, 2.0, 3.0],
+            "directions": [90.0, 180.0, 270.0],
+            "spreads": [10.0, 15.0, 20.0],
+        }
+
+        render_direction_surface_3d(mock_data_layer)
+        mock_go.Surface.assert_called()
+        mock_st.plotly_chart.assert_called()
+
+    def test_render_direction_surface_3d_no_bursts(self, mock_data_layer, mock_st):
+        """Test mean direction 3D surface with no bursts."""
+        mock_st.columns.return_value = [MagicMock(), MagicMock()]
+        mock_st.selectbox.side_effect = ["7d", "HSV"]
+        mock_data_layer.get_available_bursts.return_value = []
+        render_direction_surface_3d(mock_data_layer)
+        mock_st.info.assert_called()
+
+    def test_render_spread_surface_3d_basic(self, mock_data_layer, mock_st, mock_go):
+        """Test basic rendering of directional spread (DS) 3D surface."""
+        mock_st.columns.return_value = [MagicMock(), MagicMock()]
+        mock_st.selectbox.side_effect = ["7d", "Viridis"]
+
+        mock_data_layer.get_available_bursts.return_value = [
+            {"label": "2026-01-23 12:00:00", "received_at": datetime(2026, 1, 23, 12, 0, 0)},
+            {"label": "2026-01-23 13:00:00", "received_at": datetime(2026, 1, 23, 13, 0, 0)},
+        ]
+
+        mock_data_layer.query_directional_spectrum.return_value = {
+            "frequencies": [0.1, 0.2, 0.3],
+            "energy": [1.0, 2.0, 3.0],
+            "directions": [90.0, 180.0, 270.0],
+            "spreads": [10.0, 15.0, 20.0],
+        }
+
+        render_spread_surface_3d(mock_data_layer)
+        mock_go.Surface.assert_called()
+        mock_st.plotly_chart.assert_called()
+
+    def test_render_spread_surface_3d_no_bursts(self, mock_data_layer, mock_st):
+        """Test directional spread 3D surface with no bursts."""
+        mock_st.columns.return_value = [MagicMock(), MagicMock()]
+        mock_st.selectbox.side_effect = ["7d", "Viridis"]
+        mock_data_layer.get_available_bursts.return_value = []
+        render_spread_surface_3d(mock_data_layer)
+        mock_st.info.assert_called()

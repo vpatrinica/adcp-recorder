@@ -711,3 +711,510 @@ def render_amplitude_heatmap(
     )
 
     st.plotly_chart(fig, width="stretch", key=f"{key_prefix}_chart")
+
+
+def render_fourier_surface_3d(
+    data_layer: DataLayer,
+    config: dict[str, Any] | None = None,
+    key_prefix: str = "fourier_3d",
+) -> None:
+    """Render Fourier coefficients as a 3D surface (Time × Frequency × Value).
+
+    Shows all bursts simultaneously so the user does not need to navigate
+    one-by-one with a slider.
+
+    Args:
+        data_layer: DataLayer instance for data access
+        config: Configuration dict with data_source, coefficient, time_range
+        key_prefix: Unique key prefix for Streamlit session state
+
+    """
+    if st is None or go is None:
+        raise ImportError("Streamlit and Plotly are required for this component.")
+    config = config or {}
+
+    # Configuration
+    source_name = config.get("data_source", "pnorf_data")
+    coefficient = config.get("coefficient", "A1")
+    time_range = config.get("time_range", "7d")
+    colorscale = config.get("colorscale", "Viridis")
+
+    # Controls
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        coefficient = st.selectbox(
+            "Coefficient Type",
+            options=["A1", "B1", "A2", "B2"],
+            index=["A1", "B1", "A2", "B2"].index(coefficient),
+            key=f"{key_prefix}_coeff",
+        )
+
+    with col2:
+        time_range = st.selectbox(
+            "Time Range",
+            options=["1h", "6h", "24h", "7d", "30d", "all"],
+            index=["1h", "6h", "24h", "7d", "30d", "all"].index(time_range)
+            if time_range in ["1h", "6h", "24h", "7d", "30d", "all"]
+            else 3,
+            key=f"{key_prefix}_time_range",
+        )
+
+    with col3:
+        colorscale = st.selectbox(
+            "Color Scale",
+            options=["Viridis", "Plasma", "Inferno", "Turbo", "Blues"],
+            index=0,
+            key=f"{key_prefix}_colorscale",
+        )
+
+    try:
+        spectrum_data = data_layer.query_spectrum_data(
+            source_name=source_name,
+            coefficient=coefficient,
+            time_range=time_range,
+        )
+
+        if not spectrum_data:
+            st.info(
+                f"No {coefficient} spectrum data available for 3D surface "
+                f"in the selected time range."
+            )
+            return
+
+        # Build the 2D matrix: rows = bursts (time), cols = frequency bins
+        timestamps: list[str] = []
+        z_rows: list[list[float]] = []
+
+        for record in spectrum_data:
+            coefficients_val = record.get("coefficients")
+            if isinstance(coefficients_val, str):
+                try:
+                    coefficients_val = json.loads(coefficients_val)
+                except json.JSONDecodeError:
+                    continue
+            if not coefficients_val or not isinstance(coefficients_val, list):
+                continue
+
+            date_str = record.get("measurement_date", "")
+            time_str = record.get("measurement_time", "")
+            timestamps.append(f"{date_str} {time_str}".strip())
+            z_rows.append([float(v) if v is not None else 0.0 for v in coefficients_val])
+
+        if not z_rows:
+            st.info("No valid Fourier records for 3D surface.")
+            return
+
+        # Pad rows to uniform length
+        max_len = max(len(row) for row in z_rows)
+        for row in z_rows:
+            row.extend([0.0] * (max_len - len(row)))
+
+        z_data = np.array(z_rows, dtype=float)
+
+        # Frequency axis from first valid record
+        first = spectrum_data[0]
+        start_f = first.get("start_frequency", 0.0)
+        step_f = first.get("step_frequency", 0.01)
+        freq_axis = [start_f + i * step_f for i in range(max_len)]
+
+        fig = go.Figure(
+            data=go.Surface(
+                z=z_data,
+                x=freq_axis,
+                y=list(range(len(timestamps))),
+                colorscale=colorscale,
+                colorbar=dict(title=f"{coefficient}"),
+                hovertemplate=(
+                    f"{coefficient}<br>"
+                    "Freq: %{x:.3f} Hz<br>"
+                    "Burst: %{y}<br>"
+                    "Value: %{z:.4f}<extra></extra>"
+                ),
+            ),
+        )
+
+        fig.update_layout(
+            height=600,
+            margin=dict(l=20, r=20, t=30, b=20),
+            scene=dict(
+                xaxis=dict(title="Frequency (Hz)"),
+                yaxis=dict(title="Burst Index"),
+                zaxis=dict(title=f"{coefficient} Coefficient"),
+            ),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+        )
+
+        st.plotly_chart(fig, width="stretch", key=f"{key_prefix}_chart")
+        st.caption(
+            f"3D surface: {len(z_rows)} bursts × {max_len} frequency bins "
+            f"({coefficient}, {time_range})"
+        )
+
+    except Exception as e:
+        st.error(f"Error rendering Fourier 3D surface: {e}")
+
+
+def render_energy_surface_3d(
+    data_layer: DataLayer,
+    config: dict[str, Any] | None = None,
+    key_prefix: str = "energy_3d",
+) -> None:
+    """Render wave energy density as a 3D surface (Time × Frequency × Energy).
+
+    Shows all energy spectra simultaneously so the user does not need to
+    navigate one-by-one with a slider.
+
+    Args:
+        data_layer: DataLayer instance for data access
+        config: Configuration dict with data_source, time_range, colorscale
+        key_prefix: Unique key prefix for Streamlit session state
+
+    """
+    if st is None or go is None:
+        raise ImportError("Streamlit and Plotly are required for this component.")
+    config = config or {}
+
+    # Configuration
+    source_name = config.get("data_source", "pnore_data")
+    time_range = config.get("time_range", "7d")
+    colorscale = config.get("colorscale", "Plasma")
+
+    # Controls
+    col1, col2 = st.columns(2)
+
+    with col1:
+        time_range = st.selectbox(
+            "Time Range",
+            options=["1h", "6h", "24h", "7d", "30d", "all"],
+            index=["1h", "6h", "24h", "7d", "30d", "all"].index(time_range)
+            if time_range in ["1h", "6h", "24h", "7d", "30d", "all"]
+            else 3,
+            key=f"{key_prefix}_time_range",
+        )
+
+    with col2:
+        colorscale = st.selectbox(
+            "Color Scale",
+            options=["Plasma", "Viridis", "Inferno", "Turbo", "Hot"],
+            index=0,
+            key=f"{key_prefix}_colorscale",
+        )
+
+    try:
+        energy_data = data_layer.query_wave_energy(
+            source_name=source_name,
+            time_range=time_range,
+        )
+
+        if not energy_data:
+            st.info("No wave energy data available for 3D surface in the selected time range.")
+            return
+
+        # Build the 2D matrix: rows = bursts (time), cols = frequency bins
+        timestamps: list[str] = []
+        z_rows: list[list[float]] = []
+
+        for record in energy_data:
+            energies = record.get("energy_densities")
+            if isinstance(energies, str):
+                try:
+                    energies = json.loads(energies)
+                except json.JSONDecodeError:
+                    continue
+            if not energies or not isinstance(energies, list):
+                continue
+
+            ts = record.get("received_at", "")
+            timestamps.append(str(ts))
+            z_rows.append([float(v) if v is not None else 0.0 for v in energies])
+
+        if not z_rows:
+            st.info("No valid energy records for 3D surface.")
+            return
+
+        # Pad rows to uniform length
+        max_len = max(len(row) for row in z_rows)
+        for row in z_rows:
+            row.extend([0.0] * (max_len - len(row)))
+
+        z_data = np.array(z_rows, dtype=float)
+
+        # Frequency axis from first valid record
+        first = energy_data[0]
+        start_f = first.get("start_frequency", 0.0)
+        step_f = first.get("step_frequency", 0.01)
+        freq_axis = [start_f + i * step_f for i in range(max_len)]
+
+        fig = go.Figure(
+            data=go.Surface(
+                z=z_data,
+                x=freq_axis,
+                y=list(range(len(timestamps))),
+                colorscale=colorscale,
+                colorbar=dict(title="Energy (m²/Hz)"),
+                hovertemplate=(
+                    "Freq: %{x:.3f} Hz<br>Burst: %{y}<br>Energy: %{z:.4f} m²/Hz<extra></extra>"
+                ),
+            ),
+        )
+
+        fig.update_layout(
+            height=600,
+            margin=dict(l=20, r=20, t=30, b=20),
+            scene=dict(
+                xaxis=dict(title="Frequency (Hz)"),
+                yaxis=dict(title="Burst Index"),
+                zaxis=dict(title="Energy (m²/Hz)"),
+            ),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+        )
+
+        st.plotly_chart(fig, width="stretch", key=f"{key_prefix}_chart")
+        st.caption(f"3D surface: {len(z_rows)} bursts × {max_len} frequency bins ({time_range})")
+
+    except Exception as e:
+        st.error(f"Error rendering energy 3D surface: {e}")
+
+
+def _query_directional_field_surface(
+    data_layer: DataLayer,
+    field: str,
+    time_range: str,
+) -> tuple[list[list[float]], list[str], list[float]]:
+    """Shared helper: collect one field across all bursts.
+
+    Args:
+        data_layer: DataLayer instance
+        field: Key to extract from query result ('directions' or 'spreads')
+        time_range: Time range string
+
+    Returns:
+        (z_rows, labels, freq_axis) – may be empty if no data found.
+
+    """
+    bursts = data_layer.get_available_bursts(time_range=time_range)
+    if not bursts:
+        return [], [], []
+
+    z_rows: list[list[float]] = []
+    labels: list[str] = []
+    freq_axis: list[float] = []
+
+    for burst in bursts:
+        data = data_layer.query_directional_spectrum(
+            time_range=time_range,
+            timestamp=burst["received_at"],
+        )
+        if not data:
+            continue
+
+        values = data.get(field, [])
+        if not values:
+            continue
+
+        clean = [float(v) if v is not None else 0.0 for v in values]
+        z_rows.append(clean)
+        labels.append(burst.get("label", ""))
+
+        # Capture frequency axis from first successful burst
+        if not freq_axis:
+            freq_axis = list(data.get("frequencies", []))
+
+    if not z_rows:
+        return [], [], freq_axis
+
+    # Pad rows to uniform length
+    max_len = max(len(row) for row in z_rows)
+    for row in z_rows:
+        row.extend([0.0] * (max_len - len(row)))
+
+    # Extend frequency axis if shorter than data
+    if len(freq_axis) < max_len:
+        step = freq_axis[1] - freq_axis[0] if len(freq_axis) > 1 else 0.01
+        start = freq_axis[-1] + step if freq_axis else 0.0
+        freq_axis = freq_axis + [start + i * step for i in range(max_len - len(freq_axis))]
+
+    return z_rows, labels, freq_axis[:max_len]
+
+
+def render_direction_surface_3d(
+    data_layer: DataLayer,
+    config: dict[str, Any] | None = None,
+    key_prefix: str = "md_3d",
+) -> None:
+    """Render mean direction (MD) as a 3D surface (Frequency × Burst × Direction).
+
+    Shows how the mean wave direction varies across frequency and time for
+    all bursts simultaneously.
+
+    Args:
+        data_layer: DataLayer instance for data access
+        config: Configuration dict with time_range
+        key_prefix: Unique key prefix for Streamlit session state
+
+    """
+    if st is None or go is None:
+        raise ImportError("Streamlit and Plotly are required for this component.")
+    config = config or {}
+
+    time_range = config.get("time_range", "7d")
+    colorscale = config.get("colorscale", "HSV")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        time_range = st.selectbox(
+            "Observation Window",
+            options=["1h", "6h", "24h", "7d", "30d", "all"],
+            index=["1h", "6h", "24h", "7d", "30d", "all"].index(time_range)
+            if time_range in ["1h", "6h", "24h", "7d", "30d", "all"]
+            else 3,
+            key=f"{key_prefix}_time_range",
+        )
+
+    with col2:
+        colorscale = st.selectbox(
+            "Color Scale",
+            options=["HSV", "Turbo", "Viridis", "Plasma", "Inferno"],
+            index=0,
+            key=f"{key_prefix}_colorscale",
+        )
+
+    try:
+        z_rows, labels, freq_axis = _query_directional_field_surface(
+            data_layer, "directions", time_range
+        )
+
+        if not z_rows:
+            st.info("No mean direction data found for 3D surface.")
+            st.caption("Try increasing the Observation Window if data is older.")
+            return
+
+        z_data = np.array(z_rows, dtype=float)
+
+        fig = go.Figure(
+            data=go.Surface(
+                z=z_data,
+                x=freq_axis,
+                y=list(range(len(labels))),
+                colorscale=colorscale,
+                colorbar=dict(title="Direction (°)"),
+                hovertemplate=(
+                    "Freq: %{x:.3f} Hz<br>Burst: %{y}<br>Direction: %{z:.1f}°<extra></extra>"
+                ),
+            ),
+        )
+
+        fig.update_layout(
+            height=600,
+            margin=dict(l=20, r=20, t=30, b=20),
+            scene=dict(
+                xaxis=dict(title="Frequency (Hz)"),
+                yaxis=dict(title="Burst Index"),
+                zaxis=dict(title="Mean Direction (°)"),
+            ),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+        )
+
+        st.plotly_chart(fig, width="stretch", key=f"{key_prefix}_chart")
+        st.caption(
+            f"3D mean direction: {len(z_rows)} bursts × "
+            f"{len(freq_axis)} frequency bins ({time_range})"
+        )
+
+    except Exception as e:
+        st.error(f"Error rendering mean direction 3D surface: {e}")
+
+
+def render_spread_surface_3d(
+    data_layer: DataLayer,
+    config: dict[str, Any] | None = None,
+    key_prefix: str = "ds_3d",
+) -> None:
+    """Render directional spread (DS) as a 3D surface (Frequency × Burst × Spread).
+
+    Shows how the directional spread varies across frequency and time for
+    all bursts simultaneously.
+
+    Args:
+        data_layer: DataLayer instance for data access
+        config: Configuration dict with time_range
+        key_prefix: Unique key prefix for Streamlit session state
+
+    """
+    if st is None or go is None:
+        raise ImportError("Streamlit and Plotly are required for this component.")
+    config = config or {}
+
+    time_range = config.get("time_range", "7d")
+    colorscale = config.get("colorscale", "Viridis")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        time_range = st.selectbox(
+            "Observation Window",
+            options=["1h", "6h", "24h", "7d", "30d", "all"],
+            index=["1h", "6h", "24h", "7d", "30d", "all"].index(time_range)
+            if time_range in ["1h", "6h", "24h", "7d", "30d", "all"]
+            else 3,
+            key=f"{key_prefix}_time_range",
+        )
+
+    with col2:
+        colorscale = st.selectbox(
+            "Color Scale",
+            options=["Viridis", "Plasma", "Turbo", "Inferno", "Hot"],
+            index=0,
+            key=f"{key_prefix}_colorscale",
+        )
+
+    try:
+        z_rows, labels, freq_axis = _query_directional_field_surface(
+            data_layer, "spreads", time_range
+        )
+
+        if not z_rows:
+            st.info("No directional spread data found for 3D surface.")
+            st.caption("Try increasing the Observation Window if data is older.")
+            return
+
+        z_data = np.array(z_rows, dtype=float)
+
+        fig = go.Figure(
+            data=go.Surface(
+                z=z_data,
+                x=freq_axis,
+                y=list(range(len(labels))),
+                colorscale=colorscale,
+                colorbar=dict(title="Spread (°)"),
+                hovertemplate=(
+                    "Freq: %{x:.3f} Hz<br>Burst: %{y}<br>Spread: %{z:.1f}°<extra></extra>"
+                ),
+            ),
+        )
+
+        fig.update_layout(
+            height=600,
+            margin=dict(l=20, r=20, t=30, b=20),
+            scene=dict(
+                xaxis=dict(title="Frequency (Hz)"),
+                yaxis=dict(title="Burst Index"),
+                zaxis=dict(title="Directional Spread (°)"),
+            ),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+        )
+
+        st.plotly_chart(fig, width="stretch", key=f"{key_prefix}_chart")
+        st.caption(
+            f"3D directional spread: {len(z_rows)} bursts × "
+            f"{len(freq_axis)} frequency bins ({time_range})"
+        )
+
+    except Exception as e:
+        st.error(f"Error rendering directional spread 3D surface: {e}")

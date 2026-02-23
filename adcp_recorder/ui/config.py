@@ -25,6 +25,10 @@ class PanelType(StrEnum):
     WAVE_ROSE = "wave_rose"
     CURRENT_SPEED_HEATMAP = "current_speed_heatmap"
     CURRENT_DIRECTION_POLAR = "current_direction_polar"
+    FOURIER_SURFACE_3D = "fourier_surface_3d"
+    ENERGY_SURFACE_3D = "energy_surface_3d"
+    DIRECTION_SURFACE_3D = "direction_surface_3d"
+    SPREAD_SURFACE_3D = "spread_surface_3d"
 
 
 class TimeRange(StrEnum):
@@ -200,6 +204,37 @@ class CurrentDirectionPolarPanelConfig(BaseModel):
     time_range: str = Field(default="24h")
 
 
+class FourierSurface3DPanelConfig(BaseModel):
+    """Configuration for 3D Fourier coefficient surface plots."""
+
+    data_source: str = Field(default="pnorf_data")
+    coefficient: str = Field(default="A1")
+    colorscale: str = Field(default="Viridis")
+    time_range: str = Field(default="7d")
+
+
+class EnergySurface3DPanelConfig(BaseModel):
+    """Configuration for 3D wave energy density surface plots."""
+
+    data_source: str = Field(default="pnore_data")
+    colorscale: str = Field(default="Plasma")
+    time_range: str = Field(default="7d")
+
+
+class DirectionSurface3DPanelConfig(BaseModel):
+    """Configuration for 3D mean direction surface plots (PNORWD md_values)."""
+
+    colorscale: str = Field(default="HSV")
+    time_range: str = Field(default="7d")
+
+
+class SpreadSurface3DPanelConfig(BaseModel):
+    """Configuration for 3D directional spread surface plots (PNORWD ds_values)."""
+
+    colorscale: str = Field(default="Viridis")
+    time_range: str = Field(default="7d")
+
+
 class PanelConfig(BaseModel):
     """Configuration for a single dashboard panel."""
 
@@ -234,6 +269,10 @@ class PanelConfig(BaseModel):
             PanelType.WAVE_ROSE: WaveRosePanelConfig,
             PanelType.CURRENT_SPEED_HEATMAP: CurrentSpeedHeatmapPanelConfig,
             PanelType.CURRENT_DIRECTION_POLAR: CurrentDirectionPolarPanelConfig,
+            PanelType.FOURIER_SURFACE_3D: FourierSurface3DPanelConfig,
+            PanelType.ENERGY_SURFACE_3D: EnergySurface3DPanelConfig,
+            PanelType.DIRECTION_SURFACE_3D: DirectionSurface3DPanelConfig,
+            PanelType.SPREAD_SURFACE_3D: SpreadSurface3DPanelConfig,
         }
         config_class = config_map.get(self.type)
         if config_class:
@@ -521,7 +560,7 @@ DASHBOARD_TEMPLATES = {
     "wave_analysis": DashboardConfig(
         name="Wave Analysis",
         description="Comprehensive wave spectrum and directional analysis",
-        layout=LayoutConfig(columns=1, rows=11),
+        layout=LayoutConfig(columns=1, rows=15),
         panels=[
             PanelConfig(
                 id="wave_params",
@@ -608,6 +647,34 @@ DASHBOARD_TEMPLATES = {
                     ],
                     "limit": 50,
                 },
+            ),
+            PanelConfig(
+                id="fourier_surface_3d",
+                type=PanelType.FOURIER_SURFACE_3D,
+                title="3D Fourier Coefficient Surface",
+                position=PanelPosition(row=11, col=0),
+                config={"data_source": "pnorf_data", "coefficient": "A1", "time_range": "7d"},
+            ),
+            PanelConfig(
+                id="energy_surface_3d",
+                type=PanelType.ENERGY_SURFACE_3D,
+                title="3D Wave Energy Density Surface",
+                position=PanelPosition(row=12, col=0),
+                config={"data_source": "pnore_data", "colorscale": "Plasma", "time_range": "7d"},
+            ),
+            PanelConfig(
+                id="direction_surface_3d",
+                type=PanelType.DIRECTION_SURFACE_3D,
+                title="3D Mean Direction Surface (PNORWD)",
+                position=PanelPosition(row=13, col=0),
+                config={"time_range": "7d"},
+            ),
+            PanelConfig(
+                id="spread_surface_3d",
+                type=PanelType.SPREAD_SURFACE_3D,
+                title="3D Directional Spread Surface (PNORWD)",
+                position=PanelPosition(row=14, col=0),
+                config={"time_range": "7d"},
             ),
         ],
     ),
