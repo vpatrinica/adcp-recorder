@@ -796,9 +796,8 @@ def render_fourier_surface_3d(
             if not coefficients_val or not isinstance(coefficients_val, list):
                 continue
 
-            date_str = record.get("measurement_date", "")
-            time_str = record.get("measurement_time", "")
-            timestamps.append(f"{date_str} {time_str}".strip())
+            ts = record.get("received_at")
+            timestamps.append(str(ts) if ts else "")
             z_rows.append([float(v) if v is not None else 0.0 for v in coefficients_val])
 
         if not z_rows:
@@ -822,13 +821,13 @@ def render_fourier_surface_3d(
             data=go.Surface(
                 z=z_data,
                 x=freq_axis,
-                y=list(range(len(timestamps))),
+                y=timestamps,
                 colorscale=colorscale,
                 colorbar=dict(title=f"{coefficient}"),
                 hovertemplate=(
                     f"{coefficient}<br>"
                     "Freq: %{x:.3f} Hz<br>"
-                    "Burst: %{y}<br>"
+                    "Time: %{y}<br>"
                     "Value: %{z:.4f}<extra></extra>"
                 ),
             ),
@@ -839,7 +838,11 @@ def render_fourier_surface_3d(
             margin=dict(l=20, r=20, t=30, b=20),
             scene=dict(
                 xaxis=dict(title="Frequency (Hz)"),
-                yaxis=dict(title="Burst Index"),
+                yaxis=dict(
+                    title="Time",
+                    ticklen=25,
+                    tickcolor="rgba(0,0,0,0)",
+                ),
                 zaxis=dict(title=f"{coefficient} Coefficient"),
             ),
             plot_bgcolor="rgba(0,0,0,0)",
@@ -951,11 +954,11 @@ def render_energy_surface_3d(
             data=go.Surface(
                 z=z_data,
                 x=freq_axis,
-                y=list(range(len(timestamps))),
+                y=timestamps,
                 colorscale=colorscale,
                 colorbar=dict(title="Energy (m²/Hz)"),
                 hovertemplate=(
-                    "Freq: %{x:.3f} Hz<br>Burst: %{y}<br>Energy: %{z:.4f} m²/Hz<extra></extra>"
+                    "Freq: %{x:.3f} Hz<br>Time: %{y}<br>Energy: %{z:.4f} m²/Hz<extra></extra>"
                 ),
             ),
         )
@@ -965,7 +968,11 @@ def render_energy_surface_3d(
             margin=dict(l=20, r=20, t=30, b=20),
             scene=dict(
                 xaxis=dict(title="Frequency (Hz)"),
-                yaxis=dict(title="Burst Index"),
+                yaxis=dict(
+                    title="Time",
+                    ticklen=25,
+                    tickcolor="rgba(0,0,0,0)",
+                ),
                 zaxis=dict(title="Energy (m²/Hz)"),
             ),
             plot_bgcolor="rgba(0,0,0,0)",
@@ -1017,7 +1024,8 @@ def _query_directional_field_surface(
 
         clean = [float(v) if v is not None else 0.0 for v in values]
         z_rows.append(clean)
-        labels.append(burst.get("label", ""))
+        ts = burst.get("received_at")
+        labels.append(str(ts) if ts else "")
 
         # Capture frequency axis from first successful burst
         if not freq_axis:
@@ -1099,11 +1107,11 @@ def render_direction_surface_3d(
             data=go.Surface(
                 z=z_data,
                 x=freq_axis,
-                y=list(range(len(labels))),
+                y=labels,
                 colorscale=colorscale,
                 colorbar=dict(title="Direction (°)"),
                 hovertemplate=(
-                    "Freq: %{x:.3f} Hz<br>Burst: %{y}<br>Direction: %{z:.1f}°<extra></extra>"
+                    "Freq: %{x:.3f} Hz<br>Time: %{y}<br>Direction: %{z:.1f}°<extra></extra>"
                 ),
             ),
         )
@@ -1113,7 +1121,11 @@ def render_direction_surface_3d(
             margin=dict(l=20, r=20, t=30, b=20),
             scene=dict(
                 xaxis=dict(title="Frequency (Hz)"),
-                yaxis=dict(title="Burst Index"),
+                yaxis=dict(
+                    title="Time",
+                    ticklen=25,
+                    tickcolor="rgba(0,0,0,0)",
+                ),
                 zaxis=dict(title="Mean Direction (°)"),
             ),
             plot_bgcolor="rgba(0,0,0,0)",
@@ -1189,11 +1201,11 @@ def render_spread_surface_3d(
             data=go.Surface(
                 z=z_data,
                 x=freq_axis,
-                y=list(range(len(labels))),
+                y=labels,
                 colorscale=colorscale,
                 colorbar=dict(title="Spread (°)"),
                 hovertemplate=(
-                    "Freq: %{x:.3f} Hz<br>Burst: %{y}<br>Spread: %{z:.1f}°<extra></extra>"
+                    "Freq: %{x:.3f} Hz<br>Time: %{y}<br>Spread: %{z:.1f}°<extra></extra>"
                 ),
             ),
         )
@@ -1203,7 +1215,11 @@ def render_spread_surface_3d(
             margin=dict(l=20, r=20, t=30, b=20),
             scene=dict(
                 xaxis=dict(title="Frequency (Hz)"),
-                yaxis=dict(title="Burst Index"),
+                yaxis=dict(
+                    title="Time",
+                    ticklen=25,
+                    tickcolor="rgba(0,0,0,0)",
+                ),
                 zaxis=dict(title="Directional Spread (°)"),
             ),
             plot_bgcolor="rgba(0,0,0,0)",

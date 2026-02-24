@@ -619,7 +619,7 @@ class DataLayer:
         ts_col = source.timestamp_column
         query = f"""
             SELECT
-                measurement_date, measurement_time,
+                measurement_date, measurement_time, {ts_col} AS received_at,
                 start_frequency, step_frequency, num_frequencies,
                 coefficient_flag, coefficients
             FROM {source.name}
@@ -631,7 +631,7 @@ class DataLayer:
             query += f" AND {ts_col} >= ?"
             params.append(start_time)
 
-        query += f" ORDER BY {ts_col} DESC LIMIT 100"
+        query += f" ORDER BY {ts_col} DESC LIMIT 5000"
 
         try:
             result = self.conn.execute(query, params).fetchall()
@@ -686,7 +686,7 @@ class DataLayer:
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
 
-        query += f" ORDER BY {ts_col} DESC LIMIT 1000"
+        query += f" ORDER BY {ts_col} DESC LIMIT 5000"
 
         try:
             result = self.conn.execute(query, params).fetchall()
@@ -728,7 +728,7 @@ class DataLayer:
             query += f" WHERE {ts_col} >= ?"
             params.append(start_time)
 
-        query += f" ORDER BY {ts_col} DESC LIMIT 500"
+        query += f" ORDER BY {ts_col} DESC LIMIT 5000"
 
         try:
             result = self.conn.execute(query, params).fetchall()
