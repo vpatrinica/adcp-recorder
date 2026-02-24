@@ -132,9 +132,20 @@ class TestDataLayerCompleteCoverage:
         res = data_layer.query_directional_spectrum(timestamp=now)
         assert res["measurement_date"] == "010123"
 
+    def test_column_stats_success(self, data_layer, real_conn):
+        """Lines 1022-1027."""
+        real_conn.execute(
+            "INSERT INTO pnors_df100 (record_id, measurement_date, measurement_time, "
+            "original_sentence, temperature) "
+            "VALUES (1, '010123', '120000', 'test', 25.0)"
+        )
+        res = data_layer.get_column_stats("pnors_df100", "temperature")
+        assert res["avg"] == 25.0
+        assert res["count"] == 1
+
     def test_column_stats_errors(self, data_layer):
-        """Line 699, 703."""
-        # Line 699 failure fallback
+        """Line 1002, 1006, 1028-1029."""
+        # Line 1002 failure fallback
         assert data_layer.get_column_stats("nonexistent", "col") == {}
 
         res = data_layer.get_column_stats("pnors_df100", "original_sentence")
@@ -188,21 +199,47 @@ class TestDataLayerCompleteCoverage:
         mock_execute.side_effect = Exception("Describe fail")
         assert data_layer.get_column_info("t") == []
 
-        # query_time_series exception
-        mock_execute.side_effect = Exception("Time series fail")
-        assert data_layer.query_time_series("t", ["v"])["x"] == []
+        # query_time_series exception (430-431)
+        with patch.object(data_layer, "get_source_metadata") as mock_meta:
+            mock_meta.return_value = DataSource(
+                "t",
+                "T",
+                [
+                    ColumnMetadata("ts", ColumnType.TIMESTAMP),
+                    ColumnMetadata("v", ColumnType.NUMERIC),
+                ],
+                has_timestamp=True,
+                timestamp_column="ts",
+            )
+            mock_execute.side_effect = Exception("Time series fail")
+            assert data_layer.query_time_series("t", ["v"])["x"] == []
 
-        # query_spectrum_data exception
-        mock_execute.side_effect = Exception("Spectrum fail")
-        assert data_layer.query_spectrum_data("pnore_data") == []
+        # query_spectrum_data exception (640-641)
+        with patch.object(data_layer, "get_source_metadata") as mock_meta:
+            mock_meta.return_value = DataSource("pnore_data", "Nodes", [])
+            mock_execute.side_effect = Exception("Spectrum fail")
+            assert data_layer.query_spectrum_data("pnore_data") == []
 
-        # get_available_bursts exception
-        mock_execute.side_effect = Exception("Bursts fail")
-        assert data_layer.get_available_bursts() == []
+        # get_available_bursts exception (702-703)
+        with patch.object(data_layer, "get_source_metadata") as mock_meta:
+            mock_meta.return_value = DataSource("pnore_data", "Nodes", [], timestamp_column="ts")
+            mock_execute.side_effect = Exception("Bursts fail")
+            assert data_layer.get_available_bursts() == []
 
-        # query_wave_energy exception
-        mock_execute.side_effect = Exception("Energy fail")
-        assert data_layer.query_wave_energy("pnore_data") == []
+        # query_wave_energy exception (737-738)
+        with patch.object(data_layer, "get_source_metadata") as mock_meta:
+            mock_meta.return_value = DataSource("pnore_data", "Nodes", [])
+            mock_execute.side_effect = Exception("Energy fail")
+            assert data_layer.query_wave_energy("pnore_data") == []
+
+        # query_directional_spectrum view exception (848-850)
+        with patch.object(data_layer, "get_source_metadata") as mock_meta:
+            mock_meta.side_effect = lambda name: (
+                DataSource(name, name, []) if name == "wave_measurement_full" else None
+            )
+            mock_execute.side_effect = Exception("View query fail")
+            # Should fall back and return empty or hit secondary fallback
+            assert data_layer.query_directional_spectrum() == {}
 
         # execute_sql exception
         mock_execute.side_effect = Exception("SQL fail")
@@ -259,20 +296,70 @@ class TestDataLayerCompleteCoverage:
         )
         assert len(res) >= 1
 
-    def test_directional_spectrum_fallback(self, data_layer, real_conn):
-        """Line 614-615."""
-        # Data exists with date/time, but received_at is slightly different
+    def test_directional_spectrum_complex_fallbacks(self, data_layer, real_conn):
+        """Lines 896-897, 905, 922-923, 927-944, 949-950, 976."""
+        # Ensure wave_measurement_full doesn't exist to trigger fallback
+        real_conn.execute("DROP VIEW IF EXISTS wave_measurement_full")
+        data_layer._source_cache = {}
+
+        # 921: No latest measurement
+        assert data_layer.query_directional_spectrum() == {}
+
+        # 905: Timestamp not found
+        assert data_layer.query_directional_spectrum(timestamp=datetime.now()) == {}
+
+        # Setup data for deeper fallback lines
         now = datetime(2023, 1, 1, 12, 0, 0)
         real_conn.execute(
-            "INSERT INTO pnore_data (record_id, received_at, sentence_type, original_sentence, "
-            "measurement_date, measurement_time, spectrum_basis, start_frequency, "
-            "step_frequency, num_frequencies, energy_densities) "
-            "VALUES (11, ?, 'PNORE', 'test', '010123', '120000', 1, 0.5, 0.1, 1, '[1]')",
-            [now + timedelta(milliseconds=1)],  # Different received_at
+            "INSERT INTO pnore_data (record_id, received_at, sentence_type, "
+            "original_sentence, measurement_date, measurement_time, spectrum_basis, "
+            "start_frequency, step_frequency, num_frequencies, energy_densities) "
+            "VALUES (100, ?, 'PNORE', 'test', '010123', '120000', 1, 0.5, 0.1, 1, '[1.0]')",
+            [now],
         )
-        # Querying with 'now' will fail at 610, hitting fallback at 614
+        # Also need pnorwd_data for the latest query join (MD/DS)
+        real_conn.execute(
+            "INSERT INTO pnorwd_data (record_id, sentence_type, original_sentence, "
+            "measurement_date, measurement_time, direction_type, values, spectrum_basis, "
+            "num_frequencies) "
+            "VALUES (101, 'PNORWD', 'test', '010123', '120000', 'MD', '[90.0]', 1, 1)"
+        )
+        real_conn.execute(
+            "INSERT INTO pnorwd_data (record_id, sentence_type, original_sentence, "
+            "measurement_date, measurement_time, direction_type, values, spectrum_basis, "
+            "num_frequencies) "
+            "VALUES (102, 'PNORWD', 'test', '010123', '120000', 'DS', '[15.0]', 1, 1)"
+        )
+
+        # Trigger latest query success (922)
+        res = data_layer.query_directional_spectrum()
+        assert res["measurement_date"] == "010123"
+
+        # Trigger exact timestamp success (900)
         res = data_layer.query_directional_spectrum(timestamp=now)
         assert res["measurement_date"] == "010123"
+
+        # 896-897, 881-883: Date format fallbacks
+        # We delete by timestamp and try date/time strings
+        real_conn.execute("UPDATE pnore_data SET received_at = NULL")
+        # Query with a timestamp that should match '010123' and '120000'
+        res = data_layer.query_directional_spectrum(timestamp=now)
+        assert res["measurement_date"] == "010123"
+
+    def test_directional_spectrum_fallback_errors(self, data_layer, real_conn):
+        """Line 976 (frequencies empty if missing start_f/step_f)."""
+        real_conn.execute("DROP VIEW IF EXISTS wave_measurement_full")
+        data_layer._source_cache = {}
+        now = datetime(2023, 1, 1, 12, 0, 0)
+        real_conn.execute(
+            "INSERT INTO pnore_data (record_id, received_at, sentence_type, "
+            "original_sentence, measurement_date, measurement_time, spectrum_basis, "
+            "num_frequencies, energy_densities) "
+            "VALUES (110, ?, 'PNORE', 'test', '010123', '120000', 1, 1, '[1.0]')",
+            [now],
+        )
+        res = data_layer.query_directional_spectrum(timestamp=now)
+        assert res["frequencies"] == []
 
     def test_parse_time_range_and_agg_fallback(self, data_layer, real_conn):
         """Line 737, 757."""
@@ -352,13 +439,26 @@ class TestDataLayerCompleteCoverage:
         mock_conn.execute.side_effect = Exception("DESCRIBE fail")
         assert data_layer.get_column_info("any") == []
 
-    def test_execute_sql_no_description(self, data_layer):
-        """Lines 305-306."""
-        mock_conn = MagicMock()
-        data_layer.conn = mock_conn
-        mock_conn.execute.return_value.fetchall.return_value = []
-        mock_conn.description = None
-        assert data_layer.execute_sql("SELECT 1") == []
+    def test_get_column_info_success(self, data_layer):
+        """Line 297."""
+        res = data_layer.get_column_info("pnors_df100")
+        assert len(res) > 0
+        assert "record_id" in [c[0] for c in res]
+
+    def test_query_success(self, data_layer, real_conn):
+        """Lines 270-283."""
+        real_conn.execute(
+            "INSERT INTO pnors_df100 (record_id, measurement_date, measurement_time, "
+            "original_sentence) "
+            "VALUES (2, '010123', '120000', 'test')"
+        )
+        # Hits line 273 (order_by)
+        res = data_layer.query("pnors_df100", columns=["record_id"], order_by="record_id")
+        assert len(res) >= 1
+
+        # Hits line 277 (source.has_timestamp fallback)
+        res2 = data_layer.query("pnors_df100", columns=["record_id"], order_by=None)
+        assert len(res2) >= 1
 
     def test_query_directional_spectrum_no_latest(self, data_layer):
         """Line 921."""
@@ -445,6 +545,27 @@ class TestDataLayerCompleteCoverage:
                 )
                 metrics = dl.get_quality_metrics()
                 assert metrics["error_count"] == 1
+
+    def test_get_quality_metrics_is_valid_and_filtering(self, data_layer, real_conn):
+        """Lines 1311, 1332-1338."""
+        # 1311: Skip error/raw tables
+        real_conn.execute("CREATE TABLE raw_lines_table (id INT)")
+        real_conn.execute("CREATE TABLE error_log (id INT)")
+        metrics = data_layer.get_quality_metrics()
+        assert "raw_lines_table" not in metrics["sources"]
+        assert "error_log" not in metrics["sources"]
+
+        # 1332-1338: is_valid column
+        real_conn.execute(
+            "CREATE TABLE valid_test (received_at TIMESTAMP, is_valid BOOLEAN, val FLOAT)"
+        )
+        real_conn.execute("INSERT INTO valid_test VALUES (now(), TRUE, 1.0)")
+        real_conn.execute("INSERT INTO valid_test VALUES (now(), FALSE, 2.0)")
+        data_layer._source_cache = {}
+        metrics = data_layer.get_quality_metrics()
+        # Find valid_test in total records
+        assert metrics["sources"]["valid_test"] == 2
+        assert metrics["invalid_records"] >= 1
 
 
 class TestQueryWaveRoseData:
