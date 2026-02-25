@@ -205,6 +205,8 @@ def test_reconnect_scenario(temp_recorder_dir):
             self.read_count = 0
 
         def readline(self) -> bytes:
+            # Simulate some hardware latency
+            time.sleep(0.1)
             self.read_count += 1
             if self.instance_id == 1:
                 if self.read_count == 1:
@@ -246,10 +248,17 @@ def test_reconnect_scenario(temp_recorder_dir):
                 while time.time() - start_time < max_wait:
                     conn = db.get_connection()
                     try:
+                        # Force a refresh of the connection state on Windows
+                        try:
+                            conn.rollback()
+                        except Exception:
+                            pass
+
                         # Check both messages
                         res = conn.execute("SELECT head_id FROM pnori").fetchall()
                         if len(res) >= 2:
                             found = True
+                            db.close()
                             break
                     except Exception as e:
                         last_err = str(e)
@@ -263,17 +272,19 @@ def test_reconnect_scenario(temp_recorder_dir):
                     try:
                         raw = conn.execute("SELECT * FROM raw_lines").fetchall()
                         errors = conn.execute("SELECT * FROM parse_errors").fetchall()
-                        pnori = conn.execute("SELECT head_id FROM pnori").fetchall()
+                        pnori = conn.execute("SELECT * FROM pnori").fetchall()
+                        pnori_count = len(pnori)
                     finally:
                         db.close()
 
                     recorder.stop()
                     print(f"DEBUG: last_err={last_err}")
+                    print(f"DEBUG: pnori_count={pnori_count}")
                     print(f"DEBUG: pnori_table={pnori}")
                     print(f"DEBUG: raw_lines={raw}")
                     print(f"DEBUG: parse_errors={errors}")
                     print(f"DEBUG: instances={len(instances)}")
-                    assert found, "Did not find both records after reconnection"
+                    assert found, f"Did not find both records after reconnection. Found {pnori_count} in pnori."
 
                 # Double check content
                 conn = db.get_connection()
