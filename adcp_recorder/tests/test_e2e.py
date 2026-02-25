@@ -284,7 +284,7 @@ def test_reconnect_scenario(temp_recorder_dir):
                     print(f"DEBUG: raw_lines={raw}")
                     print(f"DEBUG: parse_errors={errors}")
                     print(f"DEBUG: instances={len(instances)}")
-                    assert found, f"Did not find both records after reconnection. Found {pnori_count} in pnori."
+                    assert found, f"Reconnection failed. Found only {pnori_count} pnori records."
 
                 # Double check content
                 conn = db.get_connection()
