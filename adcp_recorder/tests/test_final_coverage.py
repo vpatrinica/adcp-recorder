@@ -1,7 +1,11 @@
 import runpy
+import sys
+from pathlib import Path
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
+
+from adcp_recorder.config import RecorderConfig
 
 
 @pytest.fixture
@@ -300,7 +304,7 @@ def test_migration_main_block():
 
 
 def test_config_get_default_config_dir_windows():
-    """Test get_default_config_dir on Windows platform (lines 59-63)."""
+    """Test get_default_config_dir on Windows platform."""
     import importlib
     import sys
 
@@ -309,26 +313,19 @@ def test_config_get_default_config_dir_windows():
     for mod in modules_to_remove:
         del sys.modules[mod]
 
-    # Now patch before importing
-    with patch.dict("os.environ", {"PROGRAMDATA": "C:\\ProgramData"}, clear=False):
-        with patch("sys.platform", "win32"):
-            # Import fresh - this will use the patched sys.platform
-            import adcp_recorder.config as config_module
+    with patch("sys.platform", "win32"):
+        import adcp_recorder.config as config_module
 
-            # Reload to ensure we use the patched value
-            config_module = importlib.reload(config_module)
+        config_module = importlib.reload(config_module)
 
-            # Now call the method
-            config_dir = config_module.RecorderConfig.get_default_config_dir()
-            # Should use ProgramData on Windows
-            assert "ADCP-Recorder" in str(config_dir)
-            assert "ProgramData" in str(config_dir)
+        config_dir = config_module.RecorderConfig.get_default_config_dir()
+        # Should use WIN_CONF_DIR on Windows
+        assert str(config_dir) == config_module.WIN_CONF_DIR
 
 
 def test_config_get_default_config_dir_windows_fallback():
-    """Test get_default_config_dir on Windows with fallback path."""
+    """Test get_default_config_dir on Windows returns WIN_CONF_DIR."""
     import importlib
-    import os
     import sys
 
     # Remove cached modules to get fresh import
@@ -338,22 +335,14 @@ def test_config_get_default_config_dir_windows_fallback():
     for mod in modules_to_remove:
         del sys.modules[mod]
 
-    # Remove PROGRAMDATA to test fallback
-    env_without_programdata = {k: v for k, v in os.environ.items() if k != "PROGRAMDATA"}
+    with patch("sys.platform", "win32"):
+        import adcp_recorder.config as config_module
 
-    with patch.dict("os.environ", env_without_programdata, clear=True):
-        with patch("sys.platform", "win32"):
-            # Import fresh - this will use the patched sys.platform
-            import adcp_recorder.config as config_module
+        config_module = importlib.reload(config_module)
 
-            # Reload to ensure we use the patched value
-            config_module = importlib.reload(config_module)
-
-            # Now call the method
-            config_dir = config_module.RecorderConfig.get_default_config_dir()
-            # Should fallback to C:\ProgramData
-            assert "ADCP-Recorder" in str(config_dir)
-            assert "ProgramData" in str(config_dir)
+        config_dir = config_module.RecorderConfig.get_default_config_dir()
+        # Should return WIN_CONF_DIR regardless of PROGRAMDATA
+        assert str(config_dir) == config_module.WIN_CONF_DIR
 
 
 def test_config_get_default_config_dir_linux():
@@ -380,6 +369,64 @@ def test_config_get_default_config_dir_linux():
         config_dir = config_module.RecorderConfig.get_default_config_dir()
         # Should use home directory with CONFIG_DIR_NAME
         assert ".adcp-recorder" in str(config_dir)
+
+
+def test_config_get_default_output_dir_linux():
+    """Test get_default_output_dir on Linux platform."""
+    import importlib
+    import sys
+    from pathlib import Path
+
+    # Remove cached modules to get fresh import
+    modules_to_remove = [
+        k for k in list(sys.modules.keys()) if k.startswith("adcp_recorder.config")
+    ]
+    for mod in modules_to_remove:
+        del sys.modules[mod]
+
+    # Patch to ensure not Windows and clear env var
+    with (
+        patch("sys.platform", "linux"),
+        patch.dict("os.environ", {}, clear=True),
+        patch("adcp_recorder.config.Path.home", return_value=Path("/home/user")),
+    ):
+        # Import fresh
+        import adcp_recorder.config as config_module
+
+        # Reload to ensure we use the patched value
+        config_module = importlib.reload(config_module)
+
+        # Now call the method directly to cover it
+        output_dir = config_module.get_default_output_dir()
+        expected = str(Path("/home/user") / config_module.LINUX_DATA_DIR_NAME)
+        assert output_dir == expected
+
+
+def test_config_save_creates_directory(tmp_path):
+    """Test that RecorderConfig.save creates the config directory if it doesn't exist."""
+    config_dir = tmp_path / "new_config_dir"
+    config_file = config_dir / "config.json"
+
+    config = RecorderConfig()
+    with patch.object(RecorderConfig, "get_config_path", return_value=config_file):
+        assert not config_dir.exists()
+        config.save()
+        assert config_dir.exists()
+        assert config_file.exists()
+
+
+def test_config_get_config_path():
+    """Test get_config_path logic without mocking (covers lines 79, 83-85)."""
+    # Just call it and verify it returns a Path ending with the config file name
+    path = RecorderConfig.get_config_path()
+    assert isinstance(path, Path)
+    assert path.name == "config.json"
+    if sys.platform == "win32":
+        from adcp_recorder.config import WIN_CONF_DIR
+
+        assert str(path.parent) == WIN_CONF_DIR
+    else:
+        assert ".adcp-recorder" in str(path)
 
 
 # --- Migration Column Check Exception Test ---

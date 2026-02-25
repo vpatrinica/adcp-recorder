@@ -19,8 +19,8 @@ echo ========================================
 echo.
 
 REM Configuration - Modify these paths as needed
-set INSTALL_DIR=C:\Program Files\ADCP-Recorder
-set DATA_DIR=C:\ADCP_Data
+set INSTALL_DIR=C:\s1000\src\adcp-recorder
+set DATA_DIR=C:\s1000\data
 set LOG_DIR=%DATA_DIR%\logs
 set SERVICE_NAME=ADCPRecorder
 
@@ -43,8 +43,8 @@ if %errorLevel% neq 0 (
 )
 
 REM Check if Python is available
-if not exist "%INSTALL_DIR%\venv\Scripts\python.exe" (
-    echo ERROR: Python not found at %INSTALL_DIR%\venv\Scripts\python.exe
+if not exist "%INSTALL_DIR%\.venv\Scripts\python.exe" (
+    echo ERROR: Python not found at %INSTALL_DIR%\.venv\Scripts\python.exe
     echo Please run the main install script first.
     pause
     exit /b 1
@@ -70,7 +70,7 @@ servy-cli install --quiet ^
     --name="%SERVICE_NAME%" ^
     --displayName="ADCP Recorder Service" ^
     --description="NMEA Telemetry Recorder for Nortek ADCP Instruments" ^
-    --path="%INSTALL_DIR%\venv\Scripts\python.exe" ^
+    --path="%INSTALL_DIR%\.venv\Scripts\python.exe" ^
     --startupDir="%INSTALL_DIR%" ^
     --params="-m adcp_recorder.service.supervisor" ^
     --startupType="Automatic" ^

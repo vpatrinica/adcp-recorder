@@ -41,6 +41,13 @@ pip install adcp-recorder
 git clone https://github.com/vpatrinica/adcp-recorder.git
 cd adcp-recorder
 pip install .
+
+### Windows Quick Setup (One-Liner)
+
+Run as Administrator in PowerShell:
+```powershell
+powershell -Command "Invoke-WebRequest -Uri https://raw.githubusercontent.com/vpatrinica/adcp-recorder/main/scripts/install-windows.bat -OutFile install-windows.bat; .\install-windows.bat"
+```
 ```
 
 ### Basic Usage
@@ -137,12 +144,12 @@ sudo systemctl start adcp-recorder
 
 ```cmd
 REM Automated installation (run as Administrator)
-install-windows.bat
+powershell -Command "Invoke-WebRequest -Uri https://raw.githubusercontent.com/vpatrinica/adcp-recorder/main/scripts/install-windows.bat -OutFile install-windows.bat; .\install-windows.bat"
 
 REM Or manual service installation using Servy
 REM First install Servy: winget install -e --id aelassas.Servy
 servy-cli install --name="ADCPRecorder" ^
-    --path="C:\Program Files\ADCP-Recorder\venv\Scripts\python.exe" ^
+    --path="C:\s1000\src\adcp-recorder\.venv\Scripts\python.exe" ^
     --params="-m adcp_recorder.service.supervisor" ^
     --startupType="Automatic"
 servy-cli start --name="ADCPRecorder"
@@ -179,7 +186,7 @@ adcp-recorder generate-service --platform {linux|windows}
 
 ```bash
 # Connect to database
-duckdb ~/adcp_data/adcp.duckdb
+duckdb C:\s1000\data\db\adcp.duckdb
 
 # Query examples
 SELECT COUNT(*) FROM raw_lines;
@@ -193,7 +200,7 @@ Daily CSV files are automatically exported to `{output_dir}/{MESSAGE_TYPE}/{YYYY
 
 ```bash
 # View today's sensor data
-cat ~/adcp_data/PNORS/$(date +%Y-%m-%d).csv
+cat C:\s1000\data\PNORS\$(date +%Y-%m-%d).csv
 ```
 
 ### Scientist Dashboard
@@ -280,14 +287,14 @@ See [Architecture Overview](https://github.com/vpatrinica/adcp-recorder/blob/mai
 
 ## Configuration
 
-Configuration is stored in `~/.adcp-recorder/config.json`:
+Configuration is stored in `C:\s1000\conf\config.json` (Windows) or `~/.adcp-recorder/config.json` (Linux):
 
 ```json
 {
     "serial_port": "/dev/ttyUSB0",
     "baudrate": 9600,
     "timeout": 1.0,
-    "output_dir": "/home/user/adcp_data",
+    "output_dir": "C:\\s1000\\data",
     "log_level": "INFO",
     "db_path": null
 }
@@ -321,11 +328,11 @@ Get-EventLog -LogName Application -Source adcp-recorder -Newest 20
 
 ```bash
 # Check data collection rate
-duckdb ~/adcp_data/adcp.duckdb \
+duckdb C:\s1000\data\db\adcp.duckdb \
   "SELECT COUNT(*) FROM raw_lines WHERE received_at > NOW() - INTERVAL 5 MINUTES"
 
 # Check for errors
-duckdb ~/adcp_data/adcp.duckdb \
+duckdb C:\s1000\data\db\adcp.duckdb \
   "SELECT * FROM parse_errors ORDER BY received_at DESC LIMIT 10"
 ```
 

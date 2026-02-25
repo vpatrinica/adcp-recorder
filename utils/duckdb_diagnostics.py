@@ -8,7 +8,7 @@ import duckdb
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-DEFAULT_DB_PATH = r"C:\adcp_data\db\adcp.duckdb"
+DEFAULT_DB_PATH = r"C:\s1000\data\db\adcp.duckdb"
 
 
 def list_objects(con):
@@ -63,8 +63,8 @@ def find_dependencies(con, table_name):
 
     # Find all objects that depend on it in duckdb_dependencies
     deps = con.execute(f"""
-        SELECT objid, classid, deptype 
-        FROM duckdb_dependencies() 
+        SELECT objid, classid, deptype
+        FROM duckdb_dependencies()
         WHERE refobjid = {t_oid}
     """).fetchall()
 
@@ -76,7 +76,8 @@ def find_dependencies(con, table_name):
         name = "Unknown"
         if cid == 0:  # Table or View
             r = con.execute(
-                f"SELECT table_name FROM duckdb_tables() WHERE table_oid = {oid} UNION SELECT view_name FROM duckdb_views() WHERE view_oid = {oid}"
+                f"SELECT table_name FROM duckdb_tables() WHERE table_oid = {oid} "
+                f"UNION SELECT view_name FROM duckdb_views() WHERE view_oid = {oid}"
             ).fetchone()
             if r:
                 name = r[0]

@@ -3,7 +3,11 @@ from unittest.mock import patch
 
 import pytest
 
-from adcp_recorder.config import CONFIG_DIR_NAME, CONFIG_FILE_NAME, RecorderConfig
+from adcp_recorder.config import (
+    CONFIG_DIR_NAME,
+    CONFIG_FILE_NAME,
+    RecorderConfig,
+)
 
 
 @pytest.fixture
@@ -24,7 +28,9 @@ def test_default_config():
     assert config.serial_port == "/dev/ttyUSB0"
     assert config.baudrate == 9600
     assert config.timeout == 1.0
-    assert "adcp_data" in config.output_dir
+    # The autouse fixture in conftest.py sets ADCP_RECORDER_OUTPUT_DIR,
+    # so the env var takes precedence over the platform default.
+    assert "data" in config.output_dir
 
 
 def test_load_non_existent(mock_config_path):

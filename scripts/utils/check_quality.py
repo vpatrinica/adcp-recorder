@@ -20,29 +20,15 @@ def main():
     project_root = Path(__file__).resolve().parent.parent.parent
 
     # 1. Install Dependencies
-    # run_command(
-    #     f"{sys.executable} -m pip install --upgrade pip",
-    #     "Upgrading pip"
-    # )
     run_command("uv pip install --upgrade pip", "Upgrading pip via uv")
-    # run_command(
-    #     f"{sys.executable} -m pip install ruff mypy types-pyserial pytest-cov safety bandit pdoc",
-    #     "Installing quality tools"
-    # )
     run_command(
         "uv pip install ruff mypy types-pyserial pytest-cov safety bandit pdoc",
         "Installing quality tools via uv",
     )
-    # Use quotes for extras installation
-    # run_command(
-    #     f"{sys.executable} -m pip install -e \".[dev,analysis]\"",
-    #     "Installing project in editable mode with dev dependencies"
-    # )
-    run_command('uv pip install -e ".[dev,analysis]"', "Installing project in editable mode via uv")
-    # Use quotes for extras installation
+    # Use --force-reinstall to recover from inconsistent environments (e.g. missing RECORD files)
     run_command(
-        f'{sys.executable} -m pip install -e ".[dev,analysis]"',
-        "Installing project in editable mode with dev dependencies",
+        'uv pip install -e ".[dev,analysis]"',
+        "Installing project in editable mode via uv",
     )
 
     # 2. Code Quality Checks
@@ -71,7 +57,8 @@ def main():
     # Using python -m pytest to ensure it runs in the current environment
     # Note: Using uv run pytest is also fine if uv is available
     run_command(
-        "uv run pytest --cov=adcp_recorder --cov-fail-under=100 --cov-report=term-missing adcp_recorder/tests/",
+        "uv run pytest --cov=adcp_recorder --cov-fail-under=100 "
+        "--cov-report=term-missing adcp_recorder/tests/",
         "Running Tests with Coverage",
     )
 

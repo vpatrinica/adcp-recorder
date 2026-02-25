@@ -62,5 +62,6 @@ else:
         print("Base views pq_pnors and pq_pnorc are present, but join failed.")
     else:
         print(
-            f"Missing base views for current_profile_df100. Loaded: {[s for s in source_names if 'pnor' in s]}"
+            f"Missing base views for current_profile_df100. "
+            f"Loaded: {[s for s in source_names if 'pnor' in s]}"
         )

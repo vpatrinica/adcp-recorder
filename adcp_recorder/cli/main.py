@@ -154,8 +154,8 @@ def generate_service(platform, out):
             "REM Prerequisites: Servy installed via 'winget install -e --id aelassas.Servy'\n"
             "REM Run this script as Administrator\n"
             "\n"
-            "set INSTALL_DIR=C:\\Program Files\\ADCP-Recorder\n"
-            "set DATA_DIR=C:\\ADCP_Data\n"
+            "set INSTALL_DIR=C:\\s1000\\src\\adcp-recorder\n"
+            "set DATA_DIR=C:\\s1000\\data\n"
             "set LOG_DIR=%DATA_DIR%\\logs\n"
             "\n"
             "REM Create log directory if it doesn't exist\n"
@@ -166,7 +166,7 @@ def generate_service(platform, out):
             '    --name="ADCPRecorder" ^\n'
             '    --displayName="ADCP Recorder Service" ^\n'
             '    --description="NMEA Telemetry Recorder for Nortek ADCP Instruments" ^\n'
-            '    --path="%INSTALL_DIR%\\venv\\Scripts\\python.exe" ^\n'
+            '    --path="%INSTALL_DIR%\\.venv\\Scripts\\python.exe" ^\n'
             '    --startupDir="%INSTALL_DIR%" ^\n'
             '    --params="-m adcp_recorder.service.supervisor" ^\n'
             '    --startupType="Automatic" ^\n'

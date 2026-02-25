@@ -16,10 +16,20 @@ CONFIG_DIR_NAME = ".adcp-recorder"
 CONFIG_FILE_NAME = "config.json"
 LOGGER = logging.getLogger(__name__)
 
+# ── Platform-specific path defaults ──────────────────────────────────
+WIN_BASE_DIR = r"C:\s1000"
+WIN_DATA_DIR = WIN_BASE_DIR + r"\data"
+WIN_CONF_DIR = WIN_BASE_DIR + r"\conf"
+LINUX_DATA_DIR_NAME = "adcp_data"
+
 
 def get_default_output_dir() -> str:
     """Returns the default data output directory."""
-    return os.environ.get("ADCP_RECORDER_OUTPUT_DIR", str(Path.home() / "adcp_data"))
+    if sys.platform == "win32":
+        fallback = WIN_DATA_DIR
+    else:
+        fallback = str(Path.home() / LINUX_DATA_DIR_NAME)
+    return os.environ.get("ADCP_RECORDER_OUTPUT_DIR", fallback)
 
 
 @dataclass
@@ -62,13 +72,11 @@ class RecorderConfig:
     def get_default_config_dir(cls) -> Path:
         """Returns the default configuration directory path.
 
-        On Windows, uses ProgramData for system-wide config (works for services).
+        On Windows, uses ``WIN_CONF_DIR`` for system-wide config.
         On other platforms, uses the user's home directory.
         """
         if sys.platform == "win32":
-            # Use ProgramData on Windows for service compatibility
-            programdata = os.environ.get("PROGRAMDATA", "C:\\ProgramData")
-            return Path(programdata) / "ADCP-Recorder"
+            return Path(WIN_CONF_DIR)
         return Path.home() / CONFIG_DIR_NAME
 
     @classmethod

@@ -17,10 +17,10 @@ Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
 
 # Configuration
-$InstallDir = "C:\Program Files\ADCP-Recorder"
-$VenvPath = Join-Path $InstallDir "venv"
+$InstallDir = "C:\s1000\src\adcp-recorder"
+$VenvPath = Join-Path $InstallDir ".venv"
 $PythonExe = Join-Path $VenvPath "Scripts\python.exe"
-$DataDir = "C:\ADCP_Data"
+$DataDir = "C:\s1000\data"
 $LogDir = Join-Path $DataDir "logs"
 $ServiceName = "ADCPRecorder"
 $ServiceDisplayName = "ADCP Recorder Service"

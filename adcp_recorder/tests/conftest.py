@@ -18,7 +18,7 @@ def isolate_test_env(tmp_path, monkeypatch):
     monkeypatch.setattr(RecorderConfig, "get_default_config_dir", lambda: temp_config_dir)
 
     # Override the default output directory
-    test_output_dir = str(tmp_path / "adcp_data")
+    test_output_dir = str(tmp_path / "data")
     monkeypatch.setenv("ADCP_RECORDER_OUTPUT_DIR", test_output_dir)
 
     # Clear other environment variables that might interfere
