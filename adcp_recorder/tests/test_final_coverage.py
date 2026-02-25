@@ -1,3 +1,4 @@
+import importlib
 import runpy
 import sys
 from pathlib import Path
@@ -305,9 +306,6 @@ def test_migration_main_block():
 
 def test_config_get_default_config_dir_windows():
     """Test get_default_config_dir on Windows platform."""
-    import importlib
-    import sys
-
     # Remove cached modules to get fresh import
     modules_to_remove = [k for k in sys.modules.keys() if k.startswith("adcp_recorder.config")]
     for mod in modules_to_remove:
@@ -325,9 +323,6 @@ def test_config_get_default_config_dir_windows():
 
 def test_config_get_default_config_dir_windows_fallback():
     """Test get_default_config_dir on Windows returns WIN_CONF_DIR."""
-    import importlib
-    import sys
-
     # Remove cached modules to get fresh import
     modules_to_remove = [
         k for k in list(sys.modules.keys()) if k.startswith("adcp_recorder.config")
@@ -347,9 +342,6 @@ def test_config_get_default_config_dir_windows_fallback():
 
 def test_config_get_default_config_dir_linux():
     """Test get_default_config_dir on Linux platform (line 63)."""
-    import importlib
-    import sys
-
     # Remove cached modules to get fresh import
     modules_to_remove = [
         k for k in list(sys.modules.keys()) if k.startswith("adcp_recorder.config")
@@ -373,10 +365,6 @@ def test_config_get_default_config_dir_linux():
 
 def test_config_get_default_output_dir_linux():
     """Test get_default_output_dir on Linux platform."""
-    import importlib
-    import sys
-    from pathlib import Path
-
     # Remove cached modules to get fresh import
     modules_to_remove = [
         k for k in list(sys.modules.keys()) if k.startswith("adcp_recorder.config")
@@ -416,17 +404,14 @@ def test_config_save_creates_directory(tmp_path):
 
 
 def test_config_get_config_path():
-    """Test get_config_path logic without mocking (covers lines 79, 83-85)."""
-    # Just call it and verify it returns a Path ending with the config file name
+    """Test get_config_path logic (covers lines 83-85)."""
+    # Verify it returns a Path ending with the config file name
+    # and that its parent is whatever get_default_config_dir() returns.
+    # This avoids failures due to test environment redirection in conftest.py.
     path = RecorderConfig.get_config_path()
     assert isinstance(path, Path)
     assert path.name == "config.json"
-    if sys.platform == "win32":
-        from adcp_recorder.config import WIN_CONF_DIR
-
-        assert str(path.parent) == WIN_CONF_DIR
-    else:
-        assert ".adcp-recorder" in str(path)
+    assert path.parent == RecorderConfig.get_default_config_dir()
 
 
 # --- Migration Column Check Exception Test ---
