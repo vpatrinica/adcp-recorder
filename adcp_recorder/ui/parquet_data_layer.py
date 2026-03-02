@@ -436,6 +436,7 @@ class ParquetDataLayer(DataLayer):
         self._conn = duckdb.connect(database=":memory:")
         self._discovery: ParquetFileDiscovery | None = None
         self._loaded_views: set[str] = set()
+        self._loaded_tables: set[str] = set()
         self._stale_monitor = StaleWritingMonitor(on_fault_detected=on_writer_fault)
         self._on_writer_fault = on_writer_fault
 
@@ -456,7 +457,13 @@ class ParquetDataLayer(DataLayer):
         self._clear_views()
 
     def _clear_views(self) -> None:
-        """Drop all created views."""
+        """Drop all created views and in-memory tables."""
+        for table_name in list(self._loaded_tables):
+            try:
+                self._conn.execute(f"DROP TABLE IF EXISTS {table_name}")
+            except Exception:
+                pass
+        self._loaded_tables.clear()
         for view_name in list(self._loaded_views):
             try:
                 self._conn.execute(f"DROP VIEW IF EXISTS {view_name}")
@@ -536,16 +543,19 @@ class ParquetDataLayer(DataLayer):
             file_paths = [str(f) for f in files]
 
             try:
-                # Create view over Parquet files
-                # Use union_by_name=true to handle schema differences between files
+                # Load Parquet files into an in-memory table (not a view) so that
+                # file handles are released immediately after reading.  This
+                # prevents the dashboard from locking files that the recorder's
+                # ParquetWriter needs to replace via os.replace().
                 files_list = ", ".join(f"'{p}'" for p in file_paths)
 
-                # First create the base view
+                # First create the base in-memory table
                 base_view = f"{view_name}_base"
                 self._conn.execute(
-                    f"CREATE OR REPLACE VIEW {base_view} AS "
+                    f"CREATE OR REPLACE TABLE {base_view} AS "
                     f"SELECT * FROM read_parquet([{files_list}], union_by_name=true)"
                 )
+                self._loaded_tables.add(base_view)
 
                 # Check columns in base view (case-insensitive)
                 cols_meta = self._conn.execute(f"DESCRIBE {base_view}").fetchall()

@@ -119,6 +119,8 @@ class SerialProducer:
 
             if line_bytes is None:
                 # Timeout or error - continue
+                # Sleep a tiny bit to prevent pinning CPU if underlying port doesn't block
+                time.sleep(0.1)
                 continue
 
             if not line_bytes:

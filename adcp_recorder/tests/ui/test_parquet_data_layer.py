@@ -1278,15 +1278,17 @@ class TestParquetDataLayerErrorPaths:
         layer.close()
 
     def test_clear_views_error_handling(self):
-        """Test that _clear_views handles errors during DROP VIEW."""
+        """Test that _clear_views handles errors during DROP VIEW/TABLE."""
         layer = ParquetDataLayer()
         layer._loaded_views.add("test_view")
+        layer._loaded_tables.add("test_table")
         layer.conn = MagicMock()
         layer.conn.execute.side_effect = Exception("Drop error")
         layer._conn = layer.conn
         # Should not raise
         layer._clear_views()
         assert len(layer._loaded_views) == 0
+        assert len(layer._loaded_tables) == 0
         layer.close()
 
     def test_load_data_errors(self, tmp_path):

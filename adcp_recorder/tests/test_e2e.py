@@ -236,17 +236,18 @@ def test_reconnect_scenario(temp_recorder_dir):
             recorder = AdcpRecorder(config)
             try:
                 recorder.start()
+                # Give threads a moment to start
+                time.sleep(0.5)
 
-                # Use DatabaseManager to check results
-                db = DatabaseManager(str(db_path))
+                # Use the recorder's DatabaseManager to check results
+                db = recorder.db_manager
+                conn = db.get_connection()
 
                 # Wait for processing
                 max_wait = 20.0  # Increased timeout
                 start_time = time.time()
                 found = False
-                last_err = None
                 while time.time() - start_time < max_wait:
-                    conn = db.get_connection()
                     try:
                         # Force a refresh of the connection state on Windows
                         try:
@@ -258,45 +259,33 @@ def test_reconnect_scenario(temp_recorder_dir):
                         res = conn.execute("SELECT head_id FROM pnori").fetchall()
                         if len(res) >= 2:
                             found = True
-                            db.close()
                             break
-                    except Exception as e:
-                        last_err = str(e)
+                    except Exception:
+                        pass
 
-                    db.close()
-                    time.sleep(0.5)
+                    time.sleep(1.0)
 
                 if not found:
-                    # Get diagnostics if failed
-                    conn = db.get_connection()
-                    try:
-                        raw = conn.execute("SELECT * FROM raw_lines").fetchall()
-                        errors = conn.execute("SELECT * FROM parse_errors").fetchall()
-                        pnori = conn.execute("SELECT * FROM pnori").fetchall()
-                        pnori_count = len(pnori)
-                    finally:
-                        db.close()
-
+                    # Get final state if failed
+                    pnori = conn.execute("SELECT * FROM pnori").fetchall()
+                    pnori_count = len(pnori)
                     recorder.stop()
-                    print(f"DEBUG: last_err={last_err}")
-                    print(f"DEBUG: pnori_count={pnori_count}")
-                    print(f"DEBUG: pnori_table={pnori}")
-                    print(f"DEBUG: raw_lines={raw}")
-                    print(f"DEBUG: parse_errors={errors}")
-                    print(f"DEBUG: instances={len(instances)}")
-                    assert found, f"Reconnection failed. Found only {pnori_count} pnori records."
+                    assert found, (
+                        f"Reconnection failed. Found only {pnori_count} pnori records: {pnori}"
+                    )
 
                 # Double check content
-                conn = db.get_connection()
-                try:
-                    res = conn.execute("SELECT head_id FROM pnori ORDER BY head_id").fetchall()
-                    ids = [r[0] for r in res]
-                    assert "2001" in ids
-                    assert "AfterReconnect" in ids
-                finally:
-                    db.close()
+                res = conn.execute("SELECT head_id FROM pnori ORDER BY head_id").fetchall()
+                ids = [r[0] for r in res]
+                assert "2001" in ids
+                assert "AfterReconnect" in ids
+
+                # Ensure we close our connection before recorder stops
+                db.close()
             finally:
                 recorder.stop()
+                # Give some extra time for Windows to release file locks before fixture cleanup
+                time.sleep(1.0)
 
 
 # I'll implement a more robust version of reconnect test in the file.

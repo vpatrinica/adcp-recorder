@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from threading import local
+from threading import Lock, local
 
 import duckdb
 
@@ -39,6 +39,7 @@ class DatabaseManager:
         self.db_path = db_path
         self._thread_local = local()
         self._schema_initialized = False
+        self._init_lock = Lock()
 
         # Create parent directory if needed
         if db_path != ":memory:" and create_if_missing:
@@ -59,6 +60,7 @@ class DatabaseManager:
 
         """
         if not hasattr(self._thread_local, "conn"):
+            logger.debug(f"Opening DuckDB connection to {self.db_path}")
             self._thread_local.conn = duckdb.connect(self.db_path)
         return self._thread_local.conn
 
@@ -70,6 +72,10 @@ class DatabaseManager:
         """
         if self._schema_initialized:
             return
+
+        with self._init_lock:
+            if self._schema_initialized:
+                return
 
         conn = self.get_connection()
 

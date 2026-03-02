@@ -299,6 +299,13 @@ class SerialConsumer:
         finally:
             with contextlib.suppress(Exception):
                 self._binary_writer.finish_blob()
+
+            # Flush to disk for visibility on Windows before closing
+            try:
+                conn.execute("CHECKPOINT;")
+            except Exception as e:
+                logger.warning(f"Failed to checkpoint on exit: {e}")
+
             self._db_manager.close()
             logger.info("Consumer loop exiting")
 
@@ -444,6 +451,7 @@ class SerialConsumer:
 
             # Route to parser
             parsed = self._router.route(sentence)
+            logger.debug(f"Routed {prefix} to {parsed.__class__.__name__ if parsed else 'None'}")
 
             # Extract date/time for raw_lines if available
             m_date = None
@@ -577,4 +585,4 @@ class SerialConsumer:
             else:
                 logger.warning(f"No database insert for {prefix}")
         except Exception as e:
-            logger.error(f"Database insertion failed for {prefix}: {e}")
+            logger.error(f"Database insertion failed for {prefix}: {e}", exc_info=True)

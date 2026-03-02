@@ -495,3 +495,100 @@ def test_data_layer_final_gaps(tmp_path: Path):
         conn.execute.side_effect = duckdb.Error("Mock DuckDB Error")
         pdl._create_joined_views()
         pdl.get_source_metadata("test")
+
+
+def test_db_initialize_schema_double_check_guard(tmp_path: Path):
+    """Cover line 77 in db.py: early return when schema already initialized.
+
+    The double-check locking guard inside `initialize_schema` returns
+    immediately if `_schema_initialized` was set by another thread that
+    raced ahead.
+    """
+    from adcp_recorder.db import DatabaseManager
+
+    db = DatabaseManager(str(tmp_path / "test.db"))
+    # Schema is already initialized by __init__
+    assert db._schema_initialized is True
+
+    # Call again — hits the early return on line 72
+    db.initialize_schema()
+
+    # Now simulate the race condition: reset flag, acquire lock
+    # externally, set flag, and call initialize_schema so it enters the
+    # `with self._init_lock:` block and finds _schema_initialized=True
+    # on the *inner* check (line 76-77).
+    db._schema_initialized = False
+    with db._init_lock:
+        db._schema_initialized = True
+    # Now the flag is True again, so calling initialize_schema will
+    # take the fast path at line 72.  To hit line 77 we need a thread
+    # to set the flag between our outer and inner checks.
+    db._schema_initialized = False
+
+    # We'll use a helper thread that sets the flag right after
+    # the outer check passes.
+    original_init_lock = db._init_lock
+
+    class FlagSettingLock:
+        """A lock wrapper that sets the flag before releasing."""
+
+        def __enter__(self):
+            original_init_lock.__enter__()
+            # Simulate another thread having set this flag
+            db._schema_initialized = True
+            return self
+
+        def __exit__(self, *args):
+            return original_init_lock.__exit__(*args)
+
+    db._init_lock = FlagSettingLock()  # type: ignore[assignment]
+    db.initialize_schema()  # Hits line 77 (inner guard)
+    db.close()
+
+
+def test_parquet_writer_replace_retry_and_exhaust(tmp_path: Path):
+    """Cover lines 304-312 in parquet_writer.py: retry/exhaust logic.
+
+    Tests both:
+    1. A transient OSError that resolves on retry (line 312)
+    2. OSError that persists through all retries (lines 304-311)
+    """
+    import os
+
+    import pytest
+
+    writer = ParquetWriter(str(tmp_path))
+    date_val = date.today()
+    partition_dir = writer._get_partition_path("RETRY", date_val)
+    final_path = partition_dir / "RETRY.parquet"
+
+    # Seed an existing file so os.path.exists(final_path) is True
+    pl.DataFrame({"val": [1]}).write_parquet(str(final_path))
+
+    # --- Test 1: Transient error that resolves on 2nd attempt ---
+    call_count = 0
+    original_replace = os.replace
+
+    def flaky_replace(src, dst):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise OSError("File locked")
+        return original_replace(src, dst)
+
+    with patch("os.replace", side_effect=flaky_replace):
+        with patch("time.sleep"):
+            writer._write_to_parquet("RETRY", date_val, [{"val": 2, "record_type": "RETRY"}])
+
+    assert call_count == 2  # First failed, second succeeded
+
+    # --- Test 2: Persistent error exhausting all retries ---
+    # Call _write_to_parquet directly so the raise propagates
+    with patch("os.replace", side_effect=OSError("Permanently locked")):
+        with patch("time.sleep"):
+            with pytest.raises(OSError, match="Permanently locked"):
+                writer._write_to_parquet(
+                    "RETRY",
+                    date_val,
+                    [{"val": 3, "record_type": "RETRY"}],
+                )

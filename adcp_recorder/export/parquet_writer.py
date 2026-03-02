@@ -2,6 +2,7 @@
 
 import logging
 import os
+import time
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -290,7 +291,25 @@ class ParquetWriter:
             df.write_parquet(str(temp_path))
 
             # Atomic replace to final path (atomic on POSIX systems, replaces on Windows if exists)
-            os.replace(temp_path, final_path)
+            # On Windows, this can fail if the file is being read by
+            # another process (e.g. DuckDB view)
+            max_retries = 5
+            for attempt in range(max_retries):
+                try:
+                    if os.path.exists(final_path):
+                        os.replace(temp_path, final_path)
+                    else:
+                        os.rename(temp_path, final_path)
+                    break
+                except OSError as e:
+                    if attempt == max_retries - 1:
+                        logger.error(
+                            f"Failed to replace Parquet file "
+                            f"{final_path} after {max_retries} "
+                            f"attempts: {e}"
+                        )
+                        raise
+                    time.sleep(0.1 * (2**attempt))  # Exponential backoff
 
             # Clean up legacy files after successful write
             for legacy_path in legacy_files:

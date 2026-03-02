@@ -141,10 +141,7 @@ class AdcpRecorder:
 
         logger.info("Starting ADCP Recorder...")
 
-        # Initialize database schema
-        self.db_manager.initialize_schema()
-
-        # Start components
+        # Components are already initialized in __init__
         self.producer.start()
         self.consumer.start()
 
