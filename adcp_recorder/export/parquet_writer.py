@@ -60,17 +60,40 @@ class ParquetWriter:
         if "received_at" not in record:
             record["received_at"] = datetime.now()
 
-        # Add measurement_id for optimized joins if date and time are present
-        if "measurement_date" in record and "measurement_time" in record:
+        # Extract measurement date/time for partitioning and ID generation
+        m_dt = record.get("measurement_datetime")
+        m_date_str = str(record.get("measurement_date") or record.get("date") or "")
+        m_time_str = str(record.get("measurement_time") or record.get("time") or "")
+
+        # Try to determine partition date
+        partition_date = None
+        if isinstance(m_dt, datetime):
+            partition_date = m_dt.date()
+        elif len(m_date_str) == 6:
             try:
-                date_str = str(record["measurement_date"])
-                time_str = str(record["measurement_time"])
-                if len(date_str) == 6 and len(time_str) == 6:
-                    # NMEA date is MMDDYY, we want YYMMDDHHMMSS for sorting
-                    yy = date_str[4:6]
-                    mm = date_str[0:2]
-                    dd = date_str[2:4]
-                    record["measurement_id"] = int(f"{yy}{mm}{dd}{time_str}")
+                # NMEA date is MMDDYY or YYMMDD
+                try:
+                    partition_date = datetime.strptime(m_date_str, "%m%d%y").date()
+                except ValueError:
+                    partition_date = datetime.strptime(m_date_str, "%y%m%d").date()
+            except ValueError:
+                pass
+
+        if partition_date is None:
+            ts = record.get("received_at")
+            partition_date = ts.date() if isinstance(ts, datetime) else datetime.now().date()
+
+        record["_partition_date"] = partition_date
+
+        # Add measurement_id for optimized joins
+        if "measurement_id" not in record and len(m_date_str) == 6 and len(m_time_str) == 6:
+            try:
+                # We want YYMMDDHHMMSS for sorting
+                if m_date_str[4:6].isdigit():  # Likely MMDDYY
+                    yy, mm, dd = m_date_str[4:6], m_date_str[0:2], m_date_str[2:4]
+                else:  # Likely YYMMDD
+                    yy, mm, dd = m_date_str[0:2], m_date_str[2:4], m_date_str[4:6]
+                record["measurement_id"] = int(f"{yy}{mm}{dd}{m_time_str}")
             except (ValueError, TypeError):
                 pass
 
@@ -118,8 +141,12 @@ class ParquetWriter:
                 # Group by date for partitioning
                 records_by_date: dict[date, list[dict[str, Any]]] = {}
                 for rec in buffer:
-                    ts = rec.get("received_at")
-                    date_val = ts.date() if isinstance(ts, datetime) else datetime.now().date()
+                    # Use the pre-calculated partition date
+                    date_val = rec.pop("_partition_date", None)
+                    if date_val is None:
+                        ts = rec.get("received_at")
+                        date_val = ts.date() if isinstance(ts, datetime) else datetime.now().date()
+
                     if date_val not in records_by_date:
                         records_by_date[date_val] = []
                     records_by_date[date_val].append(rec)

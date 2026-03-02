@@ -7,7 +7,7 @@ import pytest
 from click.testing import CliRunner
 
 from adcp_recorder.cli.main import cli
-from adcp_recorder.config import RecorderConfig
+from adcp_recorder.config import RecorderConfig, get_default_serial_port
 from adcp_recorder.core.recorder import AdcpRecorder
 from adcp_recorder.db import DatabaseManager
 
@@ -214,13 +214,13 @@ class TestCoreCoverage:
                 with patch("builtins.open"):
                     # Should return default config (no crash)
                     config = RecorderConfig.load()
-                    assert config.serial_port == "/dev/ttyUSB0"  # Default
+                    assert config.serial_port == get_default_serial_port()  # Default
 
     def test_config_missing_file(self):
         """Test load with missing config file."""
         with patch("pathlib.Path.exists", return_value=False):
             config = RecorderConfig.load()
-            assert config.serial_port == "/dev/ttyUSB0"  # Default
+            assert config.serial_port == get_default_serial_port()  # Default
 
     def test_config_env_override_invalid_type(self):
         """Test environment variable with invalid type."""

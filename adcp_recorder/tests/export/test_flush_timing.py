@@ -2,7 +2,6 @@
 
 import os
 import shutil
-from datetime import date
 from pathlib import Path
 
 from adcp_recorder.export.parquet_writer import ParquetWriter
@@ -19,13 +18,14 @@ def test_time_based_flush():
         writer = ParquetWriter(test_dir, buffer_size=100)
 
         prefix = "TEST"
-        record = {"value": 1, "measurement_date": "021026", "measurement_time": "200000"}
+        # 10/02/26 (MMDDYY) -> 2026-10-02
+        record = {"value": 1, "measurement_date": "100226", "measurement_time": "200000"}
 
         # Write one record
         writer.write_record(prefix, record)
 
         # Verify no file exists yet (buffer size 100)
-        partition_dir = Path(test_dir) / "parquet" / prefix / f"date={date.today().isoformat()}"
+        partition_dir = Path(test_dir) / "parquet" / prefix / "date=2026-10-02"
         parquet_file = partition_dir / f"{prefix}.parquet"
 
         assert not parquet_file.exists(), "File should not exist yet"

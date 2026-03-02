@@ -129,6 +129,7 @@ def test_invalid_env_override(monkeypatch, mock_config_path, caplog):
 def test_windows_default_persistence(mock_config_path):
     """Verifies that on Windows, COM6 is defaulted and persisted if missing."""
     import json
+
     from adcp_recorder.config import RecorderConfig, get_default_serial_port
 
     with (
