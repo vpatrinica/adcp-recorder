@@ -1,4 +1,5 @@
 import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -9,26 +10,29 @@ import serial
 
 from adcp_recorder.config import RecorderConfig
 from adcp_recorder.core.recorder import AdcpRecorder
-from adcp_recorder.db import DatabaseManager
 
 
 class MockSerial:
+    """Mock serial port that signals when all lines have been consumed."""
+
     def __init__(self, *args, **kwargs):
         self.port = kwargs.get("port")
         self.timeout = kwargs.get("timeout", 1.0)
         self.is_open = True
-        self.lines = []
+        self.lines: list[bytes] = []
         self._ptr = 0
+        self.done = threading.Event()
 
     def readline(self):
         if self._ptr < len(self.lines):
             line = self.lines[self._ptr]
             self._ptr += 1
-            # Small delay to simulate realistic serial port behavior
             time.sleep(0.01)
             return line
-        # After all lines are read, simulate timeout or empty
-        time.sleep(0.1)
+        # Signal that all lines have been consumed
+        self.done.set()
+        # Block briefly to avoid CPU spinning; producer will stop us
+        time.sleep(0.5)
         return b""
 
     def close(self):
@@ -47,13 +51,6 @@ def test_full_pipeline_e2e(temp_recorder_dir):
         serial_port="/dev/ttyMock", output_dir=str(temp_recorder_dir), db_path=str(db_path)
     )
 
-    # Valid NMEA sentences
-    # Note: PNORI checksum 2E is valid for the example in test_pnori.py
-    # PNORS/PNORC checksums XX are placeholders that might fail if strict validation is on.
-    # Actually, NMEA parser in this project might skip validation or handle XX.
-    # Let's use valid checksums or ensure validation is not an issue.
-    # Looking at test_pnori.py: "$PNORI,4,Signature1000900001,4,20,0.20,1.00,0*2E"
-
     sentences = [
         b"$PNORI,4,1001,4,20,0.20,1.00,0*57\r\n",
         b"$PNORS,102115,090715,0,00000000,12.5,1500.0,0.0,0.0,0.0,0.0,20.0,0,0*5E\r\n",
@@ -61,11 +58,15 @@ def test_full_pipeline_e2e(temp_recorder_dir):
         b"\xff\xfe BINARY DATA \xff\r\n",  # Binary/Invalid
     ]
 
+    mock_instance: MockSerial | None = None
+
     with patch("serial.Serial") as mock_serial_class:
-        # Side effect to inject lines into the created mock instance
+
         def create_mock(**kwargs):
+            nonlocal mock_instance
             m = MockSerial(**kwargs)
             m.lines = sentences
+            mock_instance = m
             return m
 
         mock_serial_class.side_effect = create_mock
@@ -74,120 +75,87 @@ def test_full_pipeline_e2e(temp_recorder_dir):
         try:
             recorder.start()
 
-            # Wait for processing with a loop
-            max_wait = 20.0  # Increased
-            start_time = time.time()
-            db = DatabaseManager(str(db_path))
+            # Wait for the mock serial to signal that all lines have been read
+            assert mock_instance is not None or True  # instance created after start
+            # Give a moment for the producer thread to create the mock
+            for _ in range(50):
+                if mock_instance is not None:
+                    break
+                time.sleep(0.1)
+            assert mock_instance is not None, "MockSerial was never instantiated"
 
-            found_all = False
-            last_err = None
-            while time.time() - start_time < max_wait:
-                conn = db.get_connection()
-                try:
-                    # Force a refresh of the connection state on Windows
-                    conn.rollback()
-                except Exception:
-                    pass
+            # Wait for all lines to be consumed by the producer
+            assert mock_instance.done.wait(timeout=10), "MockSerial lines were never fully consumed"
 
-                try:
-                    # We expect 3 successfully parsed messages in their tables
-                    c1 = conn.execute("SELECT count(*) FROM pnori").fetchone()
-                    c2 = conn.execute("SELECT count(*) FROM pnors_df100").fetchone()
-                    c3 = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()
-                    c4 = conn.execute("SELECT count(*) FROM parse_errors").fetchone()
+            # Give the consumer time to process all queued items
+            time.sleep(2.0)
 
-                    count_pnori = c1[0] if c1 else 0
-                    count_pnors = c2[0] if c2 else 0
-                    count_pnorc = c3[0] if c3 else 0
-                    count_errors = c4[0] if c4 else 0
+            # Use the recorder's own db_manager to avoid DuckDB write-lock contention
+            db = recorder.db_manager
+            conn = db.get_connection()
 
-                    if (
-                        count_pnori >= 1
-                        and count_pnors >= 1
-                        and count_pnorc >= 1
-                        and count_errors >= 1
-                    ):
-                        found_all = True
-                        break
-                except Exception as e:
-                    last_err = str(e)
+            # Force a checkpoint so data is visible
+            try:
+                conn.execute("CHECKPOINT;")
+            except Exception:
+                pass
 
-                # Close connection and reopen next time to avoid stale state on Windows
-                db.close()
-                time.sleep(0.5)
+            # Verify parsed data
+            c1 = conn.execute("SELECT count(*) FROM pnori").fetchone()
+            c2 = conn.execute("SELECT count(*) FROM pnors_df100").fetchone()
+            c3 = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()
+            c4 = conn.execute("SELECT count(*) FROM parse_errors").fetchone()
 
-            if not found_all:
-                # Diagnostics: check raw_lines and parse_errors
-                conn = db.get_connection()
-                try:
-                    raw_lines = conn.execute(
-                        "SELECT record_type, parse_status, error_message FROM raw_lines"
-                    ).fetchall()
-                    errors = conn.execute(
-                        "SELECT error_type, error_message FROM parse_errors"
-                    ).fetchall()
-                    c1 = conn.execute("SELECT count(*) FROM pnori").fetchone()
-                    c2 = conn.execute("SELECT count(*) FROM pnors_df100").fetchone()
-                    c3 = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()
-                    pnori = c1[0] if c1 else 0
-                    pnors = c2[0] if c2 else 0
-                    pnorc = c3[0] if c3 else 0
-                finally:
-                    db.close()
+            count_pnori = c1[0] if c1 else 0
+            count_pnors = c2[0] if c2 else 0
+            count_pnorc = c3[0] if c3 else 0
+            count_errors = c4[0] if c4 else 0
 
-                recorder.stop()
-                pytest.fail(
-                    f"E2E wait timeout. Found_all={found_all}. Last Error: {last_err}.\n"
-                    f"Counts: PNORI={pnori}, PNORS={pnors}, PNORC={pnorc}\n"
-                    f"Raw lines: {raw_lines}. Errors: {errors}"
-                )
+            assert count_pnori >= 1, f"Expected PNORI records, got {count_pnori}"
+            assert count_pnors >= 1, f"Expected PNORS records, got {count_pnors}"
+            assert count_pnorc >= 1, f"Expected PNORC records, got {count_pnorc}"
+            assert count_errors >= 1, f"Expected parse_errors records, got {count_errors}"
+
+            # Content assertions
+            res = conn.execute("SELECT head_id FROM pnori").fetchall()
+            assert res[0][0] == "1001"
+
+            res = conn.execute("SELECT heading FROM pnors_df100").fetchall()
+            assert float(res[0][0]) == 0.0
+
+            res = conn.execute("SELECT vel1, speed FROM pnorc_df100").fetchall()
+            assert float(res[0][0]) == 0.5
+            assert float(res[0][1]) == 0.4
+
+            res = conn.execute("SELECT error_type FROM parse_errors").fetchall()
+            assert any("BINARY" in r[0] for r in res)
         finally:
             recorder.stop()
+            # Give Windows extra time to release file locks before fixture cleanup
+            time.sleep(1.0)
 
-    # Final verifications
-    db = DatabaseManager(str(db_path))
-    conn = db.get_connection()
-    try:
-        res = conn.execute("SELECT head_id FROM pnori").fetchall()
-        assert res[0][0] == "1001"
+    # --- File Export Verification ---
+    from datetime import datetime
 
-        res = conn.execute("SELECT heading FROM pnors_df100").fetchall()
-        assert float(res[0][0]) == 0.0
+    today_str = datetime.now().strftime("%Y%m%d")
+    error_today_str = datetime.now().strftime("%d%m%y")
 
-        res = conn.execute("SELECT vel1, speed FROM pnorc_df100").fetchall()
-        assert float(res[0][0]) == 0.5
-        assert float(res[0][1]) == 0.4
+    def verify_export_file(prefix, partial_content, is_error=False) -> None:
+        if is_error:
+            expected_filename = f"ERROR_{error_today_str}.nmea"
+            file_path = temp_recorder_dir / "errors" / "nmea" / expected_filename
+        else:
+            expected_filename = f"{prefix}_{today_str}.nmea"
+            file_path = temp_recorder_dir / "nmea" / prefix / expected_filename
 
-        # Check Error Table (for binary data)
-        res = conn.execute("SELECT error_type FROM parse_errors").fetchall()
-        assert any("BINARY" in r[0] for r in res)
-    finally:
-        db.close()
+        assert file_path.exists(), f"Export file {file_path} not found"
+        content = file_path.read_text()
+        assert partial_content in content, f"Expected '{partial_content}' in {file_path}"
 
-        # --- File Export Verification (Phase 7) ---
-        # Verify that files were created for each message type and errors
-        from datetime import datetime
-
-        today_str = datetime.now().strftime("%Y%m%d")
-        error_today_str = datetime.now().strftime("%d%m%y")
-
-        # Helper to check file existence and content
-        def verify_export_file(prefix, partial_content, is_error=False) -> None:
-            if is_error:
-                expected_filename = f"ERROR_{error_today_str}.nmea"
-                file_path = temp_recorder_dir / "errors" / "nmea" / expected_filename
-            else:
-                expected_filename = f"{prefix}_{today_str}.nmea"
-                file_path = temp_recorder_dir / "nmea" / prefix / expected_filename
-
-            assert file_path.exists(), f"Export file {file_path} not found"
-            content = file_path.read_text()
-            assert partial_content in content, f"Expected '{partial_content}' in {file_path}"
-
-        verify_export_file("PNORI", "$PNORI")
-        verify_export_file("PNORS", "$PNORS")
-        verify_export_file("PNORC", "$PNORC")
-        verify_export_file("BINARY", "BINARY DATA", is_error=True)
+    verify_export_file("PNORI", "$PNORI")
+    verify_export_file("PNORS", "$PNORS")
+    verify_export_file("PNORC", "$PNORC")
+    verify_export_file("BINARY", "BINARY DATA", is_error=True)
 
 
 def test_reconnect_scenario(temp_recorder_dir):
