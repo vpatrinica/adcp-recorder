@@ -32,6 +32,13 @@ def get_default_output_dir() -> str:
     return os.environ.get("ADCP_RECORDER_OUTPUT_DIR", fallback)
 
 
+def get_default_serial_port() -> str:
+    """Returns the default serial port based on platform."""
+    if sys.platform == "win32":
+        return "COM6"
+    return "/dev/ttyUSB0"
+
+
 @dataclass
 class RecorderConfig:
     """Configuration container for the ADCP Recorder application.
@@ -39,7 +46,7 @@ class RecorderConfig:
     Holds runtime settings, persisted fields, and environment override logic.
     """
 
-    serial_port: str = "/dev/ttyUSB0"
+    serial_port: str = field(default_factory=get_default_serial_port)
     baudrate: int = 9600
     timeout: float = 1.0
     output_dir: str = field(default_factory=get_default_output_dir)
@@ -90,7 +97,9 @@ class RecorderConfig:
         config_path = cls.get_config_path()
 
         if not config_path.exists():
-            return cls._apply_env_overrides(cls())
+            config = cls()
+            config.save()
+            return cls._apply_env_overrides(config)
 
         try:
             with open(config_path) as f:
@@ -100,10 +109,18 @@ class RecorderConfig:
             valid_keys = cls.__annotations__.keys()
             filtered_data = {k: v for k, v in data.items() if k in valid_keys}
             config = cls(**filtered_data)
+
+            # If serial_port was not in the loaded data, it will be the default.
+            # We want to ensure it's written to the config file if it wasn't there.
+            if "serial_port" not in data:
+                config.save()
+
         except (json.JSONDecodeError, OSError) as e:
             # Fallback to default if corrupted, maybe log warning in future
             print(f"Warning: Could not load config, using defaults. Error: {e}")
             config = cls()
+            # Since we are using defaults, save them to disk
+            config.save()
 
         return cls._apply_env_overrides(config)
 

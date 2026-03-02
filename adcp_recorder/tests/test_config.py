@@ -1,4 +1,5 @@
 import logging
+import sys
 from unittest.mock import patch
 
 import pytest
@@ -25,7 +26,10 @@ def mock_config_path(tmp_path):
 
 def test_default_config():
     config = RecorderConfig()
-    assert config.serial_port == "/dev/ttyUSB0"
+    if sys.platform == "win32":
+        assert config.serial_port == "COM6"
+    else:
+        assert config.serial_port == "/dev/ttyUSB0"
     assert config.baudrate == 9600
     assert config.timeout == 1.0
     # The autouse fixture in conftest.py sets ADCP_RECORDER_OUTPUT_DIR,
@@ -36,7 +40,10 @@ def test_default_config():
 def test_load_non_existent(mock_config_path):
     # Should return default config if file doesn't exist
     config = RecorderConfig.load()
-    assert config.serial_port == "/dev/ttyUSB0"
+    if sys.platform == "win32":
+        assert config.serial_port == "COM6"
+    else:
+        assert config.serial_port == "/dev/ttyUSB0"
 
 
 def test_save_and_load(mock_config_path):
@@ -67,7 +74,10 @@ def test_corrupted_config(mock_config_path, capsys):
 
     config = RecorderConfig.load()
     # Should fall back to defaults
-    assert config.serial_port == "/dev/ttyUSB0"
+    if sys.platform == "win32":
+        assert config.serial_port == "COM6"
+    else:
+        assert config.serial_port == "/dev/ttyUSB0"
 
     # Check if warning was printed
     captured = capsys.readouterr()
@@ -114,3 +124,28 @@ def test_invalid_env_override(monkeypatch, mock_config_path, caplog):
 
     assert "Ignoring ADCP_RECORDER_BAUDRATE" in caplog.text
     assert loaded.baudrate == baseline.baudrate
+
+
+def test_windows_default_persistence(mock_config_path):
+    """Verifies that on Windows, COM6 is defaulted and persisted if missing."""
+    import json
+    from adcp_recorder.config import RecorderConfig, get_default_serial_port
+
+    with (
+        patch("sys.platform", "win32"),
+        patch.object(RecorderConfig, "get_config_path", return_value=mock_config_path),
+    ):
+        # Force re-evaluation of default port
+        assert get_default_serial_port() == "COM6"
+
+        # Load config when file doesn't exist
+        # This will trigger config.save() which should use the mocked get_config_path()
+        config = RecorderConfig.load()
+        assert config.serial_port == "COM6"
+
+        # Verify it was saved to disk
+        assert mock_config_path.exists(), f"Config file not found at {mock_config_path}"
+
+        with open(mock_config_path) as f:
+            data = json.load(f)
+        assert data["serial_port"] == "COM6"
