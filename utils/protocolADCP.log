@@ -1,0 +1,62 @@
+(.venv) PS C:\prj\adcp-recorder> uv run python .\utils\adcp-data\fix_adcp.py
+Versuche, seriellen Port zu öffnen...
+Serieller Port COM6 erfolgreich geöffnet.
+Starte Überwachung der seriellen Schnittstelle...
+Sende spezifiziertes BREAK-Signal...
+Gesendet: @@@@@@
+Gesendet: K1W%!Q (nach 225 ms)
+Gesendet: K1W%!Q (nach 600 ms)
+Sende Befehl: % Send Break
+Empfangene Daten (Rohdaten): 'ERROR\r\nCONFIRM\r\nOK\r\n'
+Bereinigte Antwort: 'ERRORCONFIRMOK'
+Alle erwarteten Antworten empfangen.
+Vollständige Antwort (bereinigt): ERRORCONFIRMOK
+Sende Befehl: MC
+Empfangene Daten (Rohdaten): 'Signature1000 - NORTEK AS.\r\nVersion 2216_14 (Mar 27 2025 13:19:55)\r\nCOMMAND MODE\r\nOK\r\n'
+Bereinigte Antwort: 'Signature1000 - NORTEK AS.Version 2216_14 (Mar 27 2025 13:19:55)COMMAND MODEOK'
+Alle erwarteten Antworten empfangen.
+Vollständige Antwort (bereinigt): Signature1000 - NORTEK AS.Version 2216_14 (Mar 27 2025 13:19:55)COMMAND MODEOK
+Sende Befehl: SETDEFAULT,ALL
+Empfangene Daten (Rohdaten): 'OK\r\n'
+Bereinigte Antwort: 'OK'
+Alle erwarteten Antworten empfangen.
+Vollständige Antwort (bereinigt): OK
+Sende Befehl: SETPLAN,MIAVG=600,AVG=0,DIAVG=0,VD=0,MV=10,SA=35,BURST=1,MIBURST=1800,DIBURST=0,SV=0,FN="lkn04.ad2cp",SO=0,FREQ=1000,NSTT=0
+Empfangene Daten (Rohdaten): 'OK\r\n'
+Bereinigte Antwort: 'OK'
+Alle erwarteten Antworten empfangen.
+Vollständige Antwort (bereinigt): OK
+Sende Befehl: SETBURST,NC=22,NB=4,CS=0.4,BD=3.5,CY="BEAM",PL=0,SR=2,NS=2048,VR=2.5,DF=3,NPING=7,CH=0,VR5=2.5,ALTI=1,BT=0,DISV=0,ECHO=0,RAWALTI=1,ALTISTART=0.1,ALTIEND=21.2,HR=0,HR5=0
+Empfangene Daten (Rohdaten): 'OK\r\n'
+Bereinigte Antwort: 'OK'
+Alle erwarteten Antworten empfangen.
+Vollständige Antwort (bereinigt): OK
+Sende Befehl: SETWAVEPROC,EN=1,MOUNTHEIGHT=0.5,MODE="MLMST",BANDSEPFREQ=0.2,FREQSTART=0.02,FREQEND=0.99,FREQSTEP=0.01
+Empfangene Daten (Rohdaten): 'OK\r\n'
+Bereinigte Antwort: 'OK'
+Alle erwarteten Antworten empfangen.
+Vollständige Antwort (bereinigt): OK
+Sende Befehl: SETTMWAVE,EN=1,DF=501,TWAP=1,TEDS=1,TWBS=1,TFS=1,SO=1,FO=1,TWDR=1
+Empfangene Daten (Rohdaten): 'OK\r\n'
+Bereinigte Antwort: 'OK'
+Alle erwarteten Antworten empfangen.
+Vollständige Antwort (bereinigt): OK
+Sende Befehl: SAVE,ALL
+Empfangene Daten (Rohdaten): 'OK\r\n'
+Bereinigte Antwort: 'OK'
+Alle erwarteten Antworten empfangen.
+Vollständige Antwort (bereinigt): OK
+C:\prj\adcp-recorder\utils\adcp-data\fix_adcp.py:117: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+  ntp_time = datetime.utcfromtimestamp(posix_time)
+Aktuelle NTP-Zeit: 2026-03-02 13:13:52
+Sende Befehl: SETCLOCK,YEAR=2026,MONTH=3,DAY=2,HOUR=14,MINUTE=13,SECOND=52   
+Empfangene Daten (Rohdaten): 'OK\r\n'
+Bereinigte Antwort: 'OK'
+Alle erwarteten Antworten empfangen.
+Vollständige Antwort (bereinigt): OK
+Sende Befehl: START
+Empfangene Daten (Rohdaten): 'OK\r\n'
+Bereinigte Antwort: 'OK'
+Alle erwarteten Antworten empfangen.
+Vollständige Antwort (bereinigt): OK
+Warte 30 Sekunden bis Ende
