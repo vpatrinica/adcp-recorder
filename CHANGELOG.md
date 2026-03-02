@@ -7,9 +7,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-- Directional spectrum polar plots for wave analysis
+## [0.2.8] - 2026-03-02
 
-## [0.2.6] - 2026-02-23
+### Fixed
+
+- **E2E Test Stability**: Refactored `test_full_pipeline_e2e` and `test_throughput_performance` to use `threading.Event` for mock completion signaling, preventing infinite loops and reducing timeouts.
+- **Database Contention**: Updated tests to use the recorder's internal `DatabaseManager` to avoid DuckDB write-lock contention on Windows.
+- **Code Coverage**: Achieved 100% test coverage for `adcp_recorder/serial/consumer.py` by adding a targeted test for the `CHECKPOINT` failure path.
+- **Code Quality**: Fixed unused imports, type annotations, and formatted new test files with Ruff.
+
+## [0.2.7] - 2026-03-02
+
+### Fixed
+
+- **Parquet Writer**: Achieved 100% test coverage for `adcp_recorder/export/parquet_writer.py` by adding tests for retry logic and error handling.
+- **Installer**: Restored missing dependencies and services in `install-windows.bat`.
+- **E2E Tests**: Fixed flakiness in `test_reconnect_scenario` related to DuckDB visibility and mock timing.
 
 ### Fixed
 
