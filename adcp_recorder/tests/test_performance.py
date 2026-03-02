@@ -1,4 +1,5 @@
 import tempfile
+import threading
 import time
 from pathlib import Path
 from unittest.mock import patch
@@ -29,6 +30,7 @@ class BulkMockSerial:
         self.sentences = sentences
         self._ptr = 0
         self.delay = delay
+        self.done = threading.Event()
 
     def readline(self):
         if self._ptr < len(self.sentences):
@@ -37,6 +39,7 @@ class BulkMockSerial:
             if self.delay > 0:
                 time.sleep(self.delay)
             return line
+        self.done.set()
         time.sleep(0.1)
         return b""
 
@@ -67,36 +70,37 @@ def test_throughput_performance():
             serial_port="/dev/ttyPerf", output_dir=str(tmp_dir), db_path=str(db_path)
         )
 
-        with patch("serial.Serial", return_value=BulkMockSerial(sentences)):
+        mock_serial = BulkMockSerial(sentences)
+        with patch("serial.Serial", return_value=mock_serial):
             recorder = AdcpRecorder(config)
 
             start_time = time.time()
             recorder.start()
 
-            # Wait for processing
-            # Wait for processing
-            db = DatabaseManager(str(db_path))
+            # Wait for the mock serial to signal that all lines have been read
+            assert mock_serial.done.wait(timeout=10), "MockSerial lines were never fully consumed"
+
+            # Give the consumer time to process all queued items
+            time.sleep(2.0)
+            end_time = time.time()
+
+            # Use the recorder's own db_manager
+            db = recorder.db_manager
+            conn = db.get_connection()
+
+            processed = False
+            count = 0
             try:
-                conn = db.get_connection()
+                # Force a checkpoint so data is visible
+                try:
+                    conn.execute("CHECKPOINT;")
+                except Exception:
+                    pass
 
-                max_wait = 10.0
-                processed = False
-                count = 0
-                while time.time() - start_time < max_wait:
-                    try:
-                        res = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()
-                        if res is not None and res[0] >= 48:
-                            processed = True
-                            break
-                    except Exception:
-                        pass
-                    time.sleep(0.5)
-
-                end_time = time.time()
-                recorder.stop()
-
-                duration = end_time - start_time
-                throughput = len(sentences) / duration
+                res = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()
+                count = res[0] if res else 0
+                if count >= 48:
+                    processed = True
 
                 if not processed:
                     c1 = conn.execute("SELECT count(*) FROM raw_lines").fetchone()
@@ -112,15 +116,20 @@ def test_throughput_performance():
                     )
                     for e in errors:
                         print(f"Error: {e}")
-
-                print(
-                    f"\nThroughput: {throughput:.2f} messages/sec "
-                    f"(Duration: {duration:.2f}s, Count: {count})"
-                )
             finally:
-                db.close()
+                recorder.stop()
+                # Give Windows extra time to release file locks
+                time.sleep(1.0)
 
-            assert processed, f"Timed out after {max_wait}s. Only {count} records found."
+            duration = end_time - start_time
+            throughput = len(sentences) / duration
+
+            print(
+                f"\nThroughput: {throughput:.2f} messages/sec "
+                f"(Duration: {duration:.2f}s, Count: {count})"
+            )
+
+            assert processed, f"Only {count} records found. Expected at least 48."
             # Baseline expectation for individual commits: > 1 msg/s
             assert throughput > 1.0, f"Throughput too low: {throughput:.2f} msg/s"
 
@@ -143,40 +152,33 @@ def test_memory_stability():
             serial_port="/dev/ttyMem", output_dir=str(tmp_dir), db_path=str(db_path)
         )
 
-        with patch("serial.Serial", return_value=BulkMockSerial(sentences)):
+        mock_serial = BulkMockSerial(sentences)
+        with patch("serial.Serial", return_value=mock_serial):
             recorder = AdcpRecorder(config)
             try:
                 initial_mem = get_memory_usage_mb()
                 recorder.start()
 
-                # Monitor memory as it processes
-                start_time = time.time()
-                mem_readings = []
-                while time.time() - start_time < 20.0:
-                    mem_readings.append(get_memory_usage_mb())
-                    time.sleep(2.0)
+                # Wait for processed or timeout
+                mock_serial.done.wait(timeout=20)
+                # Give a moment for last records
+                time.sleep(2.0)
 
-                recorder.stop()
                 final_mem = get_memory_usage_mb()
-
                 mem_growth = final_mem - initial_mem
                 print(f"\nMemory growth: {mem_growth:.2f} MB")
 
                 # Should stay within reasonable bounds (<200MB growth for 500 msgs)
-                # Note: polars library loading adds ~100MB overhead, but this is a one-time cost
                 assert mem_growth < 200.0, (
                     f"Significant memory growth detected: {mem_growth:.2f} MB"
                 )
             finally:
-                # Ensure recorder is fully stopped and all resources released
                 if recorder:
                     recorder.stop()
-                recorder = None  # type: ignore[assignment] # Release reference
+                recorder = None  # type: ignore[assignment]
 
                 # On Windows, file handles may take time to release
-                # Force garbage collection and wait longer for threads to fully exit
                 import gc
-
                 gc.collect()
                 time.sleep(2.5)
 
