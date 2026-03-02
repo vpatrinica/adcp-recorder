@@ -179,6 +179,7 @@ def test_memory_stability():
 
                 # On Windows, file handles may take time to release
                 import gc
+
                 gc.collect()
                 time.sleep(2.5)
 
