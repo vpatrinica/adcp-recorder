@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
-import duckdb
 import pytest
 import serial
 
@@ -91,20 +90,27 @@ def test_full_pipeline_e2e(temp_recorder_dir):
             # Wait for all lines to be consumed by the producer
             assert mock_instance.done.wait(timeout=10), "MockSerial lines were never fully consumed"
 
-            # Give the consumer time to process all queued items
-            time.sleep(2.0)
-
             # Use the recorder's own db_manager to avoid DuckDB write-lock contention
             db = recorder.db_manager
             conn = db.get_connection()
 
-            # Force a checkpoint so data is visible
-            try:
-                conn.execute("CHECKPOINT;")
-            except Exception:
-                pass
+            # Poll for data visibility (robust for slow CI/Windows)
+            max_wait = 10.0
+            poll_start = time.time()
+            found = False
+            while time.time() - poll_start < max_wait:
+                try:
+                    conn.execute("CHECKPOINT;")
+                    c1 = conn.execute("SELECT count(*) FROM pnori").fetchone()
+                    if c1 and c1[0] >= 1:
+                        found = True
+                        break
+                    conn.rollback()
+                except Exception:
+                    pass
+                time.sleep(0.5)
 
-            # Verify parsed data
+            # Verification logic
             c1 = conn.execute("SELECT count(*) FROM pnori").fetchone()
             c2 = conn.execute("SELECT count(*) FROM pnors_df100").fetchone()
             c3 = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()
@@ -114,6 +120,12 @@ def test_full_pipeline_e2e(temp_recorder_dir):
             count_pnors = c2[0] if c2 else 0
             count_pnorc = c3[0] if c3 else 0
             count_errors = c4[0] if c4 else 0
+
+            if not found:
+                print(
+                    f"\nFinal counts: pnori={count_pnori}, pnors={count_pnors}, "
+                    f"pnorc={count_pnorc}, errors={count_errors}"
+                )
 
             assert count_pnori >= 1, f"Expected PNORI records, got {count_pnori}"
             assert count_pnors >= 1, f"Expected PNORS records, got {count_pnors}"
@@ -203,12 +215,9 @@ def test_reconnect_scenario(temp_recorder_dir):
     with patch(
         "serial.Serial", side_effect=lambda **kwargs: StatefulMockSerial(instances, **kwargs)
     ):
-        # Target sleep mocks to avoid hitting the test's loop and speed up reconnection
-        with (
-            patch("adcp_recorder.serial.port_manager.time.sleep", return_value=None),
-            patch("adcp_recorder.serial.producer.time.sleep", return_value=None),
-            patch("adcp_recorder.serial.consumer.time.sleep", return_value=None),
-        ):
+        # Only patch reconnection sleep to avoid slowing down tests, but allow other sleeps
+        # to prevent GIL starvation
+        with patch("adcp_recorder.serial.port_manager.time.sleep", return_value=None):
             recorder = AdcpRecorder(config)
             try:
                 recorder.start()
@@ -220,21 +229,20 @@ def test_reconnect_scenario(temp_recorder_dir):
                 start_time = time.time()
                 found = False
 
-                # Use a fresh connection in each poll for better visibility on some platforms
+                # Use the recorder's DatabaseManager to check results
+                db = recorder.db_manager
+                conn = db.get_connection()
+
                 while time.time() - start_time < max_wait:
                     try:
-                        # Re-open or use a fresh connection if needed.
-                        # For DuckDB, fresh connections help cross-thread visibility.
-                        test_conn = duckdb.connect(str(db_path))
-                        try:
-                            # Force checkpoint to make consumer's commits visible
-                            test_conn.execute("CHECKPOINT;")
-                            res = test_conn.execute("SELECT head_id FROM pnori").fetchall()
-                            if len(res) >= 2:
-                                found = True
-                                break
-                        finally:
-                            test_conn.close()
+                        # Force checkpoint to make consumer's commits visible
+                        conn.execute("CHECKPOINT;")
+                        res = conn.execute("SELECT head_id FROM pnori").fetchall()
+                        if len(res) >= 2:
+                            found = True
+                            break
+                        # Rollback to ensure we don't hold a stale snapshot
+                        conn.rollback()
                     except Exception:
                         pass
 
@@ -242,13 +250,8 @@ def test_reconnect_scenario(temp_recorder_dir):
 
                 if not found:
                     # Get final state if failed
-                    test_conn = duckdb.connect(str(db_path))
-                    try:
-                        test_conn.execute("CHECKPOINT;")
-                        pnori = test_conn.execute("SELECT * FROM pnori").fetchall()
-                    finally:
-                        test_conn.close()
-
+                    conn.execute("CHECKPOINT;")
+                    pnori = conn.execute("SELECT * FROM pnori").fetchall()
                     pnori_count = len(pnori)
                     recorder.stop()
                     assert found, (
@@ -256,17 +259,12 @@ def test_reconnect_scenario(temp_recorder_dir):
                         f"Instances created: {len(instances)}"
                     )
 
-                # Double check content with a final connection
-                final_conn = duckdb.connect(str(db_path))
-                try:
-                    res = final_conn.execute(
-                        "SELECT head_id FROM pnori ORDER BY head_id"
-                    ).fetchall()
-                    ids = [r[0] for r in res]
-                    assert "2001" in ids
-                    assert "AfterReconnect" in ids
-                finally:
-                    final_conn.close()
+                # Double check content
+                conn.execute("CHECKPOINT;")
+                res = conn.execute("SELECT head_id FROM pnori ORDER BY head_id").fetchall()
+                ids = [r[0] for r in res]
+                assert "2001" in ids
+                assert "AfterReconnect" in ids
             finally:
                 recorder.stop()
                 # Give some extra time for Windows to release file locks before fixture cleanup
