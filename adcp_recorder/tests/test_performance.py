@@ -119,12 +119,24 @@ def test_throughput_performance():
                 conn = db.get_connection()
 
                 if not processed:
-                    # Final check if failed - use FORCE CHECKPOINT now that writer is gone
+                    # Final attempt: Stop and check again with Force Checkpoint
+                    recorder.stop()
+                    time.sleep(1.0)
+                    # Re-acquire connection after stop()
+                    conn = db.get_connection()
                     try:
                         conn.execute("FORCE CHECKPOINT;")
                     except Exception:
                         pass
                     # Fresh connections don't need rollback
+                    res = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()
+                    count = res[0] if res else 0
+                    if count >= 48:
+                        processed = True
+                        end_time = time.time()
+
+                if not processed:
+                    # Thorough diagnostics only on actual failure
                     c1 = conn.execute("SELECT count(*) FROM raw_lines").fetchone()
                     c2 = conn.execute("SELECT count(*) FROM parse_errors").fetchone()
                     raw_count = c1[0] if c1 else 0

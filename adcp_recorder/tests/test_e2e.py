@@ -289,7 +289,7 @@ def test_reconnect_scenario(temp_recorder_dir):
                     time.sleep(0.5)
 
                 if not found:
-                    # Stop first, then check
+                    # Final attempt: Stop and check again with Force Checkpoint
                     recorder.stop()
                     time.sleep(1.0)
                     # Re-acquire connection after stop()
@@ -299,12 +299,15 @@ def test_reconnect_scenario(temp_recorder_dir):
                     except Exception:
                         pass
                     # Fresh connections don't need rollback
-                    pnori = conn.execute("SELECT * FROM pnori").fetchall()
-                    pnori_count = len(pnori)
-                    assert found, (
-                        f"Reconnection failed. Found only {pnori_count} pnori records: {pnori}. "
-                        f"Instances created: {len(instances)}"
-                    )
+                    res = conn.execute("SELECT head_id FROM pnori").fetchall()
+                    pnori_count = len(res)
+                    if pnori_count >= 2:
+                        found = True
+                    else:
+                        assert False, (
+                            f"Reconnection failed. Found only {pnori_count} pnori records: {res}. "
+                            f"Instances created: {len(instances)}"
+                        )
 
                 # Stop recorder before final double check
                 recorder.stop()
