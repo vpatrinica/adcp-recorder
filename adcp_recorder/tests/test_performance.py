@@ -4,6 +4,8 @@ import time
 from pathlib import Path
 from unittest.mock import patch
 
+import duckdb
+
 from adcp_recorder.config import RecorderConfig
 from adcp_recorder.core.nmea import compute_checksum
 from adcp_recorder.core.recorder import AdcpRecorder
@@ -72,82 +74,81 @@ def test_throughput_performance():
 
         mock_serial = BulkMockSerial(sentences)
         with patch("serial.Serial", return_value=mock_serial):
-            recorder = AdcpRecorder(config)
-
-            start_time = time.time()
-            recorder.start()
-
-            # Wait for the mock serial to signal that all lines have been read
-            assert mock_serial.done.wait(timeout=10), "MockSerial lines were never fully consumed"
-
-            # Poll until all records are processed (up to 10s) instead of fixed sleep
-            db = recorder.db_manager
-            conn = db.get_connection()
-            poll_start = time.time()
-            while time.time() - poll_start < 10.0:
+            # Patch time.sleep in producer and consumer to speed up tests on Windows
+            with (
+                patch("adcp_recorder.serial.producer.time.sleep", return_value=None),
+                patch("adcp_recorder.serial.consumer.time.sleep", return_value=None),
+            ):
+                recorder = AdcpRecorder(config)
                 try:
-                    conn.execute("CHECKPOINT;")
-                except Exception:
-                    pass
-                try:
-                    res = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()
-                    if res and res[0] >= 48:
-                        break
-                except Exception:
-                    pass
-                try:
-                    conn.rollback()
-                except Exception:
-                    pass
-                time.sleep(0.5)
-            end_time = time.time()
+                    start_time = time.time()
+                    recorder.start()
 
-            # Re-checkpoint for final read
-
-            processed = False
-            count = 0
-            try:
-                # Force a checkpoint so data is visible
-                try:
-                    conn.execute("CHECKPOINT;")
-                except Exception:
-                    pass
-
-                res = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()
-                count = res[0] if res else 0
-                if count >= 48:
-                    processed = True
-
-                if not processed:
-                    c1 = conn.execute("SELECT count(*) FROM raw_lines").fetchone()
-                    c2 = conn.execute("SELECT count(*) FROM parse_errors").fetchone()
-                    raw_count = c1[0] if c1 else 0
-                    error_count = c2[0] if c2 else 0
-                    errors = conn.execute(
-                        "SELECT error_type, error_message FROM parse_errors LIMIT 5"
-                    ).fetchall()
-                    print(
-                        f"\nTarget count not reached. raw_lines={raw_count}, "
-                        f"parse_errors={error_count}"
+                    # Wait for the mock serial to signal that all lines have been read
+                    assert mock_serial.done.wait(timeout=10), (
+                        "MockSerial lines were never fully consumed"
                     )
-                    for e in errors:
-                        print(f"Error: {e}")
-            finally:
-                recorder.stop()
-                # Give Windows extra time to release file locks
-                time.sleep(1.0)
 
-            duration = end_time - start_time
-            throughput = len(sentences) / duration
+                    # Poll until all records are processed (up to 10s) instead of fixed sleep
+                    poll_start = time.time()
+                    processed = False
+                    count = 0
+                    while time.time() - poll_start < 10.0:
+                        try:
+                            # Use a fresh connection for each poll to ensure visibility
+                            test_conn = duckdb.connect(str(db_path))
+                            try:
+                                test_conn.execute("CHECKPOINT;")
+                                res = test_conn.execute(
+                                    "SELECT count(*) FROM pnorc_df100"
+                                ).fetchone()
+                                count = res[0] if res else 0
+                                if count >= 48:
+                                    processed = True
+                                    break
+                            finally:
+                                test_conn.close()
+                        except Exception:
+                            pass
+                        time.sleep(0.5)
+                    end_time = time.time()
 
-            print(
-                f"\nThroughput: {throughput:.2f} messages/sec "
-                f"(Duration: {duration:.2f}s, Count: {count})"
-            )
+                    if not processed:
+                        # Final check if failed
+                        test_conn = duckdb.connect(str(db_path))
+                        try:
+                            test_conn.execute("CHECKPOINT;")
+                            c1 = test_conn.execute("SELECT count(*) FROM raw_lines").fetchone()
+                            c2 = test_conn.execute("SELECT count(*) FROM parse_errors").fetchone()
+                            raw_count = c1[0] if c1 else 0
+                            error_count = c2[0] if c2 else 0
+                            errors = test_conn.execute(
+                                "SELECT error_type, error_message FROM parse_errors LIMIT 5"
+                            ).fetchall()
+                            print(
+                                f"\nTarget count not reached. raw_lines={raw_count}, "
+                                f"parse_errors={error_count}"
+                            )
+                            for e in errors:
+                                print(f"Error: {e}")
+                        finally:
+                            test_conn.close()
 
-            assert processed, f"Only {count} records found. Expected at least 48."
-            # Baseline expectation for individual commits: > 1 msg/s
-            assert throughput > 1.0, f"Throughput too low: {throughput:.2f} msg/s"
+                    duration = end_time - start_time
+                    throughput = len(sentences) / duration
+
+                    print(
+                        f"\nThroughput: {throughput:.2f} messages/sec "
+                        f"(Duration: {duration:.2f}s, Count: {count})"
+                    )
+
+                    assert processed, f"Only {count} records found. Expected at least 48."
+                    # Baseline expectation for individual commits: > 1 msg/s
+                    assert throughput > 1.0, f"Throughput too low: {throughput:.2f} msg/s"
+                finally:
+                    recorder.stop()
+                    # Give Windows extra time to release file locks
+                    time.sleep(1.0)
 
 
 def test_memory_stability():
