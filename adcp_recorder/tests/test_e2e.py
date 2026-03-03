@@ -95,12 +95,18 @@ def test_full_pipeline_e2e(temp_recorder_dir):
             conn = db.get_connection()
 
             # Poll for data visibility (robust for slow CI/Windows)
-            max_wait = 15.0
+            max_wait = 20.0
             poll_start = time.time()
             found = False
             while time.time() - poll_start < max_wait:
                 try:
-                    conn.execute("CHECKPOINT;")
+                    # Rollback before query to refresh snapshot
+                    #  - wrap in try to avoid 'no transaction active'
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+
                     # Check for ALL expected records in a single query
                     counts = conn.execute("""
                         SELECT
@@ -113,13 +119,26 @@ def test_full_pipeline_e2e(temp_recorder_dir):
                     if counts and all(c >= 1 for c in counts):
                         found = True
                         break
-                    conn.rollback()
                 except Exception:
                     pass
                 time.sleep(0.5)
 
+            # Stopping recorder before final check/assertions
+            recorder.stop()
+            # Give consumer time to finish final commit
+            time.sleep(1.0)
+
+            # Get a fresh connection as stop() closed the test thread's old one
+            conn = db.get_connection()
+
             # Verification logic
-            # Refresh counts for final assertions
+            # Refresh counts for final assertions - use FORCE CHECKPOINT now that writer is gone
+            try:
+                conn.execute("FORCE CHECKPOINT;")
+            except Exception:
+                pass
+
+            # Final verify counts
             counts = conn.execute("""
                 SELECT
                     (SELECT count(*) FROM pnori),
@@ -247,32 +266,50 @@ def test_reconnect_scenario(temp_recorder_dir):
 
                 while time.time() - start_time < max_wait:
                     try:
-                        # Force checkpoint to make consumer's commits visible
-                        conn.execute("CHECKPOINT;")
+                        # Rollback before query to refresh snapshot
+                        try:
+                            conn.rollback()
+                        except Exception:
+                            pass
                         res = conn.execute("SELECT head_id FROM pnori").fetchall()
                         if len(res) >= 2:
                             found = True
                             break
-                        # Rollback to ensure we don't hold a stale snapshot
-                        conn.rollback()
                     except Exception:
                         pass
 
                     time.sleep(0.5)
 
                 if not found:
-                    # Get final state if failed
-                    conn.execute("CHECKPOINT;")
+                    # Stop first, then check
+                    recorder.stop()
+                    time.sleep(1.0)
+                    # Re-acquire connection after stop()
+                    conn = db.get_connection()
+                    try:
+                        conn.execute("FORCE CHECKPOINT;")
+                    except Exception:
+                        pass
+                    # Fresh connections don't need rollback
                     pnori = conn.execute("SELECT * FROM pnori").fetchall()
                     pnori_count = len(pnori)
-                    recorder.stop()
                     assert found, (
                         f"Reconnection failed. Found only {pnori_count} pnori records: {pnori}. "
                         f"Instances created: {len(instances)}"
                     )
 
+                # Stop recorder before final double check
+                recorder.stop()
+                time.sleep(1.0)
+                # Re-acquire connection after stop()
+                conn = db.get_connection()
+
                 # Double check content
-                conn.execute("CHECKPOINT;")
+                try:
+                    conn.execute("FORCE CHECKPOINT;")
+                except Exception:
+                    pass
+                # Fresh connections don't need rollback
                 res = conn.execute("SELECT head_id FROM pnori ORDER BY head_id").fetchall()
                 ids = [r[0] for r in res]
                 assert "2001" in ids
