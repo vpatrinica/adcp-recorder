@@ -95,14 +95,22 @@ def test_full_pipeline_e2e(temp_recorder_dir):
             conn = db.get_connection()
 
             # Poll for data visibility (robust for slow CI/Windows)
-            max_wait = 10.0
+            max_wait = 15.0
             poll_start = time.time()
             found = False
             while time.time() - poll_start < max_wait:
                 try:
                     conn.execute("CHECKPOINT;")
-                    c1 = conn.execute("SELECT count(*) FROM pnori").fetchone()
-                    if c1 and c1[0] >= 1:
+                    # Check for ALL expected records in a single query
+                    counts = conn.execute("""
+                        SELECT
+                            (SELECT count(*) FROM pnori),
+                            (SELECT count(*) FROM pnors_df100),
+                            (SELECT count(*) FROM pnorc_df100),
+                            (SELECT count(*) FROM parse_errors)
+                    """).fetchone()
+
+                    if counts and all(c >= 1 for c in counts):
                         found = True
                         break
                     conn.rollback()
@@ -111,15 +119,19 @@ def test_full_pipeline_e2e(temp_recorder_dir):
                 time.sleep(0.5)
 
             # Verification logic
-            c1 = conn.execute("SELECT count(*) FROM pnori").fetchone()
-            c2 = conn.execute("SELECT count(*) FROM pnors_df100").fetchone()
-            c3 = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()
-            c4 = conn.execute("SELECT count(*) FROM parse_errors").fetchone()
+            # Refresh counts for final assertions
+            counts = conn.execute("""
+                SELECT
+                    (SELECT count(*) FROM pnori),
+                    (SELECT count(*) FROM pnors_df100),
+                    (SELECT count(*) FROM pnorc_df100),
+                    (SELECT count(*) FROM parse_errors)
+            """).fetchone()
 
-            count_pnori = c1[0] if c1 else 0
-            count_pnors = c2[0] if c2 else 0
-            count_pnorc = c3[0] if c3 else 0
-            count_errors = c4[0] if c4 else 0
+            count_pnori = counts[0] if counts else 0
+            count_pnors = counts[1] if counts else 0
+            count_pnorc = counts[2] if counts else 0
+            count_errors = counts[3] if counts else 0
 
             if not found:
                 print(
