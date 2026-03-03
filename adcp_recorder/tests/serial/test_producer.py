@@ -288,3 +288,25 @@ class TestSerialProducer:
 
         assert isinstance(item, BinaryChunk)
         assert item.data == invalid_data
+
+    def test_read_loop_handles_serial_exception_during_read(self):
+        """Test that read loop handles SerialException during read_line."""
+        import serial
+
+        manager = Mock(spec=SerialConnectionManager)
+        manager.is_connected.return_value = True
+
+        # Raise SerialException once, then return empty bytes
+        manager.read_line.side_effect = itertools.chain(
+            [serial.SerialException("Read error")], itertools.repeat(b"")
+        )
+
+        queue: Queue[Any] = Queue(maxsize=100)
+        producer = SerialProducer(manager, queue)
+
+        producer.start()
+        time.sleep(0.2)
+        producer.stop()
+
+        # Should have called disconnect on the manager
+        assert manager.disconnect.called

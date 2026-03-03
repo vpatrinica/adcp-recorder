@@ -1,3 +1,4 @@
+import logging
 import tempfile
 import threading
 import time
@@ -10,6 +11,8 @@ import serial
 
 from adcp_recorder.config import RecorderConfig
 from adcp_recorder.core.recorder import AdcpRecorder
+
+logger = logging.getLogger(__name__)
 
 
 class MockSerial:
@@ -217,17 +220,17 @@ def test_reconnect_scenario(temp_recorder_dir):
                 found = False
                 while time.time() - start_time < max_wait:
                     try:
-                        # Force a refresh of the connection state on Windows
-                        try:
-                            conn.rollback()
-                        except Exception:
-                            pass
-
                         # Check both messages
                         res = conn.execute("SELECT head_id FROM pnori").fetchall()
                         if len(res) >= 2:
                             found = True
                             break
+
+                        # Rollback to ensure we don't hold a stale snapshot on some platforms
+                        try:
+                            conn.rollback()
+                        except Exception:
+                            pass
                     except Exception:
                         pass
 
@@ -235,11 +238,16 @@ def test_reconnect_scenario(temp_recorder_dir):
 
                 if not found:
                     # Get final state if failed
+                    try:
+                        conn.execute("CHECKPOINT;")
+                    except Exception:
+                        pass
                     pnori = conn.execute("SELECT * FROM pnori").fetchall()
                     pnori_count = len(pnori)
                     recorder.stop()
                     assert found, (
-                        f"Reconnection failed. Found only {pnori_count} pnori records: {pnori}"
+                        f"Reconnection failed. Found only {pnori_count} pnori records: {pnori}. "
+                        f"Instances created: {len(instances)}"
                     )
 
                 # Double check content

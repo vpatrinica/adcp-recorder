@@ -9,6 +9,8 @@ import threading
 import time
 from queue import Full, Queue
 
+import serial
+
 from adcp_recorder.core.nmea import is_binary_data
 from adcp_recorder.serial.binary_chunk import BinaryChunk
 from adcp_recorder.serial.port_manager import SerialConnectionManager
@@ -115,7 +117,12 @@ class SerialProducer:
                     continue
 
             # Read data
-            line_bytes = self._connection_manager.read_line(timeout=1.0)
+            try:
+                line_bytes = self._connection_manager.read_line(timeout=1.0)
+            except (serial.SerialException, OSError) as e:
+                logger.warning(f"Read error: {e}, triggering reconnection")
+                self._connection_manager.disconnect()
+                line_bytes = None
 
             if line_bytes is None:
                 # Timeout or error - continue
