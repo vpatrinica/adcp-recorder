@@ -82,15 +82,19 @@ def test_throughput_performance():
                     "MockSerial lines were never fully consumed"
                 )
 
-                # Poll until all records are processed (up to 20s) instead of fixed sleep
+                # Poll until all records are processed (up to 30s) instead of fixed sleep
                 poll_start = time.time()
                 processed = False
                 count = 0
                 db = recorder.db_manager
                 conn = db.get_connection()
 
-                while time.time() - poll_start < 20.0:
+                while time.time() - poll_start < 30.0:
                     try:
+                        # Periodically refresh connection to ensure snapshot visibility
+                        db.close()
+                        conn = db.get_connection()
+
                         # Rollback before query to refresh snapshot
                         #  - wrap in try to avoid 'no transaction active'
                         try:

@@ -95,11 +95,15 @@ def test_full_pipeline_e2e(temp_recorder_dir):
             conn = db.get_connection()
 
             # Poll for data visibility (robust for slow CI/Windows)
-            max_wait = 20.0
+            max_wait = 30.0
             poll_start = time.time()
             found = False
             while time.time() - poll_start < max_wait:
                 try:
+                    # Periodically refresh connection to ensure snapshot visibility
+                    db.close()
+                    conn = db.get_connection()
+
                     # Rollback before query to refresh snapshot
                     #  - wrap in try to avoid 'no transaction active'
                     try:
@@ -266,6 +270,10 @@ def test_reconnect_scenario(temp_recorder_dir):
 
                 while time.time() - start_time < max_wait:
                     try:
+                        # Periodically refresh connection to ensure snapshot visibility
+                        db.close()
+                        conn = db.get_connection()
+
                         # Rollback before query to refresh snapshot
                         try:
                             conn.rollback()
