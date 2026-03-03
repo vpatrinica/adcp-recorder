@@ -207,8 +207,8 @@ def test_reconnect_scenario(temp_recorder_dir):
             recorder = AdcpRecorder(config)
             try:
                 recorder.start()
-                # Give threads a moment to start
-                time.sleep(0.5)
+                # Give threads time to start and complete reconnect cycle
+                time.sleep(1.0)
 
                 # Use the recorder's DatabaseManager to check results
                 db = recorder.db_manager
@@ -221,6 +221,11 @@ def test_reconnect_scenario(temp_recorder_dir):
                 while time.time() - start_time < max_wait:
                     try:
                         # Check both messages
+                        # Force checkpoint to make consumer's commits visible
+                        try:
+                            conn.execute("CHECKPOINT;")
+                        except Exception:
+                            pass
                         res = conn.execute("SELECT head_id FROM pnori").fetchall()
                         if len(res) >= 2:
                             found = True

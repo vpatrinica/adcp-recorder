@@ -51,8 +51,8 @@ def test_throughput_performance():
     """Measure messages per second throughput using file-based DB."""
     # Generate 50 messages
     sentences = [
-        b"$PNORI,4,1001,4,20,0.20,1.00,0*34\r\n",
-        b"$PNORS,102115,090715,0,00000000,14.4,1523.0,275.9,15.7,2.3,0.0,22.45,0,0*3E\r\n",
+        b"$PNORI,4,1001,4,20,0.20,1.00,0*57\r\n",
+        b"$PNORS,102115,090715,0,00000000,14.4,1523.0,275.9,15.7,2.3,0.0,22.45,0,0*50\r\n",
     ]
     for i in range(1, 49):
         # PNORC: 19 fields
@@ -80,13 +80,29 @@ def test_throughput_performance():
             # Wait for the mock serial to signal that all lines have been read
             assert mock_serial.done.wait(timeout=10), "MockSerial lines were never fully consumed"
 
-            # Give the consumer time to process all queued items
-            time.sleep(2.0)
-            end_time = time.time()
-
-            # Use the recorder's own db_manager
+            # Poll until all records are processed (up to 10s) instead of fixed sleep
             db = recorder.db_manager
             conn = db.get_connection()
+            poll_start = time.time()
+            while time.time() - poll_start < 10.0:
+                try:
+                    conn.execute("CHECKPOINT;")
+                except Exception:
+                    pass
+                try:
+                    res = conn.execute("SELECT count(*) FROM pnorc_df100").fetchone()
+                    if res and res[0] >= 48:
+                        break
+                except Exception:
+                    pass
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                time.sleep(0.5)
+            end_time = time.time()
+
+            # Re-checkpoint for final read
 
             processed = False
             count = 0
