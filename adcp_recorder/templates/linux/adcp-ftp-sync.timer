@@ -1,0 +1,33 @@
+# ADCP FTP Sync — Systemd Timer Unit
+#
+# Triggers adcp-ftp-sync.service on a periodic schedule.
+#
+# Installation:
+#   1. Copy to /etc/systemd/system/adcp-ftp-sync.timer
+#   2. Run: sudo systemctl daemon-reload
+#   3. Run: sudo systemctl enable --now adcp-ftp-sync.timer
+#
+# Check status:
+#   systemctl list-timers adcp-ftp-sync.timer
+#   journalctl -u adcp-ftp-sync.service -f
+#
+
+[Unit]
+Description=ADCP FTP Sync Timer — periodic data upload
+Documentation=https://github.com/your-org/adcp-recorder
+
+[Timer]
+# First run 5 minutes after boot
+OnBootSec=5min
+
+# Repeat every 15 minutes
+OnUnitActiveSec=15min
+
+# Catch up on missed runs (e.g. after reboot)
+Persistent=true
+
+# Add some randomised delay to avoid thundering herd
+RandomizedDelaySec=30
+
+[Install]
+WantedBy=timers.target

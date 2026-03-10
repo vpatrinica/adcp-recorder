@@ -1,0 +1,65 @@
+# ADCP FTP Sync — Systemd Service Unit File
+#
+# Installation:
+#   1. Copy this file to /etc/systemd/system/adcp-ftp-sync.service
+#   2. Copy adcp-ftp-sync.timer to /etc/systemd/system/adcp-ftp-sync.timer
+#   3. Create /etc/adcp-ftp-sync.env with FTP credentials (see below)
+#   4. Run: sudo systemctl daemon-reload
+#   5. Run: sudo systemctl enable --now adcp-ftp-sync.timer
+#
+# Credential file /etc/adcp-ftp-sync.env (chmod 600):
+#   FTP_HOST=ftp.example.com
+#   FTP_USER=myuser
+#   FTP_PASS=secret
+#
+
+[Unit]
+Description=ADCP FTP Sync — mirror data to remote FTP server
+After=network-online.target
+Wants=network-online.target
+Documentation=https://github.com/your-org/adcp-recorder
+
+[Service]
+Type=oneshot
+
+# User and Group
+# IMPORTANT: Replace with your service user/group
+User=USER_NAME
+Group=GROUP_NAME
+
+# Working Directory
+WorkingDirectory=/var/lib/USER_NAME
+
+# Load FTP credentials from environment file
+# IMPORTANT: Create this file and chmod 600 it
+EnvironmentFile=/etc/adcp-ftp-sync.env
+
+# IMPORTANT: Replace with your virtual environment path
+Environment="PATH=/path/to/venv/bin:/usr/local/bin:/usr/bin:/bin"
+
+# Run the sync script
+# IMPORTANT: Replace with your actual paths
+ExecStart=/path/to/venv/bin/python3 /path/to/utils/ftp_sync.py \
+    --local-dir /path/to/data \
+    --remote-dir /adcp-upload
+
+# Allow up to 30 minutes for large syncs
+TimeoutStartSec=1800
+
+# Security Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+# Allow read access to data directory
+# IMPORTANT: Replace with your data directory path
+ReadOnlyPaths=/path/to/data
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=adcp-ftp-sync
+
+[Install]
+WantedBy=multi-user.target

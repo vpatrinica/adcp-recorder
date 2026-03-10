@@ -6,6 +6,13 @@ This directory contains various utility scripts for verification, debugging, and
 
 ### Scripts
 
+- **[ftp_sync.py](file:///c:/prj/adcp-recorder/utils/ftp_sync.py)**
+    - Rsync-like FTP mirror script. Uploads changed files from local `nmea/`, `db/`, and `parquet/` subdirectories to a remote FTP server.
+    - Supports CLI arguments and environment variables (`FTP_HOST`, `FTP_USER`, `FTP_PASS`) for credentials.
+    - Features: size-based change detection, glob exclusion patterns, dry-run mode, verbose logging.
+    - Usage: `python ftp_sync.py -H ftp.example.com -u user -p pass --dry-run`
+    - See also: systemd service/timer templates in `adcp_recorder/templates/linux/`.
+
 - **[verify_true_final_structure.py](file:///c:/prj/task/adcp-recorder/utils/verify_true_final_structure.py)**
     - A simulation script used to verify the consolidated storage structure for invalid records and binary blobs.
     - Confirms that `.dat` blobs go to `errors/binary/` and NMEA textual errors go to `errors/nmea/`.
